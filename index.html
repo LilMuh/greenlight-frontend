@@ -12,6 +12,15 @@
       <nav><a href="index.html">Tee times</a> · <a href="config.html">Watch config</a></nav>
     </header>
     <main>
+      <form id="filters">
+        <label>Date <input type="date" id="date" required /></label>
+        <label>Course
+          <select id="course">
+            <option value="">All courses</option>
+          </select>
+        </label>
+        <button type="submit">Search</button>
+      </form>
       <p id="status">Loading…</p>
       <ul id="results"></ul>
     </main>
