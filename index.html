@@ -4,26 +4,590 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GreenLight — Tee Times</title>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* --- Tee-time search page: self-contained styling from the imported design.
+         Mirrors config.html's approach so both pages share a look without a build step. --- */
+      .tt {
+        --green: oklch(58% 0.12 150);
+        --green-d: oklch(50% 0.12 150);
+        --green-soft: oklch(94% 0.03 150);
+        --green-ink: oklch(38% 0.12 150);
+        --ink: oklch(22% 0.01 95);
+        --ink2: oklch(30% 0.01 95);
+        --muted: oklch(48% 0.012 95);
+        --muted2: oklch(60% 0.012 95);
+        --line: oklch(90% 0.006 95);
+        --line2: oklch(94% 0.006 95);
+        --bg: oklch(98% 0.006 95);
+        --seg: oklch(95% 0.006 95);
+        --low: oklch(55% 0.14 35);
+        color-scheme: light;
+      }
+      .tt,
+      .tt * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+      }
+      .tt {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: "Manrope", system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      .tt a {
+        color: var(--green);
+      }
+      .tt a:hover {
+        color: var(--green-d);
+      }
+      .tt ::-webkit-scrollbar {
+        height: 6px;
+        width: 6px;
+      }
+      .tt ::-webkit-scrollbar-thumb {
+        background: oklch(85% 0.006 95);
+        border-radius: 3px;
+      }
+
+      /* Header */
+      .tt-header {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background: #fff;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 32px;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      .tt-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .tt-dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--green);
+        flex: none;
+      }
+      .tt-brand-text {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.2;
+      }
+      .tt-brand-text strong {
+        font-size: 16px;
+        font-weight: 800;
+      }
+      .tt-brand-text small {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .tt-head-right {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .tt-nav {
+        display: flex;
+        gap: 6px;
+      }
+      .tt-nav a {
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 12.5px;
+        font-weight: 700;
+        text-decoration: none;
+        background: #fff;
+        color: var(--ink);
+        border: 1px solid var(--line);
+        white-space: nowrap;
+      }
+      .tt-nav a.is-active {
+        background: var(--ink);
+        color: #fff;
+        border-color: var(--ink);
+      }
+      .tt-lang {
+        padding: 8px 16px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: #fff;
+        font-size: 12.5px;
+        font-weight: 700;
+        cursor: pointer;
+        color: var(--ink);
+        font-family: inherit;
+      }
+
+      /* Toolbar: date strip + players + period */
+      .tt-toolbar {
+        background: #fff;
+        border-bottom: 1px solid var(--line);
+        padding: 16px 32px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .tt-dates {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 2px;
+      }
+      .tt-date {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        min-width: 56px;
+        padding: 8px 6px;
+        border-radius: 10px;
+        background: #fff;
+        color: var(--ink);
+        cursor: pointer;
+        border: 1px solid var(--line);
+        flex: none;
+      }
+      .tt-date.is-active {
+        background: var(--green);
+        color: #fff;
+        border-color: var(--green);
+      }
+      .tt-date-top {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .tt-date.is-active .tt-date-top {
+        color: #fff;
+        opacity: 0.85;
+      }
+      .tt-date-num {
+        font-size: 17px;
+        font-weight: 700;
+        line-height: 1.1;
+      }
+      .tt-controls {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 20px;
+      }
+      .tt-control {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .tt-control-label {
+        font-size: 12.5px;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .tt-nums {
+        display: flex;
+        gap: 6px;
+      }
+      .tt-num {
+        width: 32px;
+        height: 32px;
+        border-radius: 7px;
+        border: 1px solid var(--line);
+        background: #fff;
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      .tt-num.is-active {
+        border-color: var(--green);
+        background: var(--green);
+        color: #fff;
+        font-weight: 700;
+      }
+      .tt-periods {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .tt-period {
+        padding: 8px 16px;
+        border-radius: 8px;
+        background: #fff;
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        border: 1px solid var(--line);
+        white-space: nowrap;
+        font-family: inherit;
+      }
+      .tt-period.is-active {
+        background: var(--green);
+        color: #fff;
+        font-weight: 600;
+        border-color: var(--green);
+      }
+
+      /* Body layout */
+      .tt-body {
+        flex: 1;
+        display: flex;
+        gap: 24px;
+        padding: 24px 32px;
+        max-width: 1400px;
+        margin: 0 auto;
+        width: 100%;
+      }
+
+      /* Sidebar */
+      .tt-sidebar {
+        width: 260px;
+        flex: none;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        align-self: flex-start;
+      }
+      .tt-filter-title {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .tt-section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .tt-section-title {
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .tt-course {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 6px 0;
+        cursor: pointer;
+      }
+      .tt-box {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        border: 1.5px solid oklch(80% 0.006 95);
+        background: #fff;
+        flex: none;
+        position: relative;
+      }
+      .tt-course.is-on .tt-box {
+        border-color: var(--green);
+        background: var(--green);
+      }
+      .tt-box::after {
+        content: "✓";
+        color: #fff;
+        font-size: 11px;
+        position: absolute;
+        top: -1px;
+        left: 1.5px;
+        display: none;
+      }
+      .tt-course.is-on .tt-box::after {
+        display: block;
+      }
+      .tt-course-name {
+        font-size: 13px;
+        color: var(--muted2);
+      }
+      .tt-course.is-on .tt-course-name {
+        color: var(--ink);
+      }
+      .tt-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .tt-chip-btn {
+        padding: 6px 14px;
+        border-radius: 999px;
+        background: #fff;
+        color: var(--muted);
+        font-size: 12.5px;
+        font-weight: 500;
+        cursor: pointer;
+        border: 1px solid var(--line);
+        font-family: inherit;
+      }
+      .tt-chip-btn.is-active {
+        background: var(--green-soft);
+        color: var(--green-ink);
+        font-weight: 600;
+        border-color: var(--green);
+      }
+      .tt-toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        cursor: pointer;
+        padding-top: 6px;
+        border-top: 1px solid var(--line2);
+      }
+      .tt-toggle-label {
+        font-size: 12.5px;
+        color: var(--ink2);
+      }
+      .tt-switch {
+        width: 34px;
+        height: 19px;
+        border-radius: 999px;
+        background: oklch(88% 0.006 95);
+        position: relative;
+        flex: none;
+        transition: background 0.15s;
+      }
+      .tt-switch.is-on {
+        background: var(--green);
+      }
+      .tt-switch-knob {
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        background: #fff;
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        transition: left 0.15s;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+      }
+      .tt-switch.is-on .tt-switch-knob {
+        left: 17px;
+      }
+
+      /* Main results */
+      .tt-main {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .tt-main-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      .tt-count {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .tt-sort {
+        display: flex;
+        gap: 4px;
+        background: var(--seg);
+        border-radius: 9px;
+        padding: 4px;
+      }
+      .tt-sort-btn {
+        padding: 6px 14px;
+        border-radius: 7px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 12.5px;
+        font-weight: 500;
+        cursor: pointer;
+        border: none;
+        font-family: inherit;
+      }
+      .tt-sort-btn.is-active {
+        background: var(--ink);
+        color: #fff;
+        font-weight: 600;
+      }
+      .tt-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .tt-card {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 20px 22px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .tt-card-row {
+        display: flex;
+        gap: 16px;
+      }
+      .tt-photo {
+        width: 96px;
+        height: 96px;
+        flex: none;
+        border-radius: 10px;
+        background: repeating-linear-gradient(
+          45deg,
+          oklch(95% 0.006 95),
+          oklch(95% 0.006 95) 8px,
+          oklch(92% 0.006 95) 8px,
+          oklch(92% 0.006 95) 16px
+        );
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      .tt-photo span {
+        font-family: ui-monospace, monospace;
+        font-size: 9.5px;
+        color: oklch(55% 0.012 95);
+      }
+      .tt-card-info {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .tt-card-name {
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .tt-card-sub {
+        font-size: 12px;
+        color: oklch(52% 0.012 95);
+      }
+      .tt-card-right {
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 8px;
+      }
+      .tt-price {
+        font-size: 19px;
+        font-weight: 800;
+      }
+      .tt-book {
+        padding: 8px 20px;
+        border-radius: 8px;
+        border: none;
+        background: var(--green);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      .tt-tees {
+        display: flex;
+        gap: 10px;
+        overflow-x: auto;
+        padding-top: 4px;
+      }
+      .tt-tee {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        padding: 8px 14px;
+        border-radius: 9px;
+        border: 1.5px solid var(--line);
+        background: #fff;
+        cursor: pointer;
+        flex: none;
+        min-width: 76px;
+      }
+      .tt-tee.is-on {
+        border-color: var(--green);
+        background: var(--green-soft);
+      }
+      .tt-tee-time {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+      }
+      .tt-tee-price {
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .tt-tee-slots {
+        font-size: 10.5px;
+        color: oklch(55% 0.012 95);
+      }
+      .tt-tee-slots.is-low {
+        color: var(--low);
+      }
+      .tt-empty {
+        padding: 60px 20px;
+        text-align: center;
+        color: oklch(52% 0.012 95);
+        font-size: 14px;
+        background: #fff;
+        border: 1px dashed oklch(88% 0.006 95);
+        border-radius: 12px;
+      }
+
+      /* Toast */
+      .tt-toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--ink);
+        color: #fff;
+        padding: 11px 22px;
+        border-radius: 9px;
+        font-size: 13px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        z-index: 50;
+      }
+
+      @media (max-width: 860px) {
+        .tt-body {
+          flex-wrap: wrap;
+        }
+        .tt-sidebar {
+          width: 100%;
+          order: 2;
+        }
+        .tt-main {
+          order: 1;
+          width: 100%;
+        }
+      }
+    </style>
   </head>
   <body>
-    <header>
-      <h1>GreenLight ⛳</h1>
-      <nav><a href="index.html">Tee times</a> · <a href="config.html">Watch config</a></nav>
-    </header>
-    <main>
-      <form id="filters">
-        <label>Date <input type="date" id="date" required /></label>
-        <label>Course
-          <select id="course">
-            <option value="">All courses</option>
-          </select>
-        </label>
-        <button type="submit">Search</button>
-      </form>
-      <p id="status">Loading…</p>
-      <ul id="results"></ul>
-    </main>
+    <div class="tt" id="app"><!-- rendered by main.js --></div>
     <script type="module" src="main.js"></script>
   </body>
 </html>
