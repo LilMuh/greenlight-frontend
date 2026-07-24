@@ -19,26 +19,27 @@ const FALLBACK_COURSES = [
 ];
 
 const SAMPLE_WATCHES = [
-  { id: "w1", courseIds: ["fraserview", "mccleery"], dateStart: "2026-08-01", dateEnd: "2026-08-15", period: "am", players: 2, maxPrice: 60, email: "you@example.com", active: true },
-  { id: "w2", courseIds: ["langara"], dateStart: "2026-07-25", dateEnd: "2026-07-31", period: "all", players: 4, maxPrice: 45, email: "you@example.com", active: false },
+  { id: "w1", courseIds: ["fraserview", "mccleery"], dateStart: "2026-08-01", dateEnd: "2026-08-15", timeStart: "06:00", timeEnd: "11:00", players: 2, maxPrice: 60, email: "you@example.com", active: true },
+  { id: "w2", courseIds: ["langara"], dateStart: "2026-07-25", dateEnd: "2026-07-31", timeStart: "06:00", timeEnd: "20:00", players: 4, maxPrice: 45, email: "you@example.com", active: false },
 ];
-
-const PERIODS = ["all", "am", "pm", "eve"];
 
 // Price slider bounds (CAD) — Vancouver municipal green fees sit ~$20–100.
 const PRICE_MIN = 20;
 const PRICE_MAX = 100;
 const PRICE_DEFAULT = 60;
 
+// Default watch time window: whole playable day.
+const TIME_START_DEFAULT = "06:00";
+const TIME_END_DEFAULT = "20:00";
+
 const S = {
   appName: "GreenLight", tagline: "Watch tee times, get notified",
   navQuery: "Search", navWatch: "Watch Alerts",
   coursesLabel: "Golf Courses", dateRangeLabel: "Date Range", rangeTo: "to",
-  periodLabel: "Time Window", playersLabel: "Players", maxPriceLabel: "Max Price",
+  timeRangeLabel: "Time Window", playersLabel: "Players", maxPriceLabel: "Max Price",
   emailLabel: "Notify Email", emailPlaceholder: "you@example.com",
   cancel: "Cancel", edit: "Edit", delete: "Delete",
   noWatches: "No watches yet — create one on the left.",
-  periods: { all: "All day", am: "Morning", pm: "Afternoon", eve: "Evening" },
   active: "Active", paused: "Paused",
   newTitle: "New Watch", editTitle: "Edit Watch",
   createBtn: "Create Watch", saveBtn: "Save",
@@ -58,7 +59,8 @@ const state = {
   formCourses: FALLBACK_COURSES.map((c) => c.id),
   formDateStart: "2026-07-25",
   formDateEnd: "2026-08-01",
-  formPeriod: "all",
+  formTimeStart: TIME_START_DEFAULT,
+  formTimeEnd: TIME_END_DEFAULT,
   formPlayers: 2,
   formMaxPrice: PRICE_DEFAULT,
   formEmail: "",
@@ -90,7 +92,8 @@ function normalizeWatch(w) {
     courseIds: (w.courseIds ?? w.courses ?? []).map(String),
     dateStart: w.dateStart ?? w.startDate ?? "",
     dateEnd: w.dateEnd ?? w.endDate ?? "",
-    period: PERIODS.includes(w.period) ? w.period : "all",
+    timeStart: w.timeStart ?? TIME_START_DEFAULT,
+    timeEnd: w.timeEnd ?? TIME_END_DEFAULT,
     players: Number(w.players ?? 2),
     maxPrice: Number(w.maxPrice ?? PRICE_DEFAULT),
     email: w.email ?? "",
@@ -112,7 +115,8 @@ function resetForm() {
   state.formCourses = state.courses.map((c) => c.id);
   state.formDateStart = "2026-07-25";
   state.formDateEnd = "2026-08-01";
-  state.formPeriod = "all";
+  state.formTimeStart = TIME_START_DEFAULT;
+  state.formTimeEnd = TIME_END_DEFAULT;
   state.formPlayers = 2;
   state.formMaxPrice = PRICE_DEFAULT;
   state.formEmail = "";
@@ -134,11 +138,6 @@ function render() {
     })
     .join("");
 
-  const periodPills = PERIODS.map(
-    (p) =>
-      `<button class="wa-pill${state.formPeriod === p ? " is-active" : ""}" data-act="period" data-val="${p}">${esc(s.periods[p])}</button>`
-  ).join("");
-
   const playerPills = [1, 2, 3, 4]
     .map(
       (n) =>
@@ -151,7 +150,7 @@ function render() {
       const coursesText = w.courseIds.map(courseName).join(", ");
       const chips = [
         `${w.dateStart} ~ ${w.dateEnd}`,
-        s.periods[w.period],
+        `${w.timeStart}–${w.timeEnd}`,
         `${w.players}${s.playerUnit}`,
         `≤$${w.maxPrice}`,
       ]
@@ -217,8 +216,12 @@ function render() {
         </div>
 
         <div class="wa-field">
-          <div class="wa-label">${esc(s.periodLabel)}</div>
-          <div class="wa-pills">${periodPills}</div>
+          <div class="wa-label">${esc(s.timeRangeLabel)}</div>
+          <div class="wa-daterow">
+            <input type="time" class="wa-date" id="wa-time-start" value="${esc(state.formTimeStart)}" />
+            <span class="wa-to">${esc(s.rangeTo)}</span>
+            <input type="time" class="wa-date" id="wa-time-end" value="${esc(state.formTimeEnd)}" />
+          </div>
         </div>
 
         <div class="wa-field">
@@ -257,17 +260,21 @@ function render() {
   wireInputs();
 }
 
-// Text/date/range inputs commit on change (or live for the slider label) so a
-// re-render never clobbers what the user is typing.
+// Text/date/time/range inputs commit on change (or live for the slider label) so
+// a re-render never clobbers what the user is typing.
 function wireInputs() {
-  const start = document.getElementById("wa-date-start");
-  const end = document.getElementById("wa-date-end");
+  const dateStart = document.getElementById("wa-date-start");
+  const dateEnd = document.getElementById("wa-date-end");
+  const timeStart = document.getElementById("wa-time-start");
+  const timeEnd = document.getElementById("wa-time-end");
   const price = document.getElementById("wa-price");
   const priceVal = document.getElementById("wa-price-val");
   const email = document.getElementById("wa-email");
 
-  start.addEventListener("change", (e) => (state.formDateStart = e.target.value));
-  end.addEventListener("change", (e) => (state.formDateEnd = e.target.value));
+  dateStart.addEventListener("change", (e) => (state.formDateStart = e.target.value));
+  dateEnd.addEventListener("change", (e) => (state.formDateEnd = e.target.value));
+  timeStart.addEventListener("change", (e) => (state.formTimeStart = e.target.value));
+  timeEnd.addEventListener("change", (e) => (state.formTimeEnd = e.target.value));
   email.addEventListener("input", (e) => (state.formEmail = e.target.value));
   price.addEventListener("input", (e) => {
     state.formMaxPrice = parseInt(e.target.value, 10);
@@ -295,7 +302,8 @@ async function submitForm() {
     courseIds: [...state.formCourses],
     dateStart: state.formDateStart,
     dateEnd: state.formDateEnd,
-    period: state.formPeriod,
+    timeStart: state.formTimeStart,
+    timeEnd: state.formTimeEnd,
     players: state.formPlayers,
     maxPrice: state.formMaxPrice,
     email: state.formEmail,
@@ -323,7 +331,8 @@ function startEdit(id) {
   state.formCourses = [...w.courseIds];
   state.formDateStart = w.dateStart;
   state.formDateEnd = w.dateEnd;
-  state.formPeriod = w.period;
+  state.formTimeStart = w.timeStart;
+  state.formTimeEnd = w.timeEnd;
   state.formPlayers = w.players;
   state.formMaxPrice = w.maxPrice;
   state.formEmail = w.email;
@@ -365,10 +374,6 @@ app.addEventListener("click", (e) => {
   switch (act) {
     case "course":
       toggleFormCourse(id);
-      break;
-    case "period":
-      state.formPeriod = val;
-      render();
       break;
     case "players":
       state.formPlayers = parseInt(val, 10);
