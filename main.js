@@ -57,7 +57,8 @@ function buildDates() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const dates = [];
-  for (let index = 0; index < 10; index++) {
+  // 今天 + 后 7 天，共 8 天，和 scraper 的抓取范围对齐
+  for (let index = 0; index < 8; index++) {
     const date = new Date(today);
     date.setDate(today.getDate() + index);
     dates.push({ date, iso: toISO(date) });
