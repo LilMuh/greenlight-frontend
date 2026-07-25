@@ -1,21 +1,8 @@
 // Tee-time search page. Mirrors the imported "TeeTime Query" design, wired to
-// the tee-times API in api.js. Same philosophy as config.js: if the backend is
-// unreachable the page still renders against sample data, and every filter/sort
-// runs client-side over whatever tee times we managed to load.
+// the tee-times API in api.js. Data shown is only what the backend returns — if
+// it's unreachable the page shows an empty state and an offline notice rather
+// than any fabricated data. All filtering/sorting runs client-side.
 import { getHealth, getCourses, getTeeTimes } from "./api.js";
-
-// --- Sample data (offline fallback so the page is always demonstrable) -------
-// Real Vancouver courses + realistic CAD green fees, used only when the backend
-// can't be reached.
-
-const MOCK_COURSES = [
-  { id: "fraserview", name: "Fraserview Golf Course",
-    teeTimes: [ {time:"07:00",price:52,slots:6},{time:"09:20",price:48,slots:3},{time:"12:40",price:42,slots:8},{time:"15:50",price:34,slots:5},{time:"16:30",price:30,slots:9} ] },
-  { id: "langara", name: "Langara Golf Course",
-    teeTimes: [ {time:"06:50",price:50,slots:4},{time:"08:30",price:46,slots:1},{time:"11:10",price:44,slots:6},{time:"14:20",price:40,slots:3},{time:"17:00",price:28,slots:7} ] },
-  { id: "mccleery", name: "McCleery Golf Course",
-    teeTimes: [ {time:"07:00",price:55,slots:2},{time:"09:40",price:50,slots:5},{time:"12:30",price:46,slots:1},{time:"16:10",price:32,slots:6} ] },
-];
 
 const PERIODS = ["all", "am", "pm", "eve"];
 const PRICE_BUCKETS = ["all", "low", "mid", "high"];
@@ -23,7 +10,7 @@ const SORTS = ["rec", "price", "time"];
 
 // --- Copy -------------------------------------------------------------------
 
-const S = {
+const STRINGS = {
   appName: "GreenLight", tagline: "Find & book tee times near you",
   navQuery: "Search", navWatch: "Watch Alerts",
   playersLabel: "Players", periodLabel: "Time of day",
@@ -36,10 +23,10 @@ const S = {
   noResults: "No tee times match your filters.",
   loading: "Loading…", slotsLeft: " left", today: "Today",
   weekdays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
-  monthLabel: (m) => ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m],
-  countText: (c, t) => `Found ${c} courses, ${t} time slots`,
+  monthLabel: (monthIndex) => ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][monthIndex],
+  countText: (courseCount, slotCount) => `Found ${courseCount} courses, ${slotCount} time slots`,
   bookToast: (name) => "Redirecting to booking: " + name,
-  offline: "Backend offline — showing sample data.",
+  offline: "Backend offline — no data to show.",
 };
 
 // --- State ------------------------------------------------------------------
@@ -50,7 +37,7 @@ const state = {
   courses: [], // [{ id, name }]
   dayData: [], // tee times for the selected date: [{ id, name, teeTimes:[{time,price,slots}] }]
   dates: buildDates(),
-  selectedDateIdx: 0,
+  selectedDateIndex: 0,
   players: 2,
   period: "all",
   priceBucket: "all",
@@ -67,36 +54,36 @@ const app = document.getElementById("app");
 // --- Helpers ----------------------------------------------------------------
 
 function buildDates() {
-  const base = new Date();
-  base.setHours(0, 0, 0, 0);
-  const out = [];
-  for (let i = 0; i < 10; i++) {
-    const d = new Date(base);
-    d.setDate(base.getDate() + i);
-    out.push({ date: d, iso: toISO(d) });
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dates = [];
+  for (let index = 0; index < 10; index++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + index);
+    dates.push({ date, iso: toISO(date) });
   }
-  return out;
+  return dates;
 }
 
-function toISO(d) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+function toISO(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
-function esc(str) {
-  return String(str ?? "").replace(/[&<>"']/g, (ch) => ({
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-  }[ch]));
+  }[character]));
 }
 
 function periodMatch(time, period) {
   if (period === "all") return true;
-  const h = parseInt(String(time).split(":")[0], 10);
-  if (period === "am") return h < 11;
-  if (period === "pm") return h >= 11 && h < 15;
-  if (period === "eve") return h >= 15;
+  const hour = parseInt(String(time).split(":")[0], 10);
+  if (period === "am") return hour < 11;
+  if (period === "pm") return hour >= 11 && hour < 15;
+  if (period === "eve") return hour >= 15;
   return true;
 }
 
@@ -108,39 +95,39 @@ function priceMatch(price, bucket) {
   return true;
 }
 
-function showToast(msg, ms = 2200) {
-  state.toast = msg;
+function showToast(message, durationMs = 2200) {
+  state.toast = message;
   render();
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
     state.toast = "";
     render();
-  }, ms);
+  }, durationMs);
 }
 
 // Turn a flat /api/tee-times list into the design's per-course grouping. The
 // backend gives { courseId, course, time, price, ... }; slots may be missing,
 // so it degrades to null rather than breaking the card.
-function groupTeeTimes(list) {
-  const byCourse = new Map();
-  for (const tt of list || []) {
-    const key = String(tt.courseId ?? tt.course ?? "");
-    const known = state.courses.find((c) => c.id === key || c.name === key);
-    const id = known ? known.id : key;
-    if (!byCourse.has(id)) {
-      byCourse.set(id, {
-        id,
-        name: known ? known.name : String(tt.course ?? key),
+function groupTeeTimes(teeTimeList) {
+  const byCourseId = new Map();
+  for (const teeTime of teeTimeList || []) {
+    const courseKey = String(teeTime.courseId ?? teeTime.course ?? "");
+    const matchedCourse = state.courses.find((course) => course.id === courseKey || course.name === courseKey);
+    const courseId = matchedCourse ? matchedCourse.id : courseKey;
+    if (!byCourseId.has(courseId)) {
+      byCourseId.set(courseId, {
+        id: courseId,
+        name: matchedCourse ? matchedCourse.name : String(teeTime.course ?? courseKey),
         teeTimes: [],
       });
     }
-    byCourse.get(id).teeTimes.push({
-      time: tt.time,
-      price: Number(tt.price) || 0,
-      slots: tt.slots != null ? Number(tt.slots) : null,
+    byCourseId.get(courseId).teeTimes.push({
+      time: teeTime.time,
+      price: Number(teeTime.price) || 0,
+      slots: teeTime.slots != null ? Number(teeTime.slots) : null,
     });
   }
-  return [...byCourse.values()];
+  return [...byCourseId.values()];
 }
 
 // --- Data loading -----------------------------------------------------------
@@ -148,13 +135,13 @@ function groupTeeTimes(list) {
 async function loadDay() {
   state.loading = true;
   render();
-  const iso = state.dates[state.selectedDateIdx].iso;
+  const iso = state.dates[state.selectedDateIndex].iso;
   try {
-    const list = await getTeeTimes({ date: iso });
-    state.dayData = groupTeeTimes(list);
+    const teeTimeList = await getTeeTimes({ date: iso });
+    state.dayData = groupTeeTimes(teeTimeList);
   } catch {
     state.offline = true;
-    state.dayData = MOCK_COURSES; // demo data (not date-specific)
+    state.dayData = []; // backend down — show nothing, not fake data
   }
   state.loading = false;
   render();
@@ -164,25 +151,25 @@ async function loadDay() {
 
 function computeCards() {
   const cards = state.dayData
-    .filter((c) => !state.excludedCourseIds.includes(c.id))
-    .map((c) => {
-      const teeTimes = c.teeTimes.filter(
-        (tt) =>
-          periodMatch(tt.time, state.period) &&
-          priceMatch(tt.price, state.priceBucket) &&
-          (!state.onlyAvailable || tt.slots == null || tt.slots >= 3)
+    .filter((course) => !state.excludedCourseIds.includes(course.id))
+    .map((course) => {
+      const teeTimes = course.teeTimes.filter(
+        (teeTime) =>
+          periodMatch(teeTime.time, state.period) &&
+          priceMatch(teeTime.price, state.priceBucket) &&
+          (!state.onlyAvailable || teeTime.slots == null || teeTime.slots >= 3)
       );
-      return { c, teeTimes };
+      return { course, teeTimes };
     })
-    .filter((x) => x.teeTimes.length > 0);
+    .filter((card) => card.teeTimes.length > 0);
 
-  for (const x of cards) {
-    x.cheapest = Math.min(...x.teeTimes.map((tt) => tt.price));
-    x.earliest = x.teeTimes.map((tt) => tt.time).slice().sort()[0];
+  for (const card of cards) {
+    card.cheapest = Math.min(...card.teeTimes.map((teeTime) => teeTime.price));
+    card.earliest = card.teeTimes.map((teeTime) => teeTime.time).slice().sort()[0];
   }
 
-  if (state.sortBy === "price") cards.sort((a, b) => a.cheapest - b.cheapest);
-  else if (state.sortBy === "time") cards.sort((a, b) => a.earliest.localeCompare(b.earliest));
+  if (state.sortBy === "price") cards.sort((left, right) => left.cheapest - right.cheapest);
+  else if (state.sortBy === "time") cards.sort((left, right) => left.earliest.localeCompare(right.earliest));
   // "rec" keeps backend/source order.
 
   return cards;
@@ -191,65 +178,65 @@ function computeCards() {
 // --- Rendering --------------------------------------------------------------
 
 function render() {
-  const s = S;
+  const strings = STRINGS;
 
   const dates = state.dates
-    .map((d, i) => {
-      const on = i === state.selectedDateIdx;
-      const top = i === 0 ? s.today : s.weekdays[d.date.getDay()];
-      return `<div class="tt-date${on ? " is-active" : ""}" data-act="date" data-idx="${i}">
-        <span class="tt-date-top">${esc(top)}</span>
-        <span class="tt-date-num">${d.date.getDate()}</span>
-        <span class="tt-date-top">${esc(s.monthLabel(d.date.getMonth()))}</span>
+    .map((dateInfo, index) => {
+      const isActive = index === state.selectedDateIndex;
+      const label = index === 0 ? strings.today : strings.weekdays[dateInfo.date.getDay()];
+      return `<div class="tt-date${isActive ? " is-active" : ""}" data-act="date" data-idx="${index}">
+        <span class="tt-date-top">${escapeHtml(label)}</span>
+        <span class="tt-date-num">${dateInfo.date.getDate()}</span>
+        <span class="tt-date-top">${escapeHtml(strings.monthLabel(dateInfo.date.getMonth()))}</span>
       </div>`;
     })
     .join("");
 
   const players = [1, 2, 3, 4]
-    .map((n) => `<button class="tt-num${state.players === n ? " is-active" : ""}" data-act="players" data-val="${n}">${n}</button>`)
+    .map((count) => `<button class="tt-num${state.players === count ? " is-active" : ""}" data-act="players" data-val="${count}">${count}</button>`)
     .join("");
 
   const periods = PERIODS.map(
-    (p) => `<button class="tt-period${state.period === p ? " is-active" : ""}" data-act="period" data-val="${p}">${esc(s.periods[p])}</button>`
+    (period) => `<button class="tt-period${state.period === period ? " is-active" : ""}" data-act="period" data-val="${period}">${escapeHtml(strings.periods[period])}</button>`
   ).join("");
 
   const courseChecks = state.courses
-    .map((c) => {
-      const on = !state.excludedCourseIds.includes(c.id);
-      return `<div class="tt-course${on ? " is-on" : ""}" data-act="course" data-id="${esc(c.id)}">
+    .map((course) => {
+      const isIncluded = !state.excludedCourseIds.includes(course.id);
+      return `<div class="tt-course${isIncluded ? " is-on" : ""}" data-act="course" data-id="${escapeHtml(course.id)}">
         <span class="tt-box"></span>
-        <span class="tt-course-name">${esc(c.name)}</span>
+        <span class="tt-course-name">${escapeHtml(course.name)}</span>
       </div>`;
     })
     .join("");
 
   const priceChips = PRICE_BUCKETS.map(
-    (b) => `<button class="tt-chip-btn${state.priceBucket === b ? " is-active" : ""}" data-act="price" data-val="${b}">${esc(s.prices[b])}</button>`
+    (bucket) => `<button class="tt-chip-btn${state.priceBucket === bucket ? " is-active" : ""}" data-act="price" data-val="${bucket}">${escapeHtml(strings.prices[bucket])}</button>`
   ).join("");
 
   const sortTabs = SORTS.map(
-    (v) => `<button class="tt-sort-btn${state.sortBy === v ? " is-active" : ""}" data-act="sort" data-val="${v}">${esc(s.sorts[v])}</button>`
+    (sortOption) => `<button class="tt-sort-btn${state.sortBy === sortOption ? " is-active" : ""}" data-act="sort" data-val="${sortOption}">${escapeHtml(strings.sorts[sortOption])}</button>`
   ).join("");
 
   const cards = computeCards();
-  const totalSlots = cards.reduce((sum, x) => sum + x.teeTimes.length, 0);
+  const totalSlots = cards.reduce((total, card) => total + card.teeTimes.length, 0);
 
   let countText;
-  if (state.loading) countText = s.loading;
-  else countText = s.countText(cards.length, totalSlots);
+  if (state.loading) countText = strings.loading;
+  else countText = strings.countText(cards.length, totalSlots);
 
   const cardsHtml = cards
-    .map(({ c, teeTimes, cheapest }) => {
-      const tees = teeTimes
-        .map((tt) => {
-          const key = c.id + "|" + tt.time;
-          const on = state.selectedChip === key;
-          const low = tt.slots != null && tt.slots <= 2;
-          const slots = tt.slots != null ? `<span class="tt-tee-slots${low ? " is-low" : ""}">${tt.slots}${esc(s.slotsLeft)}</span>` : "";
-          return `<div class="tt-tee${on ? " is-on" : ""}" data-act="chip" data-key="${esc(key)}">
-            <span class="tt-tee-time">${esc(tt.time)}</span>
-            <span class="tt-tee-price">$${tt.price}</span>
-            ${slots}
+    .map(({ course, teeTimes, cheapest }) => {
+      const teeSlotsHtml = teeTimes
+        .map((teeTime) => {
+          const chipKey = course.id + "|" + teeTime.time;
+          const isSelected = state.selectedChip === chipKey;
+          const isLow = teeTime.slots != null && teeTime.slots <= 2;
+          const slotsHtml = teeTime.slots != null ? `<span class="tt-tee-slots${isLow ? " is-low" : ""}">${teeTime.slots}${escapeHtml(strings.slotsLeft)}</span>` : "";
+          return `<div class="tt-tee${isSelected ? " is-on" : ""}" data-act="chip" data-key="${escapeHtml(chipKey)}">
+            <span class="tt-tee-time">${escapeHtml(teeTime.time)}</span>
+            <span class="tt-tee-price">$${teeTime.price}</span>
+            ${slotsHtml}
           </div>`;
         })
         .join("");
@@ -257,14 +244,14 @@ function render() {
         <div class="tt-card-row">
           <div class="tt-photo"><span>course photo</span></div>
           <div class="tt-card-info">
-            <strong class="tt-card-name">${esc(c.name)}</strong>
+            <strong class="tt-card-name">${escapeHtml(course.name)}</strong>
           </div>
           <div class="tt-card-right">
             <div class="tt-price">from $${cheapest}</div>
-            <button class="tt-book" data-act="book" data-id="${esc(c.id)}">${esc(s.book)}</button>
+            <button class="tt-book" data-act="book" data-id="${escapeHtml(course.id)}">${escapeHtml(strings.book)}</button>
           </div>
         </div>
-        <div class="tt-tees">${tees}</div>
+        <div class="tt-tees">${teeSlotsHtml}</div>
       </div>`;
     })
     .join("");
@@ -273,21 +260,21 @@ function render() {
     ? ""
     : cards.length
     ? `<div class="tt-cards">${cardsHtml}</div>`
-    : `<div class="tt-empty">${esc(s.noResults)}</div>`;
+    : `<div class="tt-empty">${escapeHtml(strings.noResults)}</div>`;
 
   app.innerHTML = `
     <div class="tt-header">
       <div class="tt-brand">
         <span class="tt-dot"></span>
         <div class="tt-brand-text">
-          <strong>${esc(s.appName)}</strong>
-          <small>${esc(s.tagline)}</small>
+          <strong>${escapeHtml(strings.appName)}</strong>
+          <small>${escapeHtml(strings.tagline)}</small>
         </div>
       </div>
       <div class="tt-head-right">
         <div class="tt-nav">
-          <a href="index.html" class="is-active">${esc(s.navQuery)}</a>
-          <a href="config.html">${esc(s.navWatch)}</a>
+          <a href="index.html" class="is-active">${escapeHtml(strings.navQuery)}</a>
+          <a href="config.html">${escapeHtml(strings.navWatch)}</a>
         </div>
       </div>
     </div>
@@ -296,11 +283,11 @@ function render() {
       <div class="tt-dates">${dates}</div>
       <div class="tt-controls">
         <div class="tt-control">
-          <span class="tt-control-label">${esc(s.playersLabel)}</span>
+          <span class="tt-control-label">${escapeHtml(strings.playersLabel)}</span>
           <div class="tt-nums">${players}</div>
         </div>
         <div class="tt-control">
-          <span class="tt-control-label">${esc(s.periodLabel)}</span>
+          <span class="tt-control-label">${escapeHtml(strings.periodLabel)}</span>
           <div class="tt-periods">${periods}</div>
         </div>
       </div>
@@ -308,62 +295,66 @@ function render() {
 
     <div class="tt-body">
       <div class="tt-sidebar">
-        <div class="tt-filter-title">${esc(s.filterTitle)}</div>
+        <div class="tt-filter-title">${escapeHtml(strings.filterTitle)}</div>
         <div class="tt-section">
-          <div class="tt-section-title">${esc(s.courseFilterTitle)}</div>
+          <div class="tt-section-title">${escapeHtml(strings.courseFilterTitle)}</div>
           ${courseChecks || `<div class="tt-course-name">—</div>`}
         </div>
         <div class="tt-section">
-          <div class="tt-section-title">${esc(s.priceFilterTitle)}</div>
+          <div class="tt-section-title">${escapeHtml(strings.priceFilterTitle)}</div>
           <div class="tt-chips">${priceChips}</div>
         </div>
         <div class="tt-toggle-row" data-act="avail">
-          <span class="tt-toggle-label">${esc(s.availOnly)}</span>
+          <span class="tt-toggle-label">${escapeHtml(strings.availOnly)}</span>
           <div class="tt-switch${state.onlyAvailable ? " is-on" : ""}"><div class="tt-switch-knob"></div></div>
         </div>
       </div>
 
       <div class="tt-main">
         <div class="tt-main-head">
-          <span class="tt-count">${esc(countText)}</span>
+          <span class="tt-count">${escapeHtml(countText)}</span>
           <div class="tt-sort">${sortTabs}</div>
         </div>
         ${listBody}
       </div>
     </div>
 
-    ${state.toast ? `<div class="tt-toast">${esc(state.toast)}</div>` : ""}
+    ${state.toast ? `<div class="tt-toast">${escapeHtml(state.toast)}</div>` : ""}
   `;
 }
 
 // --- Event delegation -------------------------------------------------------
 
-app.addEventListener("click", (e) => {
-  const el = e.target.closest("[data-act]");
-  if (!el) return;
-  const { act, id, val, idx, key } = el.dataset;
-  switch (act) {
+app.addEventListener("click", (event) => {
+  const target = event.target.closest("[data-act]");
+  if (!target) return;
+  const action = target.dataset.act;
+  const id = target.dataset.id;
+  const value = target.dataset.val;
+  const index = target.dataset.idx;
+  const key = target.dataset.key;
+  switch (action) {
     case "date":
-      state.selectedDateIdx = parseInt(idx, 10);
+      state.selectedDateIndex = parseInt(index, 10);
       state.selectedChip = null;
       loadDay();
       break;
     case "players":
-      state.players = parseInt(val, 10);
+      state.players = parseInt(value, 10);
       render();
       break;
     case "period":
-      state.period = val;
+      state.period = value;
       render();
       break;
     case "course":
       state.excludedCourseIds = state.excludedCourseIds.includes(id)
-        ? state.excludedCourseIds.filter((x) => x !== id)
+        ? state.excludedCourseIds.filter((excludedId) => excludedId !== id)
         : [...state.excludedCourseIds, id];
       render();
       break;
     case "price":
-      state.priceBucket = val;
+      state.priceBucket = value;
       render();
       break;
     case "avail":
@@ -371,7 +362,7 @@ app.addEventListener("click", (e) => {
       render();
       break;
     case "sort":
-      state.sortBy = val;
+      state.sortBy = value;
       render();
       break;
     case "chip":
@@ -379,8 +370,9 @@ app.addEventListener("click", (e) => {
       render();
       break;
     case "book": {
-      const c = state.courses.find((x) => x.id === id) || state.dayData.find((x) => x.id === id);
-      showToast(S.bookToast(c ? c.name : id));
+      const course = state.courses.find((candidate) => candidate.id === id)
+        || state.dayData.find((candidate) => candidate.id === id);
+      showToast(STRINGS.bookToast(course ? course.name : id));
       break;
     }
   }
@@ -401,18 +393,16 @@ async function init() {
   try {
     const courses = await getCourses();
     if (Array.isArray(courses) && courses.length) {
-      state.courses = courses.map((c) => ({ id: String(c.id), name: c.name }));
+      // 用 slug 当标识：tee-time 的 courseId 也是 slug，两边好对应
+      state.courses = courses.map((course) => ({ id: course.slug, name: course.name }));
     }
   } catch {
     state.offline = true;
   }
-  if (!state.courses.length) {
-    state.courses = MOCK_COURSES.map(({ id, name }) => ({ id, name }));
-  }
 
   await loadDay();
 
-  if (state.offline) showToast(S.offline, 2600);
+  if (state.offline) showToast(STRINGS.offline, 2600);
 }
 
 init();

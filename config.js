@@ -1,27 +1,20 @@
 // Watch Alerts page. Mirrors the imported "Watch Alerts" design, wired to the
-// watch-config API in api.js. Follows main.js's philosophy: if the backend is
-// unreachable the page still works — it falls back to sample data so the UI is
-// demonstrable, and every write degrades to a local-only update.
+// watch-config API in api.js. Data shown (courses, existing watches) is only
+// what the backend returns — if it's unreachable the page shows an empty state
+// and an offline notice rather than any fabricated data.
+//
+// One watch = one course. Creating with several courses checked sends a single
+// batch request; the backend loops and returns one watch per course, so each
+// course becomes its own card. Editing a watch edits that one row (single course).
 import {
   getCourses,
   listWatchConfigs,
-  saveWatchConfig,
+  createWatchConfigs,
+  updateWatchConfig,
   deleteWatchConfig,
 } from "./api.js";
 
 // --- Static reference data --------------------------------------------------
-
-// Used only when the backend can't be reached, so the page still renders.
-const FALLBACK_COURSES = [
-  { id: "fraserview", name: "Fraserview Golf Course" },
-  { id: "langara", name: "Langara Golf Course" },
-  { id: "mccleery", name: "McCleery Golf Course" },
-];
-
-const SAMPLE_WATCHES = [
-  { id: "w1", courseIds: ["fraserview", "mccleery"], dateStart: "2026-08-01", dateEnd: "2026-08-15", timeStart: "06:00", timeEnd: "11:00", players: 2, maxPrice: 60, email: "you@example.com", active: true },
-  { id: "w2", courseIds: ["langara"], dateStart: "2026-07-25", dateEnd: "2026-07-31", timeStart: "06:00", timeEnd: "20:00", players: 4, maxPrice: 45, email: "you@example.com", active: false },
-];
 
 // Price slider bounds (CAD) — Vancouver municipal green fees sit ~$20–100.
 const PRICE_MIN = 20;
@@ -32,7 +25,7 @@ const PRICE_DEFAULT = 60;
 const TIME_START_DEFAULT = "06:00";
 const TIME_END_DEFAULT = "20:00";
 
-const S = {
+const STRINGS = {
   appName: "GreenLight", tagline: "Watch tee times, get notified",
   navQuery: "Search", navWatch: "Watch Alerts",
   coursesLabel: "Golf Courses", dateRangeLabel: "Date Range", rangeTo: "to",
@@ -45,18 +38,18 @@ const S = {
   createBtn: "Create Watch", saveBtn: "Save",
   needCourseEmail: "Pick a course and enter your email.",
   saved: "Watch saved.", deleted: "Watch deleted.",
-  offline: "Backend offline — changes are kept on this page only.",
+  offline: "Backend offline — please try again once it's up.",
   playerUnit: " players",
-  countText: (n) => `Watches: ${n}`,
+  countText: (watchCount) => `Watches: ${watchCount}`,
 };
 
 // --- State ------------------------------------------------------------------
 
 const state = {
   offline: false,
-  courses: FALLBACK_COURSES,
-  watches: [],
-  formCourses: FALLBACK_COURSES.map((c) => c.id),
+  courses: [], // [{ id: number, slug, name }]
+  watches: [], // [{ id, courseId, courseName, ... }]
+  formCourses: [], // selected course ids (numbers)
   formDateStart: "2026-07-25",
   formDateEnd: "2026-08-01",
   formTimeStart: TIME_START_DEFAULT,
@@ -73,46 +66,63 @@ const app = document.getElementById("app");
 
 // --- Helpers ----------------------------------------------------------------
 
-function esc(str) {
-  return String(str ?? "").replace(/[&<>"']/g, (ch) => ({
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-  }[ch]));
+  }[character]));
 }
 
-function courseName(id) {
-  const c = state.courses.find((x) => x.id === id);
-  return c ? c.name : id;
+function courseName(courseId) {
+  const match = state.courses.find((course) => course.id === courseId);
+  return match ? match.name : courseId;
 }
 
-// Backend records may not match the design's field names exactly; coerce them
-// into the shape the UI expects and fill in sensible defaults.
-function normalizeWatch(w) {
+// Coerce a backend watch record into the shape the UI expects. One watch holds a
+// single course (courseId + courseName come straight from the backend).
+function normalizeWatch(record) {
   return {
-    id: String(w.id ?? "w" + Date.now()),
-    courseIds: (w.courseIds ?? w.courses ?? []).map(String),
-    dateStart: w.dateStart ?? w.startDate ?? "",
-    dateEnd: w.dateEnd ?? w.endDate ?? "",
-    timeStart: w.timeStart ?? TIME_START_DEFAULT,
-    timeEnd: w.timeEnd ?? TIME_END_DEFAULT,
-    players: Number(w.players ?? 2),
-    maxPrice: Number(w.maxPrice ?? PRICE_DEFAULT),
-    email: w.email ?? "",
-    active: w.active !== false,
+    id: record.id,
+    courseId: record.courseId,
+    courseName: record.courseName ?? courseName(record.courseId),
+    dateStart: record.dateStart ?? "",
+    dateEnd: record.dateEnd ?? "",
+    timeStart: record.timeStart ?? TIME_START_DEFAULT,
+    timeEnd: record.timeEnd ?? TIME_END_DEFAULT,
+    players: Number(record.players ?? 2),
+    maxPrice: Number(record.maxPrice ?? PRICE_DEFAULT),
+    email: record.email ?? "",
+    active: record.active !== false,
   };
 }
 
-function showToast(msg, ms = 2000) {
-  state.toast = msg;
+// The payload shape the backend's PUT /{id} expects.
+function toDto(watch) {
+  return {
+    id: watch.id,
+    courseId: watch.courseId,
+    dateStart: watch.dateStart,
+    dateEnd: watch.dateEnd,
+    timeStart: watch.timeStart,
+    timeEnd: watch.timeEnd,
+    players: watch.players,
+    maxPrice: watch.maxPrice,
+    email: watch.email,
+    active: watch.active,
+  };
+}
+
+function showToast(message, durationMs = 2000) {
+  state.toast = message;
   render();
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
     state.toast = "";
     render();
-  }, ms);
+  }, durationMs);
 }
 
 function resetForm() {
-  state.formCourses = state.courses.map((c) => c.id);
+  state.formCourses = state.courses.map((course) => course.id);
   state.formDateStart = "2026-07-25";
   state.formDateEnd = "2026-08-01";
   state.formTimeStart = TIME_START_DEFAULT;
@@ -126,51 +136,50 @@ function resetForm() {
 // --- Rendering --------------------------------------------------------------
 
 function render() {
-  const s = S;
+  const strings = STRINGS;
 
   const courseRows = state.courses
-    .map((c) => {
-      const on = state.formCourses.includes(c.id);
-      return `<div class="wa-course${on ? " is-on" : ""}" data-act="course" data-id="${esc(c.id)}">
+    .map((course) => {
+      const isSelected = state.formCourses.includes(course.id);
+      return `<div class="wa-course${isSelected ? " is-on" : ""}" data-act="course" data-id="${escapeHtml(course.id)}">
         <span class="wa-box"></span>
-        <span class="wa-course-name">${esc(c.name)}</span>
+        <span class="wa-course-name">${escapeHtml(course.name)}</span>
       </div>`;
     })
     .join("");
 
   const playerPills = [1, 2, 3, 4]
     .map(
-      (n) =>
-        `<button class="wa-num${state.formPlayers === n ? " is-active" : ""}" data-act="players" data-val="${n}">${n}</button>`
+      (count) =>
+        `<button class="wa-num${state.formPlayers === count ? " is-active" : ""}" data-act="players" data-val="${count}">${count}</button>`
     )
     .join("");
 
   const cards = state.watches
-    .map((w) => {
-      const coursesText = w.courseIds.map(courseName).join(", ");
+    .map((watch) => {
       const chips = [
-        `${w.dateStart} ~ ${w.dateEnd}`,
-        `${w.timeStart}–${w.timeEnd}`,
-        `${w.players}${s.playerUnit}`,
-        `≤$${w.maxPrice}`,
+        `${watch.dateStart} ~ ${watch.dateEnd}`,
+        `${watch.timeStart}–${watch.timeEnd}`,
+        `${watch.players}${strings.playerUnit}`,
+        `≤$${watch.maxPrice}`,
       ]
-        .map((txt) => `<span class="wa-chip">${esc(txt)}</span>`)
+        .map((chipText) => `<span class="wa-chip">${escapeHtml(chipText)}</span>`)
         .join("");
       return `<div class="wa-card">
         <div class="wa-card-top">
           <div class="wa-card-head">
-            <strong>${esc(coursesText)}</strong>
-            <span class="wa-card-email">${esc(w.email)}</span>
+            <strong>${escapeHtml(watch.courseName)}</strong>
+            <span class="wa-card-email">${escapeHtml(watch.email)}</span>
           </div>
-          <div class="wa-status${w.active ? " is-on" : ""}" data-act="toggle" data-id="${esc(w.id)}">
+          <div class="wa-status${watch.active ? " is-on" : ""}" data-act="toggle" data-id="${escapeHtml(watch.id)}">
             <span class="wa-status-dot"></span>
-            <span class="wa-status-text">${esc(w.active ? s.active : s.paused)}</span>
+            <span class="wa-status-text">${escapeHtml(watch.active ? strings.active : strings.paused)}</span>
           </div>
         </div>
         <div class="wa-chips">${chips}</div>
         <div class="wa-card-actions">
-          <button class="wa-edit" data-act="edit" data-id="${esc(w.id)}">${esc(s.edit)}</button>
-          <button class="wa-delete" data-act="delete" data-id="${esc(w.id)}">${esc(s.delete)}</button>
+          <button class="wa-edit" data-act="edit" data-id="${escapeHtml(watch.id)}">${escapeHtml(strings.edit)}</button>
+          <button class="wa-delete" data-act="delete" data-id="${escapeHtml(watch.id)}">${escapeHtml(strings.delete)}</button>
         </div>
       </div>`;
     })
@@ -178,83 +187,83 @@ function render() {
 
   const listBody = state.watches.length
     ? `<div class="wa-cards">${cards}</div>`
-    : `<div class="wa-empty">${esc(s.noWatches)}</div>`;
+    : `<div class="wa-empty">${escapeHtml(strings.noWatches)}</div>`;
 
   app.innerHTML = `
     <div class="wa-header">
       <div class="wa-brand">
         <span class="wa-dot"></span>
         <div class="wa-brand-text">
-          <strong>${esc(s.appName)}</strong>
-          <small>${esc(s.tagline)}</small>
+          <strong>${escapeHtml(strings.appName)}</strong>
+          <small>${escapeHtml(strings.tagline)}</small>
         </div>
       </div>
       <div class="wa-head-right">
         <div class="wa-nav">
-          <a href="index.html">${esc(s.navQuery)}</a>
-          <a href="config.html" class="is-active">${esc(s.navWatch)}</a>
+          <a href="index.html">${escapeHtml(strings.navQuery)}</a>
+          <a href="config.html" class="is-active">${escapeHtml(strings.navWatch)}</a>
         </div>
       </div>
     </div>
 
     <div class="wa-body">
       <div class="wa-form">
-        <div class="wa-form-title">${esc(state.editingId ? s.editTitle : s.newTitle)}</div>
+        <div class="wa-form-title">${escapeHtml(state.editingId ? strings.editTitle : strings.newTitle)}</div>
 
         <div class="wa-field">
-          <div class="wa-label">${esc(s.coursesLabel)}</div>
+          <div class="wa-label">${escapeHtml(strings.coursesLabel)}</div>
           <div>${courseRows}</div>
         </div>
 
         <div class="wa-field">
-          <div class="wa-label">${esc(s.dateRangeLabel)}</div>
+          <div class="wa-label">${escapeHtml(strings.dateRangeLabel)}</div>
           <div class="wa-daterow">
-            <input type="date" class="wa-date" id="wa-date-start" value="${esc(state.formDateStart)}" />
-            <span class="wa-to">${esc(s.rangeTo)}</span>
-            <input type="date" class="wa-date" id="wa-date-end" value="${esc(state.formDateEnd)}" />
+            <input type="date" class="wa-date" id="wa-date-start" value="${escapeHtml(state.formDateStart)}" />
+            <span class="wa-to">${escapeHtml(strings.rangeTo)}</span>
+            <input type="date" class="wa-date" id="wa-date-end" value="${escapeHtml(state.formDateEnd)}" />
           </div>
         </div>
 
         <div class="wa-field">
-          <div class="wa-label">${esc(s.timeRangeLabel)}</div>
+          <div class="wa-label">${escapeHtml(strings.timeRangeLabel)}</div>
           <div class="wa-daterow">
-            <input type="time" class="wa-date" id="wa-time-start" value="${esc(state.formTimeStart)}" />
-            <span class="wa-to">${esc(s.rangeTo)}</span>
-            <input type="time" class="wa-date" id="wa-time-end" value="${esc(state.formTimeEnd)}" />
+            <input type="time" class="wa-date" id="wa-time-start" value="${escapeHtml(state.formTimeStart)}" />
+            <span class="wa-to">${escapeHtml(strings.rangeTo)}</span>
+            <input type="time" class="wa-date" id="wa-time-end" value="${escapeHtml(state.formTimeEnd)}" />
           </div>
         </div>
 
         <div class="wa-field">
-          <div class="wa-label">${esc(s.playersLabel)}</div>
+          <div class="wa-label">${escapeHtml(strings.playersLabel)}</div>
           <div class="wa-pills">${playerPills}</div>
         </div>
 
         <div class="wa-field">
           <div class="wa-price-head">
-            <span>${esc(s.maxPriceLabel)}</span>
+            <span>${escapeHtml(strings.maxPriceLabel)}</span>
             <span class="wa-price-val" id="wa-price-val">$${state.formMaxPrice}</span>
           </div>
           <input type="range" class="wa-range" id="wa-price" min="${PRICE_MIN}" max="${PRICE_MAX}" step="5" value="${state.formMaxPrice}" />
         </div>
 
         <div class="wa-field">
-          <div class="wa-label">${esc(s.emailLabel)}</div>
-          <input type="email" class="wa-email" id="wa-email" placeholder="${esc(s.emailPlaceholder)}" value="${esc(state.formEmail)}" />
+          <div class="wa-label">${escapeHtml(strings.emailLabel)}</div>
+          <input type="email" class="wa-email" id="wa-email" placeholder="${escapeHtml(strings.emailPlaceholder)}" value="${escapeHtml(state.formEmail)}" />
         </div>
 
         <div class="wa-actions">
-          <button class="wa-submit" data-act="submit">${esc(state.editingId ? s.saveBtn : s.createBtn)}</button>
-          ${state.editingId ? `<button class="wa-cancel" data-act="cancel">${esc(s.cancel)}</button>` : ""}
+          <button class="wa-submit" data-act="submit">${escapeHtml(state.editingId ? strings.saveBtn : strings.createBtn)}</button>
+          ${state.editingId ? `<button class="wa-cancel" data-act="cancel">${escapeHtml(strings.cancel)}</button>` : ""}
         </div>
       </div>
 
       <div class="wa-list">
-        <div class="wa-count">${esc(s.countText(state.watches.length))}</div>
+        <div class="wa-count">${escapeHtml(strings.countText(state.watches.length))}</div>
         ${listBody}
       </div>
     </div>
 
-    ${state.toast ? `<div class="wa-toast">${esc(state.toast)}</div>` : ""}
+    ${state.toast ? `<div class="wa-toast">${escapeHtml(state.toast)}</div>` : ""}
   `;
 
   wireInputs();
@@ -268,38 +277,43 @@ function wireInputs() {
   const timeStart = document.getElementById("wa-time-start");
   const timeEnd = document.getElementById("wa-time-end");
   const price = document.getElementById("wa-price");
-  const priceVal = document.getElementById("wa-price-val");
+  const priceValue = document.getElementById("wa-price-val");
   const email = document.getElementById("wa-email");
 
-  dateStart.addEventListener("change", (e) => (state.formDateStart = e.target.value));
-  dateEnd.addEventListener("change", (e) => (state.formDateEnd = e.target.value));
-  timeStart.addEventListener("change", (e) => (state.formTimeStart = e.target.value));
-  timeEnd.addEventListener("change", (e) => (state.formTimeEnd = e.target.value));
-  email.addEventListener("input", (e) => (state.formEmail = e.target.value));
-  price.addEventListener("input", (e) => {
-    state.formMaxPrice = parseInt(e.target.value, 10);
-    priceVal.textContent = "$" + state.formMaxPrice;
+  dateStart.addEventListener("change", (event) => (state.formDateStart = event.target.value));
+  dateEnd.addEventListener("change", (event) => (state.formDateEnd = event.target.value));
+  timeStart.addEventListener("change", (event) => (state.formTimeStart = event.target.value));
+  timeEnd.addEventListener("change", (event) => (state.formTimeEnd = event.target.value));
+  email.addEventListener("input", (event) => (state.formEmail = event.target.value));
+  price.addEventListener("input", (event) => {
+    state.formMaxPrice = parseInt(event.target.value, 10);
+    priceValue.textContent = "$" + state.formMaxPrice;
   });
 }
 
 // --- Actions ----------------------------------------------------------------
 
-function toggleFormCourse(id) {
-  state.formCourses = state.formCourses.includes(id)
-    ? state.formCourses.filter((x) => x !== id)
-    : [...state.formCourses, id];
+// Create mode: multi-select (each course becomes its own watch). Edit mode: a
+// watch is a single course, so a click replaces the selection (radio-like).
+function toggleFormCourse(rawCourseId) {
+  const courseId = Number(rawCourseId);
+  if (state.editingId != null) {
+    state.formCourses = [courseId];
+  } else {
+    state.formCourses = state.formCourses.includes(courseId)
+      ? state.formCourses.filter((selectedId) => selectedId !== courseId)
+      : [...state.formCourses, courseId];
+  }
   render();
 }
 
 async function submitForm() {
-  const s = S;
+  const strings = STRINGS;
   if (!state.formEmail || state.formCourses.length === 0) {
-    showToast(s.needCourseEmail, 2200);
+    showToast(strings.needCourseEmail, 2200);
     return;
   }
-  const entry = normalizeWatch({
-    id: state.editingId || "w" + Date.now(),
-    courseIds: [...state.formCourses],
+  const config = {
     dateStart: state.formDateStart,
     dateEnd: state.formDateEnd,
     timeStart: state.formTimeStart,
@@ -307,76 +321,84 @@ async function submitForm() {
     players: state.formPlayers,
     maxPrice: state.formMaxPrice,
     email: state.formEmail,
-    active: true,
-  });
+  };
 
   try {
-    const saved = await saveWatchConfig(entry);
-    if (saved && saved.id != null) entry.id = String(saved.id);
+    if (state.editingId != null) {
+      const current = state.watches.find((watch) => watch.id === state.editingId);
+      const dto = { id: state.editingId, courseId: state.formCourses[0], active: current ? current.active : true, ...config };
+      const saved = await updateWatchConfig(state.editingId, dto);
+      state.watches = state.watches.map((watch) => (watch.id === state.editingId ? normalizeWatch(saved) : watch));
+    } else {
+      const created = await createWatchConfigs({ courseIds: state.formCourses, active: true, ...config });
+      state.watches = [...(created || []).map(normalizeWatch), ...state.watches];
+    }
+    resetForm();
+    showToast(strings.saved, 2000);
   } catch {
-    state.offline = true; // keep the entry locally
+    state.offline = true;
+    showToast(strings.offline, 2200);
   }
-
-  const exists = state.watches.some((w) => w.id === entry.id);
-  state.watches = exists
-    ? state.watches.map((w) => (w.id === entry.id ? entry : w))
-    : [entry, ...state.watches];
-  resetForm();
-  showToast(state.offline ? s.offline : s.saved, 2000);
-}
-
-function startEdit(id) {
-  const w = state.watches.find((x) => x.id === id);
-  if (!w) return;
-  state.formCourses = [...w.courseIds];
-  state.formDateStart = w.dateStart;
-  state.formDateEnd = w.dateEnd;
-  state.formTimeStart = w.timeStart;
-  state.formTimeEnd = w.timeEnd;
-  state.formPlayers = w.players;
-  state.formMaxPrice = w.maxPrice;
-  state.formEmail = w.email;
-  state.editingId = w.id;
   render();
 }
 
-async function deleteWatch(id) {
-  const s = S;
-  try {
-    await deleteWatchConfig(id);
-  } catch {
-    state.offline = true;
-  }
-  state.watches = state.watches.filter((w) => w.id !== id);
-  if (state.editingId === id) resetForm();
-  showToast(state.offline ? s.offline : s.deleted, 1800);
+function startEdit(watchId) {
+  const watch = state.watches.find((candidate) => candidate.id === watchId);
+  if (!watch) return;
+  state.editingId = watch.id;
+  state.formCourses = [watch.courseId];
+  state.formDateStart = watch.dateStart;
+  state.formDateEnd = watch.dateEnd;
+  state.formTimeStart = watch.timeStart;
+  state.formTimeEnd = watch.timeEnd;
+  state.formPlayers = watch.players;
+  state.formMaxPrice = watch.maxPrice;
+  state.formEmail = watch.email;
+  render();
 }
 
-async function toggleActive(id) {
-  const w = state.watches.find((x) => x.id === id);
-  if (!w) return;
-  const updated = { ...w, active: !w.active };
-  state.watches = state.watches.map((x) => (x.id === id ? updated : x));
-  render();
+async function deleteWatch(watchId) {
+  const strings = STRINGS;
   try {
-    await saveWatchConfig(updated);
+    await deleteWatchConfig(watchId);
   } catch {
     state.offline = true;
+    showToast(strings.offline, 2000);
+    return;
+  }
+  state.watches = state.watches.filter((watch) => watch.id !== watchId);
+  if (state.editingId === watchId) resetForm();
+  showToast(strings.deleted, 1800);
+}
+
+async function toggleActive(watchId) {
+  const watch = state.watches.find((candidate) => candidate.id === watchId);
+  if (!watch) return;
+  const updated = { ...watch, active: !watch.active };
+  state.watches = state.watches.map((candidate) => (candidate.id === watchId ? updated : candidate));
+  render();
+  try {
+    await updateWatchConfig(watchId, toDto(updated));
+  } catch {
+    state.offline = true;
+    showToast(STRINGS.offline, 2000);
   }
 }
 
 // --- Event delegation -------------------------------------------------------
 
-app.addEventListener("click", (e) => {
-  const el = e.target.closest("[data-act]");
-  if (!el) return;
-  const { act, id, val } = el.dataset;
-  switch (act) {
+app.addEventListener("click", (event) => {
+  const target = event.target.closest("[data-act]");
+  if (!target) return;
+  const action = target.dataset.act;
+  const id = target.dataset.id;
+  const value = target.dataset.val;
+  switch (action) {
     case "course":
       toggleFormCourse(id);
       break;
     case "players":
-      state.formPlayers = parseInt(val, 10);
+      state.formPlayers = parseInt(value, 10);
       render();
       break;
     case "submit":
@@ -387,13 +409,13 @@ app.addEventListener("click", (e) => {
       render();
       break;
     case "toggle":
-      toggleActive(id);
+      toggleActive(Number(id));
       break;
     case "edit":
-      startEdit(id);
+      startEdit(Number(id));
       break;
     case "delete":
-      deleteWatch(id);
+      deleteWatch(Number(id));
       break;
   }
 });
@@ -401,16 +423,16 @@ app.addEventListener("click", (e) => {
 // --- Init -------------------------------------------------------------------
 
 async function init() {
-  render(); // paint immediately with fallback data
+  render(); // paint the shell immediately
 
   try {
     const courses = await getCourses();
     if (Array.isArray(courses) && courses.length) {
-      state.courses = courses.map((c) => ({ id: String(c.id), name: c.name }));
-      state.formCourses = state.courses.map((c) => c.id);
+      state.courses = courses.map((course) => ({ id: course.id, slug: course.slug, name: course.name }));
+      state.formCourses = state.courses.map((course) => course.id);
     }
   } catch {
-    state.offline = true; // keep FALLBACK_COURSES
+    state.offline = true; // no courses to show; leave the list empty
   }
 
   try {
@@ -418,10 +440,11 @@ async function init() {
     state.watches = (watches || []).map(normalizeWatch);
   } catch {
     state.offline = true;
-    state.watches = SAMPLE_WATCHES.map(normalizeWatch); // demo data
+    state.watches = []; // backend down — show nothing, not fake data
   }
 
   render();
+  if (state.offline) showToast(STRINGS.offline, 2600);
 }
 
 init();
