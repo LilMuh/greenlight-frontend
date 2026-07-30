@@ -413,6 +413,21 @@
         background: var(--chip);
         color: oklch(40% 0.012 95);
       }
+      .wa-card-hits {
+        display: flex;
+      }
+      .wa-hits {
+        font-size: 12px;
+        font-weight: 600;
+        padding: 4px 12px;
+        border-radius: 999px;
+        background: var(--chip);
+        color: var(--muted2);
+      }
+      .wa-hits.is-hot {
+        background: color-mix(in oklch, var(--green-ink) 14%, transparent);
+        color: var(--green-ink);
+      }
       .wa-card-actions {
         display: flex;
         gap: 8px;

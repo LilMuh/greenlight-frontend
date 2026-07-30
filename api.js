@@ -21,6 +21,8 @@ export const getTeeTimes = (params = {}) => {
   const queryString = new URLSearchParams(params).toString();
   return request("/api/tee-times" + (queryString ? `?${queryString}` : ""));
 };
+// 匹配结果：每条启用中的 watch 当前命中的空位（只读展示，后端不发通知）。
+export const getMatches = () => request("/api/matches");
 export const listWatchConfigs = () => request("/api/watch-configs");
 // 批量创建：一组 courseIds + 共享 config，后端逐个球场建一条 watch，返回创建的数组。
 export const createWatchConfigs = (batch) => request("/api/watch-configs", jsonBody(batch));

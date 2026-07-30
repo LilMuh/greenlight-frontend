@@ -9,6 +9,7 @@
 import {
   getCourses,
   listWatchConfigs,
+  getMatches,
   createWatchConfigs,
   updateWatchConfig,
   deleteWatchConfig,
@@ -41,6 +42,8 @@ const STRINGS = {
   offline: "Backend offline — please try again once it's up.",
   playerUnit: " players",
   countText: (watchCount) => `Watches: ${watchCount}`,
+  hitsText: (hitCount) =>
+    hitCount > 0 ? `${hitCount} matching now` : "No matches yet",
 };
 
 // --- State ------------------------------------------------------------------
@@ -49,6 +52,7 @@ const state = {
   offline: false,
   courses: [], // [{ id: number, slug, name }]
   watches: [], // [{ id, courseId, courseName, ... }]
+  hitsByWatchId: {}, // { [watchId]: hitCount } —— 来自 /api/matches
   formCourses: [], // selected course ids (numbers)
   formDateStart: "2026-07-25",
   formDateEnd: "2026-08-01",
@@ -165,6 +169,8 @@ function render() {
       ]
         .map((chipText) => `<span class="wa-chip">${escapeHtml(chipText)}</span>`)
         .join("");
+      const hitCount = state.hitsByWatchId[watch.id] ?? 0;
+      const hitBadge = `<span class="wa-hits${hitCount > 0 ? " is-hot" : ""}">${escapeHtml(strings.hitsText(hitCount))}</span>`;
       return `<div class="wa-card">
         <div class="wa-card-top">
           <div class="wa-card-head">
@@ -176,6 +182,7 @@ function render() {
             <span class="wa-status-text">${escapeHtml(watch.active ? strings.active : strings.paused)}</span>
           </div>
         </div>
+        <div class="wa-card-hits">${hitBadge}</div>
         <div class="wa-chips">${chips}</div>
         <div class="wa-card-actions">
           <button class="wa-edit" data-act="edit" data-id="${escapeHtml(watch.id)}">${escapeHtml(strings.edit)}</button>
@@ -334,6 +341,7 @@ async function submitForm() {
       state.watches = [...(created || []).map(normalizeWatch), ...state.watches];
     }
     resetForm();
+    await loadMatches();
     showToast(strings.saved, 2000);
   } catch {
     state.offline = true;
@@ -420,6 +428,20 @@ app.addEventListener("click", (event) => {
   }
 });
 
+// 拉一遍匹配结果，按 watchId 存命中数供卡片展示。只读——失败就当作 0，不打断页面。
+async function loadMatches() {
+  try {
+    const matches = await getMatches();
+    const hitsByWatchId = {};
+    for (const match of matches || []) {
+      hitsByWatchId[match.watchId] = match.hitCount;
+    }
+    state.hitsByWatchId = hitsByWatchId;
+  } catch {
+    state.hitsByWatchId = {};
+  }
+}
+
 // --- Init -------------------------------------------------------------------
 
 async function init() {
@@ -442,6 +464,8 @@ async function init() {
     state.offline = true;
     state.watches = []; // backend down — show nothing, not fake data
   }
+
+  await loadMatches();
 
   render();
   if (state.offline) showToast(STRINGS.offline, 2600);
