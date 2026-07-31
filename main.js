@@ -21,7 +21,7 @@ const STRINGS = {
   sorts: { rec: "Recommended", price: "Lowest price", time: "Earliest time" },
   book: "Book",
   noResults: "No tee times match your filters.",
-  loading: "Loading…", slotsLeft: " left", today: "Today",
+  loading: "Loading…", seatsUnit: " seats", today: "Today",
   weekdays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
   monthLabel: (monthIndex) => ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][monthIndex],
   countText: (courseCount, slotCount) => `Found ${courseCount} courses, ${slotCount} time slots`,
@@ -35,7 +35,7 @@ const state = {
   offline: false,
   loading: true,
   courses: [], // [{ id, name }]
-  dayData: [], // tee times for the selected date: [{ id, name, teeTimes:[{time,price,slots}] }]
+  dayData: [], // tee times for the selected date: [{ id, name, teeTimes:[{time,price,availableSeats}] }]
   dates: buildDates(),
   selectedDateIndex: 0,
   players: 2,
@@ -107,8 +107,8 @@ function showToast(message, durationMs = 2200) {
 }
 
 // Turn a flat /api/tee-times list into the design's per-course grouping. The
-// backend gives { courseId, course, time, price, ... }; slots may be missing,
-// so it degrades to null rather than breaking the card.
+// backend gives { courseId, course, time, price, availableSeats, ... }; the seat
+// count may be missing, so it degrades to null rather than breaking the card.
 function groupTeeTimes(teeTimeList) {
   const byCourseId = new Map();
   for (const teeTime of teeTimeList || []) {
@@ -125,7 +125,7 @@ function groupTeeTimes(teeTimeList) {
     byCourseId.get(courseId).teeTimes.push({
       time: teeTime.time,
       price: Number(teeTime.price) || 0,
-      slots: teeTime.slots != null ? Number(teeTime.slots) : null,
+      availableSeats: teeTime.availableSeats != null ? Number(teeTime.availableSeats) : null,
     });
   }
   return [...byCourseId.values()];
@@ -158,7 +158,7 @@ function computeCards() {
         (teeTime) =>
           periodMatch(teeTime.time, state.period) &&
           priceMatch(teeTime.price, state.priceBucket) &&
-          (!state.onlyAvailable || teeTime.slots == null || teeTime.slots >= 3)
+          (!state.onlyAvailable || teeTime.availableSeats == null || teeTime.availableSeats >= 3)
       );
       return { course, teeTimes };
     })
@@ -232,12 +232,12 @@ function render() {
         .map((teeTime) => {
           const chipKey = course.id + "|" + teeTime.time;
           const isSelected = state.selectedChip === chipKey;
-          const isLow = teeTime.slots != null && teeTime.slots <= 2;
-          const slotsHtml = teeTime.slots != null ? `<span class="tt-tee-slots${isLow ? " is-low" : ""}">${teeTime.slots}${escapeHtml(strings.slotsLeft)}</span>` : "";
+          const isLow = teeTime.availableSeats != null && teeTime.availableSeats <= 2;
+          const seatsHtml = teeTime.availableSeats != null ? `<span class="tt-tee-slots${isLow ? " is-low" : ""}">${teeTime.availableSeats}${escapeHtml(strings.seatsUnit)}</span>` : "";
           return `<div class="tt-tee${isSelected ? " is-on" : ""}" data-act="chip" data-key="${escapeHtml(chipKey)}">
             <span class="tt-tee-time">${escapeHtml(teeTime.time)}</span>
             <span class="tt-tee-price">$${teeTime.price}</span>
-            ${slotsHtml}
+            ${seatsHtml}
           </div>`;
         })
         .join("");
