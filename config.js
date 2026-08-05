@@ -20,11 +20,15 @@ import {
 // Price slider bounds (CAD) — Vancouver municipal green fees sit ~$20–100.
 const PRICE_MIN = 20;
 const PRICE_MAX = 100;
-const PRICE_DEFAULT = 60;
+// 默认拉满：不过滤价格，先把所有场次都收进来。
+const PRICE_DEFAULT = PRICE_MAX;
 
 // Default watch time window: whole playable day.
 const TIME_START_DEFAULT = "06:00";
 const TIME_END_DEFAULT = "20:00";
+
+// Default players: a full foursome.
+const PLAYERS_DEFAULT = 4;
 
 const STRINGS = {
   appName: "GreenLight", tagline: "Watch tee times, get notified",
@@ -54,11 +58,11 @@ const state = {
   watches: [], // [{ id, courseId, courseName, ... }]
   hitsByWatchId: {}, // { [watchId]: hitCount } —— 来自 /api/matches
   formCourses: [], // selected course ids (numbers)
-  formDateStart: "2026-07-25",
-  formDateEnd: "2026-08-01",
+  formDateStart: todayISO(),
+  formDateEnd: todayISO(),
   formTimeStart: TIME_START_DEFAULT,
   formTimeEnd: TIME_END_DEFAULT,
-  formPlayers: 2,
+  formPlayers: PLAYERS_DEFAULT,
   formMaxPrice: PRICE_DEFAULT,
   formEmail: "",
   editingId: null,
@@ -69,6 +73,15 @@ let toastTimer = null;
 const app = document.getElementById("app");
 
 // --- Helpers ----------------------------------------------------------------
+
+// 当天日期（本地时区），YYYY-MM-DD —— 日期范围的默认值。
+function todayISO() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (character) => ({
@@ -92,7 +105,7 @@ function normalizeWatch(record) {
     dateEnd: record.dateEnd ?? "",
     timeStart: record.timeStart ?? TIME_START_DEFAULT,
     timeEnd: record.timeEnd ?? TIME_END_DEFAULT,
-    players: Number(record.players ?? 2),
+    players: Number(record.players ?? PLAYERS_DEFAULT),
     maxPrice: Number(record.maxPrice ?? PRICE_DEFAULT),
     email: record.email ?? "",
     active: record.active !== false,
@@ -127,11 +140,11 @@ function showToast(message, durationMs = 2000) {
 
 function resetForm() {
   state.formCourses = state.courses.map((course) => course.id);
-  state.formDateStart = "2026-07-25";
-  state.formDateEnd = "2026-08-01";
+  state.formDateStart = todayISO();
+  state.formDateEnd = todayISO();
   state.formTimeStart = TIME_START_DEFAULT;
   state.formTimeEnd = TIME_END_DEFAULT;
-  state.formPlayers = 2;
+  state.formPlayers = PLAYERS_DEFAULT;
   state.formMaxPrice = PRICE_DEFAULT;
   state.formEmail = "";
   state.editingId = null;
