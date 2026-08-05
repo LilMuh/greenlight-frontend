@@ -34,8 +34,8 @@ const STRINGS = {
 const state = {
   offline: false,
   loading: true,
-  courses: [], // [{ id, name }]
-  dayData: [], // tee times for the selected date: [{ id, name, teeTimes:[{time,price,availableSeats}] }]
+  courses: [], // [{ id, name, imageUrl }]
+  dayData: [], // tee times for the selected date: [{ id, name, imageUrl, teeTimes:[{time,price,availableSeats}] }]
   dates: buildDates(),
   selectedDateIndex: 0,
   players: 2,
@@ -119,6 +119,8 @@ function groupTeeTimes(teeTimeList) {
       byCourseId.set(courseId, {
         id: courseId,
         name: matchedCourse ? matchedCourse.name : String(teeTime.course ?? courseKey),
+        // 照片来自 /api/courses，tee-time 接口不带它，所以要在这里挂上去
+        imageUrl: matchedCourse ? matchedCourse.imageUrl : null,
         teeTimes: [],
       });
     }
@@ -241,9 +243,13 @@ function render() {
           </div>`;
         })
         .join("");
+      // 图片加载失败就把 <img> 摘掉，露出 .tt-photo 的条纹底，不显示裂图
+      const photoHtml = course.imageUrl
+        ? `<img src="${escapeHtml(course.imageUrl)}" alt="" loading="lazy" onerror="this.remove()">`
+        : "";
       return `<div class="tt-card">
         <div class="tt-card-row">
-          <div class="tt-photo"><span>course photo</span></div>
+          <div class="tt-photo">${photoHtml}</div>
           <div class="tt-card-info">
             <strong class="tt-card-name">${escapeHtml(course.name)}</strong>
           </div>
@@ -395,7 +401,7 @@ async function init() {
     const courses = await getCourses();
     if (Array.isArray(courses) && courses.length) {
       // 用 slug 当标识：tee-time 的 courseId 也是 slug，两边好对应
-      state.courses = courses.map((course) => ({ id: course.slug, name: course.name }));
+      state.courses = courses.map((course) => ({ id: course.slug, name: course.name, imageUrl: course.imageUrl }));
     }
   } catch {
     state.offline = true;
