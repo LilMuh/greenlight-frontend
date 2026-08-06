@@ -7,6 +7,38 @@ import { getHealth, getCourses, getTeeTimes } from "./api.js";
 const PRICE_BUCKETS = ["all", "low", "mid", "high"];
 const SORTS = ["rec", "price", "time"];
 
+// --- Booking deep links -----------------------------------------------------
+//
+// tee_time / course 表里都没存预订页 URL，只能按 source + site + slug 反推。后端邮件
+// 里那条 BOOK 链接（BookingLinkBuilder + greenlight.mail.booking-url-template）做的是
+// 同一件事，但那份模板在后端配置里，没有任何 API 暴露出来，所以这里另拼一份。
+//
+// 参数名 Date / CourseId / TeeOffTimeMin / TeeOffTimeMax 是 2026-08-06 在
+// golfvancouver.cps.golf 上实测的：改这两个参数，页面自己发出的 TeeTimes 请求里
+// searchDate / courseIds 会跟着变，左侧球场下拉也会选中对应球场。注意这套首字母大写的
+// 参数名，和它转发给自己后端 API 时用的 searchDate / courseIds 不是一套。
+//
+// 不带 Player：这一页没有「几个人打」这个概念，落地页的 Players 默认就是 Any，
+// 那已经是最宽松的，硬塞一个数字反而会把时段筛掉。
+const CPS_DAY_MIN = "0";
+const CPS_DAY_MAX = "23.999722222222225"; // CPS 搜索页自己用的上界
+
+// slug → CPS 内部球场 id。CPS 用一个小整数区分同站点下的球场，/api/courses 不返回它，
+// 只能在前端留一份，来源是 greenlight-scraper 的 CpsCourseId 枚举。
+// 认不出的 slug 就不带 CourseId——落地页会列出当天全部球场，日期仍然是对的。
+const CPS_COURSE_IDS = { langara: 1, fraserview: 2, mccleery: 3 };
+
+function bookingUrl(course, isoDate) {
+  if (course.source !== "cps" || !course.site) return null;
+  const url = new URL(`https://${course.site}.cps.golf/onlineresweb/search-teetime`);
+  url.searchParams.set("Date", isoDate);
+  const cpsCourseId = CPS_COURSE_IDS[course.id];
+  if (cpsCourseId != null) url.searchParams.set("CourseId", String(cpsCourseId));
+  url.searchParams.set("TeeOffTimeMin", CPS_DAY_MIN);
+  url.searchParams.set("TeeOffTimeMax", CPS_DAY_MAX);
+  return url.toString();
+}
+
 // --- Copy -------------------------------------------------------------------
 
 const STRINGS = {
@@ -133,8 +165,11 @@ function groupTeeTimes(teeTimeList) {
       byCourseId.set(courseId, {
         id: courseId,
         name: matchedCourse ? matchedCourse.name : String(teeTime.course ?? courseKey),
-        // 照片、地址、评分都来自 /api/courses，tee-time 接口不带它们，在这里挂上去
+        // 照片、地址、评分、source/site 都来自 /api/courses，tee-time 接口不带它们，
+        // 在这里挂上去。source/site 是拼预订链接用的，取不到就退化成不可点的按钮。
         imageUrl: matchedCourse ? matchedCourse.imageUrl : null,
+        source: matchedCourse ? matchedCourse.source : null,
+        site: matchedCourse ? matchedCourse.site : null,
         address: matchedCourse ? matchedCourse.address : null,
         rating: matchedCourse ? matchedCourse.rating : null,
         ratingCount: matchedCourse ? matchedCourse.ratingCount : null,
@@ -196,6 +231,7 @@ function computeCards() {
 
 function render() {
   const strings = STRINGS;
+  const selectedIso = state.dates[state.selectedDateIndex].iso;
 
   const dates = state.dates
     .map((dateInfo, index) => {
@@ -267,6 +303,12 @@ function render() {
       const photoHtml = course.imageUrl
         ? `<img src="${escapeHtml(course.imageUrl)}" alt="" loading="lazy" onerror="this.remove()">`
         : "";
+      // 拼得出链接就用真 <a>（能新标签打开、能右键复制）；拼不出（比如 /api/courses
+      // 没取到、source 不是 cps）退回原来的按钮 + toast，不给一个点了没反应的链接。
+      const url = bookingUrl(course, selectedIso);
+      const bookHtml = url
+        ? `<a class="tt-book" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(strings.book)}</a>`
+        : `<button class="tt-book" data-act="book" data-id="${escapeHtml(course.id)}">${escapeHtml(strings.book)}</button>`;
       return `<div class="tt-card">
         <div class="tt-card-row">
           <div class="tt-photo">${photoHtml}</div>
@@ -275,7 +317,7 @@ function render() {
             ${ratingHtml(course)}
             ${addressHtml(course)}
           </div>
-          <button class="tt-book" data-act="book" data-id="${escapeHtml(course.id)}">${escapeHtml(strings.book)}</button>
+          ${bookHtml}
         </div>
         <div class="tt-tees">${teeSlotsHtml}</div>
       </div>`;
@@ -425,6 +467,8 @@ async function init() {
         id: course.slug,
         name: course.name,
         imageUrl: course.imageUrl,
+        source: course.source ?? null,
+        site: course.site ?? null,
         address: course.address ?? null,
         rating: course.rating ?? null,
         ratingCount: course.ratingCount ?? null,

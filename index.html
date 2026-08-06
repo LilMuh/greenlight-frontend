@@ -473,6 +473,8 @@
       }
       .tt-book {
         flex: none;
+        display: inline-flex;
+        align-items: center;
         padding: 8px 20px;
         border-radius: 8px;
         border: none;
@@ -482,6 +484,15 @@
         font-weight: 700;
         cursor: pointer;
         font-family: inherit;
+      }
+      /* 能拼出预订链接时 Book 渲染成 <a>，得盖掉上面 .tt a / .tt a:hover 的绿色文字 */
+      .tt a.tt-book,
+      .tt a.tt-book:hover {
+        color: #fff;
+        text-decoration: none;
+      }
+      .tt-book:hover {
+        background: var(--green-d);
       }
       .tt-tees {
         display: flex;
