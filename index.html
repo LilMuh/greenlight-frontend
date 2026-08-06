@@ -24,7 +24,6 @@
         --line: oklch(90% 0.006 95);
         --line2: oklch(94% 0.006 95);
         --bg: oklch(98% 0.006 95);
-        --seg: oklch(95% 0.006 95);
         --low: oklch(55% 0.14 35);
         color-scheme: light;
       }
@@ -136,14 +135,19 @@
         font-family: inherit;
       }
 
-      /* Toolbar: date strip + players + period */
+      /* Toolbar: date strip + collapsible filter panel */
       .tt-toolbar {
         background: #fff;
         border-bottom: 1px solid var(--line);
-        padding: 16px 32px;
+        padding: 10px 32px 0;
+      }
+      .tt-toolbar-inner {
+        max-width: 1400px;
+        margin: 0 auto;
+        width: 100%;
         display: flex;
         flex-direction: column;
-        gap: 14px;
+        gap: 10px;
       }
       .tt-dates {
         display: flex;
@@ -183,107 +187,157 @@
         font-weight: 700;
         line-height: 1.1;
       }
-      .tt-controls {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 20px;
-      }
-      .tt-control {
+      /* Filter row: the "Filters" toggle, a summary of what's active, result count */
+      .tt-filter-row {
         display: flex;
         align-items: center;
         gap: 10px;
+        flex-wrap: wrap;
+        padding-bottom: 10px;
       }
-      .tt-control-label {
-        font-size: 12.5px;
-        color: var(--muted);
-        font-weight: 600;
-      }
-      .tt-nums {
+      .tt-filter-btn {
         display: flex;
-        gap: 6px;
-      }
-      .tt-num {
-        width: 32px;
-        height: 32px;
-        border-radius: 7px;
+        align-items: center;
+        gap: 8px;
+        flex: none;
+        padding: 8px 14px;
+        border-radius: 8px;
         border: 1px solid var(--line);
         background: #fff;
         color: var(--ink);
         font-size: 13px;
-        font-weight: 600;
-        cursor: pointer;
+        font-weight: 700;
         font-family: inherit;
+        cursor: pointer;
       }
-      .tt-num.is-active {
-        border-color: var(--green);
+      .tt-filter-btn.is-open {
+        background: var(--ink);
+        color: #fff;
+        border-color: var(--ink);
+      }
+      .tt-filter-badge {
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 800;
         background: var(--green);
         color: #fff;
-        font-weight: 700;
       }
-      .tt-periods {
+      .tt-filter-btn.is-open .tt-filter-badge {
+        background: #fff;
+        color: var(--ink);
+      }
+      .tt-caret {
+        transition: transform 0.18s ease;
+      }
+      .tt-filter-btn.is-open .tt-caret {
+        transform: rotate(180deg);
+      }
+      .tt-summary {
         display: flex;
         gap: 6px;
         flex-wrap: wrap;
+        min-width: 0;
       }
-      .tt-period {
-        padding: 8px 16px;
-        border-radius: 8px;
-        background: #fff;
-        color: var(--ink);
-        font-size: 13px;
-        font-weight: 500;
-        cursor: pointer;
-        border: 1px solid var(--line);
-        white-space: nowrap;
-        font-family: inherit;
-      }
-      .tt-period.is-active {
-        background: var(--green);
-        color: #fff;
-        font-weight: 600;
-        border-color: var(--green);
-      }
-
-      /* Body layout */
-      .tt-body {
-        flex: 1;
-        display: flex;
-        gap: 24px;
-        padding: 24px 32px;
-        max-width: 1400px;
-        margin: 0 auto;
-        width: 100%;
-      }
-
-      /* Sidebar */
-      .tt-sidebar {
-        width: 260px;
-        flex: none;
-        background: #fff;
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 18px;
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-        align-self: flex-start;
-      }
-      .tt-filter-title {
+      .tt-summary-chip {
+        padding: 5px 11px;
+        border-radius: 999px;
         font-size: 12px;
-        font-weight: 700;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
+        font-weight: 600;
+        background: var(--green-soft);
+        color: var(--green-ink);
+        border: 1px solid var(--green);
+        white-space: nowrap;
+      }
+      .tt-count {
+        margin-left: auto;
+        font-size: 12.5px;
         color: var(--muted);
+        white-space: nowrap;
+      }
+
+      /* Filter panel: collapsed by default, expands under the filter row */
+      .tt-panel {
+        border-top: 1px solid var(--line2);
+        padding: 18px 0 20px;
+        display: grid;
+        gap: 22px 32px;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
       }
       .tt-section {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 9px;
+        min-width: 0;
       }
       .tt-section-title {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .tt-courses {
+        display: flex;
+        flex-direction: column;
+      }
+      .tt-sorts {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+      /* Sort reuses the price chip, squared off and full-width in its column */
+      .tt-sorts .tt-chip-btn {
+        width: 100%;
+        text-align: left;
+        border-radius: 8px;
+        padding: 8px 14px;
+      }
+      .tt-panel-actions {
+        grid-column: 1 / -1;
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        border-top: 1px solid var(--line2);
+        padding-top: 14px;
+      }
+      .tt-btn-reset,
+      .tt-btn-done {
+        padding: 9px 18px;
+        border-radius: 8px;
         font-size: 13px;
         font-weight: 700;
+        font-family: inherit;
+        cursor: pointer;
+      }
+      .tt-btn-reset {
+        background: #fff;
+        color: var(--ink2);
+        border: 1px solid var(--line);
+      }
+      .tt-btn-done {
+        padding: 9px 22px;
+        background: var(--green);
+        color: #fff;
+        border: 1px solid var(--green);
+      }
+
+      /* Body layout: results run full width now that filters live in the toolbar */
+      .tt-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 24px 32px 48px;
+        max-width: 1400px;
+        margin: 0 auto;
+        width: 100%;
       }
       .tt-course {
         display: flex;
@@ -346,88 +400,7 @@
         font-weight: 600;
         border-color: var(--green);
       }
-      .tt-toggle-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        cursor: pointer;
-        padding-top: 6px;
-        border-top: 1px solid var(--line2);
-      }
-      .tt-toggle-label {
-        font-size: 12.5px;
-        color: var(--ink2);
-      }
-      .tt-switch {
-        width: 34px;
-        height: 19px;
-        border-radius: 999px;
-        background: oklch(88% 0.006 95);
-        position: relative;
-        flex: none;
-        transition: background 0.15s;
-      }
-      .tt-switch.is-on {
-        background: var(--green);
-      }
-      .tt-switch-knob {
-        width: 15px;
-        height: 15px;
-        border-radius: 50%;
-        background: #fff;
-        position: absolute;
-        top: 2px;
-        left: 2px;
-        transition: left 0.15s;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-      }
-      .tt-switch.is-on .tt-switch-knob {
-        left: 17px;
-      }
-
       /* Main results */
-      .tt-main {
-        flex: 1;
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-      }
-      .tt-main-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 12px;
-      }
-      .tt-count {
-        font-size: 13px;
-        color: var(--muted);
-      }
-      .tt-sort {
-        display: flex;
-        gap: 4px;
-        background: var(--seg);
-        border-radius: 9px;
-        padding: 4px;
-      }
-      .tt-sort-btn {
-        padding: 6px 14px;
-        border-radius: 7px;
-        background: transparent;
-        color: var(--muted);
-        font-size: 12.5px;
-        font-weight: 500;
-        cursor: pointer;
-        border: none;
-        font-family: inherit;
-      }
-      .tt-sort-btn.is-active {
-        background: var(--ink);
-        color: #fff;
-        font-weight: 600;
-      }
       .tt-cards {
         display: flex;
         flex-direction: column;
@@ -444,11 +417,13 @@
       }
       .tt-card-row {
         display: flex;
+        align-items: center;
         gap: 16px;
       }
+      /* 照片跟着视口缩，窄屏不再占掉半行 */
       .tt-photo {
-        width: 96px;
-        height: 96px;
+        width: clamp(52px, 14vw, 96px);
+        height: clamp(52px, 14vw, 96px);
         flex: none;
         border-radius: 10px;
         background: repeating-linear-gradient(
@@ -481,23 +456,25 @@
         font-size: 16px;
         font-weight: 700;
       }
-      .tt-card-sub {
+      /* 球场名下面的两行副信息（Google Maps 数据）。任一为空时 JS 不渲染，
+         .tt-card-info 的 gap 自动收拢，不会留下空隙 */
+      .tt-card-rating {
         font-size: 12px;
         color: oklch(52% 0.012 95);
       }
-      .tt-card-right {
-        flex: none;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        justify-content: center;
-        gap: 8px;
-      }
-      .tt-price {
-        font-size: 19px;
-        font-weight: 800;
+      /* 地址已经在 JS 里截成「街道 + 城市」两段，仍可能超宽（长街名），再兜一层
+         省略号。能生效是因为 .tt-card-info 上有 min-width: 0 */
+      .tt-card-address {
+        font-size: 12px;
+        color: oklch(52% 0.012 95);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       .tt-book {
+        flex: none;
+        display: inline-flex;
+        align-items: center;
         padding: 8px 20px;
         border-radius: 8px;
         border: none;
@@ -507,6 +484,15 @@
         font-weight: 700;
         cursor: pointer;
         font-family: inherit;
+      }
+      /* 能拼出预订链接时 Book 渲染成 <a>，得盖掉上面 .tt a / .tt a:hover 的绿色文字 */
+      .tt a.tt-book,
+      .tt a.tt-book:hover {
+        color: #fff;
+        text-decoration: none;
+      }
+      .tt-book:hover {
+        background: var(--green-d);
       }
       .tt-tees {
         display: flex;
@@ -574,16 +560,22 @@
       }
 
       @media (max-width: 860px) {
+        .tt-header,
+        .tt-toolbar,
         .tt-body {
-          flex-wrap: wrap;
+          padding-left: 16px;
+          padding-right: 16px;
         }
-        .tt-sidebar {
-          width: 100%;
-          order: 2;
+        /* 数量文字在窄屏会被 chips 挤到下一行，靠右贴边不好看 */
+        .tt-count {
+          margin-left: 0;
         }
-        .tt-main {
-          order: 1;
-          width: 100%;
+      }
+
+      /* 手机宽度：地址只留街道那段，城市名让位给球场名 */
+      @media (max-width: 560px) {
+        .tt-addr-city {
+          display: none;
         }
       }
     </style>
