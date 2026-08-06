@@ -4,7 +4,6 @@
 // than any fabricated data. All filtering/sorting runs client-side.
 import { getHealth, getCourses, getTeeTimes } from "./api.js";
 
-const PERIODS = ["all", "am", "pm", "eve"];
 const PRICE_BUCKETS = ["all", "low", "mid", "high"];
 const SORTS = ["rec", "price", "time"];
 
@@ -13,12 +12,11 @@ const SORTS = ["rec", "price", "time"];
 const STRINGS = {
   appName: "GreenLight", tagline: "Find & book tee times near you",
   navQuery: "Search", navWatch: "Watch Alerts",
-  playersLabel: "Players", periodLabel: "Time of day",
   filterTitle: "Filters", courseFilterTitle: "Golf Courses", priceFilterTitle: "Price Range",
-  availOnly: "Available (3+) only",
-  periods: { all: "All day", am: "Morning", pm: "Afternoon", eve: "Evening" },
+  sortFilterTitle: "Sort by", reset: "Reset", done: "Done",
   prices: { all: "Any", low: "≤$40", mid: "$41–70", high: "$70+" },
   sorts: { rec: "Recommended", price: "Lowest price", time: "Earliest time" },
+  coursesChip: (selected, total) => `${selected} of ${total} courses`,
   book: "Book",
   noResults: "No tee times match your filters.",
   loading: "Loading…", seatsUnit: " seats", today: "Today",
@@ -38,10 +36,8 @@ const state = {
   dayData: [], // tee times for the selected date: [{ id, name, imageUrl, teeTimes:[{time,price,availableSeats}] }]
   dates: buildDates(),
   selectedDateIndex: 0,
-  players: 2,
-  period: "all",
+  filterOpen: false,
   priceBucket: "all",
-  onlyAvailable: false,
   excludedCourseIds: [],
   sortBy: "rec",
   selectedChip: null,
@@ -79,15 +75,6 @@ function escapeHtml(value) {
   }[character]));
 }
 
-function periodMatch(time, period) {
-  if (period === "all") return true;
-  const hour = parseInt(String(time).split(":")[0], 10);
-  if (period === "am") return hour < 11;
-  if (period === "pm") return hour >= 11 && hour < 15;
-  if (period === "eve") return hour >= 15;
-  return true;
-}
-
 function priceMatch(price, bucket) {
   if (bucket === "all") return true;
   if (bucket === "low") return price <= 40;
@@ -122,11 +109,15 @@ function ratingHtml(course) {
 // 库里存的是完整地址（"7800 Vivian Dr, Vancouver, BC V5S 2V9, Canada"），
 // 卡片放不下也不需要省市邮编，只取前两段："7800 Vivian Dr, Vancouver"。
 // 完整值留在后端，以后做导航链接/算距离时还用得上。
+//
+// 城市那段单独包一层 .tt-addr-city：手机宽度下 CSS 会把它藏掉，只剩街道，
+// 省得和球场名抢那一行。放 CSS 里做是为了不必监听 resize 重渲染。
 function addressHtml(course) {
   if (!course.address) return "";
-  const short = String(course.address).split(",").slice(0, 2).join(",").trim();
-  if (!short) return "";
-  return `<span class="tt-card-address" title="${escapeHtml(course.address)}">${escapeHtml(short)}</span>`;
+  const [street = "", city = ""] = String(course.address).split(",");
+  if (!street.trim()) return "";
+  const cityHtml = city.trim() ? `<span class="tt-addr-city">, ${escapeHtml(city.trim())}</span>` : "";
+  return `<span class="tt-card-address" title="${escapeHtml(course.address)}">${escapeHtml(street.trim())}${cityHtml}</span>`;
 }
 
 // Turn a flat /api/tee-times list into the design's per-course grouping. The
@@ -182,12 +173,7 @@ function computeCards() {
   const cards = state.dayData
     .filter((course) => !state.excludedCourseIds.includes(course.id))
     .map((course) => {
-      const teeTimes = course.teeTimes.filter(
-        (teeTime) =>
-          periodMatch(teeTime.time, state.period) &&
-          priceMatch(teeTime.price, state.priceBucket) &&
-          (!state.onlyAvailable || teeTime.availableSeats == null || teeTime.availableSeats >= 3)
-      );
+      const teeTimes = course.teeTimes.filter((teeTime) => priceMatch(teeTime.price, state.priceBucket));
       return { course, teeTimes };
     })
     .filter((card) => card.teeTimes.length > 0);
@@ -199,7 +185,9 @@ function computeCards() {
 
   if (state.sortBy === "price") cards.sort((left, right) => left.cheapest - right.cheapest);
   else if (state.sortBy === "time") cards.sort((left, right) => left.earliest.localeCompare(right.earliest));
-  // "rec" keeps backend/source order.
+  // "rec" = 评分高的排前面。rating 是 Google Maps 抓来的，可能为 null——没评分的
+  // 排到最后，而不是当成 0 混进低分区，那会把「没数据」说成「评价差」。
+  else cards.sort((left, right) => (right.course.rating ?? -1) - (left.course.rating ?? -1));
 
   return cards;
 }
@@ -221,14 +209,6 @@ function render() {
     })
     .join("");
 
-  const players = [1, 2, 3, 4]
-    .map((count) => `<button class="tt-num${state.players === count ? " is-active" : ""}" data-act="players" data-val="${count}">${count}</button>`)
-    .join("");
-
-  const periods = PERIODS.map(
-    (period) => `<button class="tt-period${state.period === period ? " is-active" : ""}" data-act="period" data-val="${period}">${escapeHtml(strings.periods[period])}</button>`
-  ).join("");
-
   const courseChecks = state.courses
     .map((course) => {
       const isIncluded = !state.excludedCourseIds.includes(course.id);
@@ -243,9 +223,23 @@ function render() {
     (bucket) => `<button class="tt-chip-btn${state.priceBucket === bucket ? " is-active" : ""}" data-act="price" data-val="${bucket}">${escapeHtml(strings.prices[bucket])}</button>`
   ).join("");
 
-  const sortTabs = SORTS.map(
-    (sortOption) => `<button class="tt-sort-btn${state.sortBy === sortOption ? " is-active" : ""}" data-act="sort" data-val="${sortOption}">${escapeHtml(strings.sorts[sortOption])}</button>`
+  const sortOptions = SORTS.map(
+    (sortOption) => `<button class="tt-chip-btn${state.sortBy === sortOption ? " is-active" : ""}" data-act="sort" data-val="${sortOption}">${escapeHtml(strings.sorts[sortOption])}</button>`
   ).join("");
+
+  // 面板收起时用户看不到自己选了什么，所以把生效的筛选摘成 chips 放在按钮旁边，
+  // 数量同时当作按钮上的角标。默认值（Any / Recommended / 球场全选）不算生效。
+  const summaryChips = [];
+  if (state.priceBucket !== "all") summaryChips.push(strings.prices[state.priceBucket]);
+  const includedCourseCount = state.courses.filter((course) => !state.excludedCourseIds.includes(course.id)).length;
+  if (state.courses.length && includedCourseCount < state.courses.length) {
+    summaryChips.push(strings.coursesChip(includedCourseCount, state.courses.length));
+  }
+  if (state.sortBy !== "rec") summaryChips.push(strings.sorts[state.sortBy]);
+
+  const summaryHtml = summaryChips
+    .map((label) => `<span class="tt-summary-chip">${escapeHtml(label)}</span>`)
+    .join("");
 
   const cards = computeCards();
   const totalSlots = cards.reduce((total, card) => total + card.teeTimes.length, 0);
@@ -255,7 +249,7 @@ function render() {
   else countText = strings.countText(cards.length, totalSlots);
 
   const cardsHtml = cards
-    .map(({ course, teeTimes, cheapest }) => {
+    .map(({ course, teeTimes }) => {
       const teeSlotsHtml = teeTimes
         .map((teeTime) => {
           const chipKey = course.id + "|" + teeTime.time;
@@ -281,10 +275,7 @@ function render() {
             ${ratingHtml(course)}
             ${addressHtml(course)}
           </div>
-          <div class="tt-card-right">
-            <div class="tt-price">from $${cheapest}</div>
-            <button class="tt-book" data-act="book" data-id="${escapeHtml(course.id)}">${escapeHtml(strings.book)}</button>
-          </div>
+          <button class="tt-book" data-act="book" data-id="${escapeHtml(course.id)}">${escapeHtml(strings.book)}</button>
         </div>
         <div class="tt-tees">${teeSlotsHtml}</div>
       </div>`;
@@ -315,44 +306,46 @@ function render() {
     </div>
 
     <div class="tt-toolbar">
-      <div class="tt-dates">${dates}</div>
-      <div class="tt-controls">
-        <div class="tt-control">
-          <span class="tt-control-label">${escapeHtml(strings.playersLabel)}</span>
-          <div class="tt-nums">${players}</div>
-        </div>
-        <div class="tt-control">
-          <span class="tt-control-label">${escapeHtml(strings.periodLabel)}</span>
-          <div class="tt-periods">${periods}</div>
-        </div>
-      </div>
-    </div>
+      <div class="tt-toolbar-inner">
+        <div class="tt-dates">${dates}</div>
 
-    <div class="tt-body">
-      <div class="tt-sidebar">
-        <div class="tt-filter-title">${escapeHtml(strings.filterTitle)}</div>
-        <div class="tt-section">
-          <div class="tt-section-title">${escapeHtml(strings.courseFilterTitle)}</div>
-          ${courseChecks || `<div class="tt-course-name">—</div>`}
-        </div>
-        <div class="tt-section">
-          <div class="tt-section-title">${escapeHtml(strings.priceFilterTitle)}</div>
-          <div class="tt-chips">${priceChips}</div>
-        </div>
-        <div class="tt-toggle-row" data-act="avail">
-          <span class="tt-toggle-label">${escapeHtml(strings.availOnly)}</span>
-          <div class="tt-switch${state.onlyAvailable ? " is-on" : ""}"><div class="tt-switch-knob"></div></div>
-        </div>
-      </div>
-
-      <div class="tt-main">
-        <div class="tt-main-head">
+        <div class="tt-filter-row">
+          <button class="tt-filter-btn${state.filterOpen ? " is-open" : ""}" data-act="filter">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <line x1="21" y1="6" x2="3" y2="6"></line><line x1="17" y1="12" x2="7" y2="12"></line><line x1="13" y1="18" x2="11" y2="18"></line>
+            </svg>
+            <span>${escapeHtml(strings.filterTitle)}</span>
+            ${summaryChips.length ? `<span class="tt-filter-badge">${summaryChips.length}</span>` : ""}
+            <svg class="tt-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          <div class="tt-summary">${summaryHtml}</div>
           <span class="tt-count">${escapeHtml(countText)}</span>
-          <div class="tt-sort">${sortTabs}</div>
         </div>
-        ${listBody}
+
+        ${state.filterOpen ? `<div class="tt-panel">
+          <div class="tt-section">
+            <div class="tt-section-title">${escapeHtml(strings.courseFilterTitle)}</div>
+            <div class="tt-courses">${courseChecks || `<span class="tt-course-name">—</span>`}</div>
+          </div>
+          <div class="tt-section">
+            <div class="tt-section-title">${escapeHtml(strings.priceFilterTitle)}</div>
+            <div class="tt-chips">${priceChips}</div>
+          </div>
+          <div class="tt-section">
+            <div class="tt-section-title">${escapeHtml(strings.sortFilterTitle)}</div>
+            <div class="tt-sorts">${sortOptions}</div>
+          </div>
+          <div class="tt-panel-actions">
+            <button class="tt-btn-reset" data-act="reset">${escapeHtml(strings.reset)}</button>
+            <button class="tt-btn-done" data-act="filter">${escapeHtml(strings.done)}</button>
+          </div>
+        </div>` : ""}
       </div>
     </div>
+
+    <div class="tt-body">${listBody}</div>
 
     ${state.toast ? `<div class="tt-toast">${escapeHtml(state.toast)}</div>` : ""}
   `;
@@ -374,12 +367,14 @@ app.addEventListener("click", (event) => {
       state.selectedChip = null;
       loadDay();
       break;
-    case "players":
-      state.players = parseInt(value, 10);
+    case "filter":
+      state.filterOpen = !state.filterOpen;
       render();
       break;
-    case "period":
-      state.period = value;
+    case "reset":
+      state.priceBucket = "all";
+      state.sortBy = "rec";
+      state.excludedCourseIds = [];
       render();
       break;
     case "course":
@@ -390,10 +385,6 @@ app.addEventListener("click", (event) => {
       break;
     case "price":
       state.priceBucket = value;
-      render();
-      break;
-    case "avail":
-      state.onlyAvailable = !state.onlyAvailable;
       render();
       break;
     case "sort":
