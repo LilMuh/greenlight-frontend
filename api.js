@@ -1,7 +1,8 @@
 // Every backend call lives here. Point API_BASE at your greenlight-backend.
 // Keeping all fetch calls behind named functions means a future framework move
 // only rewrites rendering, not this module.
-const API_BASE = "http://localhost:8080";
+// 部署时由 .github/workflows/deploy.yml 用仓库变量 API_BASE 替换掉。
+const API_BASE = "__API_BASE__";
 
 async function request(path, options) {
   const response = await fetch(API_BASE + path, options);
