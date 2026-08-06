@@ -481,9 +481,20 @@
         font-size: 16px;
         font-weight: 700;
       }
-      .tt-card-sub {
+      /* 球场名下面的两行副信息（Google Maps 数据）。任一为空时 JS 不渲染，
+         .tt-card-info 的 gap 自动收拢，不会留下空隙 */
+      .tt-card-rating {
         font-size: 12px;
         color: oklch(52% 0.012 95);
+      }
+      /* 地址已经在 JS 里截成前两段，仍可能超宽（长街名），再兜一层省略号。
+         能生效是因为 .tt-card-info 上有 min-width: 0 */
+      .tt-card-address {
+        font-size: 12px;
+        color: oklch(52% 0.012 95);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       .tt-card-right {
         flex: none;

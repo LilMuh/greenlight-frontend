@@ -106,6 +106,29 @@ function showToast(message, durationMs = 2200) {
   }, durationMs);
 }
 
+// --- Course decoration (Google Maps 数据，随时可能为 null) --------------------
+//
+// 地址和评分是抓 Google Maps 页面拿的，Google 改版式就会取不到，后端那边取不到写
+// null 不写假值。所以这两块各自独立降级：有就显示，没有就整块不渲染——绝不显示
+// "⭐ 0" 或者空括号，那看起来像「这个球场评分是 0」而不是「我们没拿到数据」。
+
+// "⭐ 4.3 (1,330)"。只有评分没有评价数时就不显示括号那截。
+function ratingHtml(course) {
+  if (course.rating == null) return "";
+  const count = course.ratingCount != null ? ` (${Number(course.ratingCount).toLocaleString()})` : "";
+  return `<span class="tt-card-rating">⭐ ${escapeHtml(String(course.rating))}${escapeHtml(count)}</span>`;
+}
+
+// 库里存的是完整地址（"7800 Vivian Dr, Vancouver, BC V5S 2V9, Canada"），
+// 卡片放不下也不需要省市邮编，只取前两段："7800 Vivian Dr, Vancouver"。
+// 完整值留在后端，以后做导航链接/算距离时还用得上。
+function addressHtml(course) {
+  if (!course.address) return "";
+  const short = String(course.address).split(",").slice(0, 2).join(",").trim();
+  if (!short) return "";
+  return `<span class="tt-card-address" title="${escapeHtml(course.address)}">${escapeHtml(short)}</span>`;
+}
+
 // Turn a flat /api/tee-times list into the design's per-course grouping. The
 // backend gives { courseId, course, time, price, availableSeats, ... }; the seat
 // count may be missing, so it degrades to null rather than breaking the card.
@@ -119,8 +142,11 @@ function groupTeeTimes(teeTimeList) {
       byCourseId.set(courseId, {
         id: courseId,
         name: matchedCourse ? matchedCourse.name : String(teeTime.course ?? courseKey),
-        // 照片来自 /api/courses，tee-time 接口不带它，所以要在这里挂上去
+        // 照片、地址、评分都来自 /api/courses，tee-time 接口不带它们，在这里挂上去
         imageUrl: matchedCourse ? matchedCourse.imageUrl : null,
+        address: matchedCourse ? matchedCourse.address : null,
+        rating: matchedCourse ? matchedCourse.rating : null,
+        ratingCount: matchedCourse ? matchedCourse.ratingCount : null,
         teeTimes: [],
       });
     }
@@ -252,6 +278,8 @@ function render() {
           <div class="tt-photo">${photoHtml}</div>
           <div class="tt-card-info">
             <strong class="tt-card-name">${escapeHtml(course.name)}</strong>
+            ${ratingHtml(course)}
+            ${addressHtml(course)}
           </div>
           <div class="tt-card-right">
             <div class="tt-price">from $${cheapest}</div>
@@ -401,7 +429,15 @@ async function init() {
     const courses = await getCourses();
     if (Array.isArray(courses) && courses.length) {
       // 用 slug 当标识：tee-time 的 courseId 也是 slug，两边好对应
-      state.courses = courses.map((course) => ({ id: course.slug, name: course.name, imageUrl: course.imageUrl }));
+      // address / rating / ratingCount 来自 Google Maps，可能为 null，卡片各自降级
+      state.courses = courses.map((course) => ({
+        id: course.slug,
+        name: course.name,
+        imageUrl: course.imageUrl,
+        address: course.address ?? null,
+        rating: course.rating ?? null,
+        ratingCount: course.ratingCount ?? null,
+      }));
     }
   } catch {
     state.offline = true;
