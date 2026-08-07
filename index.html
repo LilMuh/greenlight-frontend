@@ -406,6 +406,13 @@
         flex-direction: column;
         gap: 16px;
       }
+      /* 切日期时新数据还没到，列表留在原地调淡。pointer-events 关掉是因为这批卡片
+         已经是上一天的了，此刻 Book 链接拼的却是新日期，点进去两边对不上。 */
+      .tt-cards.is-loading {
+        opacity: 0.55;
+        pointer-events: none;
+        transition: opacity 0.15s ease;
+      }
       .tt-card {
         background: #fff;
         border: 1px solid var(--line);

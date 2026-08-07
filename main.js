@@ -324,10 +324,13 @@ function render() {
     })
     .join("");
 
-  const listBody = state.loading
+  // 加载中不清空列表，只把上一天的卡片调淡：清空会让内容整整消失一帧（列表超过一屏时
+  // 还会连带滚动条消失、位置跳回顶部），切日期时看到的「闪」就是这一下。空白期长短等于
+  // /api/tee-times 的响应时间。只有首次加载、手上一条数据都没有时才留空。
+  const listBody = cards.length
+    ? `<div class="tt-cards${state.loading ? " is-loading" : ""}">${cardsHtml}</div>`
+    : state.loading
     ? ""
-    : cards.length
-    ? `<div class="tt-cards">${cardsHtml}</div>`
     : `<div class="tt-empty">${escapeHtml(strings.noResults)}</div>`;
 
   app.innerHTML = `
