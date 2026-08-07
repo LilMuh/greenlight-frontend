@@ -122,4 +122,10 @@ const API_BASE = "http://localhost:8080";
 
 ## License
 
-Not decided yet. This needs to be settled before the repositories are made public.
+[GNU Affero General Public License v3.0](LICENSE).
+
+You may use, modify and redistribute this code. The Affero clause adds one
+condition on top of the GPL: if you run a modified version as a network service,
+you must offer its source to the people using it.
+
+All four GreenLight repositories are under the same license.

@@ -120,4 +120,9 @@ const API_BASE = "http://localhost:8080";
 
 ## 开源协议
 
-尚未确定，仓库公开前需要先明确。
+[GNU Affero General Public License v3.0](LICENSE)。
+
+可以自由使用、修改、再分发。Affero 条款在 GPL 之上多加一条：如果你把修改过的版本
+部署成网络服务，必须向使用者提供你那一份的源码。
+
+GreenLight 四个仓库采用同一个协议。
