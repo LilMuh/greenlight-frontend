@@ -12,7 +12,7 @@ Tee times at the municipal courses around Vancouver go quickly. Weekend afternoo
 
 GreenLight handles the monitoring:
 
-* You define what you're looking for: courses, dates, a tee-off time window, and group size.
+* You define what you're looking for: courses, weekdays, a tee-off time window, and group size.
 * The backend polls the courses' booking systems on a schedule, normalizes each provider into a single format, and stores the current openings.
 * You get an email as soon as a matching slot appears, and again if a slot is booked and later frees up.
 * The web UI reads from the database, so pages load quickly and the booking sites aren't hit on every page view.
@@ -52,7 +52,7 @@ Plain HTML, CSS, and JavaScript. No framework and no build step. It only talks t
 ```
 greenlight-frontend/
 ├── index.html     # tee-time view, showing what the backend has stored
-├── config.html    # watch-config editor: courses, dates, time window, group size
+├── config.html    # watch-config editor: courses, weekdays, time window, group size
 ├── api.js         # all backend calls live here
 ├── main.js        # page logic and rendering
 ├── styles.css

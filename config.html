@@ -212,7 +212,33 @@
         color: var(--ink);
       }
 
-      /* Date range */
+      /* Weekday toggles — seven in a row, so they share the width evenly
+         instead of taking .wa-pill's padding and wrapping onto three lines. */
+      .wa-days {
+        display: flex;
+        gap: 4px;
+      }
+      .wa-day {
+        flex: 1;
+        min-width: 0;
+        padding: 7px 0;
+        border-radius: 7px;
+        border: 1px solid var(--line);
+        background: #fff;
+        color: var(--ink);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      .wa-day.is-active {
+        border-color: var(--green);
+        background: var(--green);
+        color: #fff;
+        font-weight: 700;
+      }
+
+      /* Time window */
       .wa-daterow {
         display: flex;
         align-items: center;

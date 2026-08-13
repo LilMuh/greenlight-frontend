@@ -30,10 +30,23 @@ const TIME_END_DEFAULT = "20:00";
 // Default players: a full foursome.
 const PLAYERS_DEFAULT = 4;
 
+// A watch is pinned to weekdays, not dates: "every Saturday morning" stays true
+// next month, a date range doesn't. The backend turns each weekday back into
+// concrete dates inside its 8-day scrape window. Codes match what it stores.
+const WEEKDAYS = [
+  { code: "MON", label: "Mon" },
+  { code: "TUE", label: "Tue" },
+  { code: "WED", label: "Wed" },
+  { code: "THU", label: "Thu" },
+  { code: "FRI", label: "Fri" },
+  { code: "SAT", label: "Sat" },
+  { code: "SUN", label: "Sun" },
+];
+
 const STRINGS = {
   appName: "GreenLight", tagline: "Watch tee times, get notified",
   navQuery: "Search", navWatch: "Watch Alerts",
-  coursesLabel: "Golf Courses", dateRangeLabel: "Date Range", rangeTo: "to",
+  coursesLabel: "Golf Courses", weekdaysLabel: "Weekdays", rangeTo: "to",
   timeRangeLabel: "Time Window", playersLabel: "Players", maxPriceLabel: "Max Price",
   emailLabel: "Notify Email", emailPlaceholder: "you@example.com",
   cancel: "Cancel", edit: "Edit", delete: "Delete",
@@ -42,9 +55,11 @@ const STRINGS = {
   newTitle: "New Watch", editTitle: "Edit Watch",
   createBtn: "Create Watch", saveBtn: "Save",
   needCourseEmail: "Pick a course and enter your email.",
+  needWeekday: "Pick at least one weekday.",
   saved: "Watch saved.", deleted: "Watch deleted.",
   offline: "Backend offline — please try again once it's up.",
   playerUnit: " players",
+  everyDay: "Every day",
   countText: (watchCount) => `Watches: ${watchCount}`,
   hitsText: (hitCount) =>
     hitCount > 0 ? `${hitCount} matching now` : "No matches yet",
@@ -58,8 +73,7 @@ const state = {
   watches: [], // [{ id, courseId, courseName, ... }]
   hitsByWatchId: {}, // { [watchId]: hitCount } —— 来自 /api/matches
   formCourses: [], // selected course ids (numbers)
-  formDateStart: todayISO(),
-  formDateEnd: todayISO(),
+  formWeekdays: [], // selected weekday codes, e.g. ["SAT","SUN"]
   formTimeStart: TIME_START_DEFAULT,
   formTimeEnd: TIME_END_DEFAULT,
   formPlayers: PLAYERS_DEFAULT,
@@ -74,13 +88,19 @@ const app = document.getElementById("app");
 
 // --- Helpers ----------------------------------------------------------------
 
-// 当天日期（本地时区），YYYY-MM-DD —— 日期范围的默认值。
-function todayISO() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+// 后端按 ISO 序（周一在前）存和返回，前端跟着排：卡片上的顺序和邮件里的一致。
+function sortWeekdays(codes) {
+  const order = WEEKDAYS.map((weekday) => weekday.code);
+  return [...codes].sort((left, right) => order.indexOf(left) - order.indexOf(right));
+}
+
+// ["SAT","SUN"] → "Sat, Sun"；七天全勾说明没做筛选，直接写 "Every day"。
+function weekdaysText(codes) {
+  if (!codes.length) return "";
+  if (codes.length === WEEKDAYS.length) return STRINGS.everyDay;
+  return sortWeekdays(codes)
+    .map((code) => WEEKDAYS.find((weekday) => weekday.code === code)?.label ?? code)
+    .join(", ");
 }
 
 function escapeHtml(value) {
@@ -101,8 +121,7 @@ function normalizeWatch(record) {
     id: record.id,
     courseId: record.courseId,
     courseName: record.courseName ?? courseName(record.courseId),
-    dateStart: record.dateStart ?? "",
-    dateEnd: record.dateEnd ?? "",
+    weekdays: Array.isArray(record.weekdays) ? record.weekdays : [],
     timeStart: record.timeStart ?? TIME_START_DEFAULT,
     timeEnd: record.timeEnd ?? TIME_END_DEFAULT,
     players: Number(record.players ?? PLAYERS_DEFAULT),
@@ -117,8 +136,7 @@ function toDto(watch) {
   return {
     id: watch.id,
     courseId: watch.courseId,
-    dateStart: watch.dateStart,
-    dateEnd: watch.dateEnd,
+    weekdays: watch.weekdays,
     timeStart: watch.timeStart,
     timeEnd: watch.timeEnd,
     players: watch.players,
@@ -140,8 +158,8 @@ function showToast(message, durationMs = 2000) {
 
 function resetForm() {
   state.formCourses = state.courses.map((course) => course.id);
-  state.formDateStart = todayISO();
-  state.formDateEnd = todayISO();
+  // 星期不给默认值：勾哪几天是这条 watch 最要紧的决定，替人预设只会被将错就错地提交
+  state.formWeekdays = [];
   state.formTimeStart = TIME_START_DEFAULT;
   state.formTimeEnd = TIME_END_DEFAULT;
   state.formPlayers = PLAYERS_DEFAULT;
@@ -165,6 +183,11 @@ function render() {
     })
     .join("");
 
+  const weekdayPills = WEEKDAYS.map((weekday) => {
+    const isOn = state.formWeekdays.includes(weekday.code);
+    return `<button class="wa-day${isOn ? " is-active" : ""}" data-act="weekday" data-val="${weekday.code}">${escapeHtml(weekday.label)}</button>`;
+  }).join("");
+
   const playerPills = [1, 2, 3, 4]
     .map(
       (count) =>
@@ -175,11 +198,12 @@ function render() {
   const cards = state.watches
     .map((watch) => {
       const chips = [
-        `${watch.dateStart} ~ ${watch.dateEnd}`,
+        weekdaysText(watch.weekdays),
         `${watch.timeStart}–${watch.timeEnd}`,
         `${watch.players}${strings.playerUnit}`,
         `≤$${watch.maxPrice}`,
       ]
+        .filter(Boolean)
         .map((chipText) => `<span class="wa-chip">${escapeHtml(chipText)}</span>`)
         .join("");
       const hitCount = state.hitsByWatchId[watch.id] ?? 0;
@@ -236,12 +260,8 @@ function render() {
         </div>
 
         <div class="wa-field">
-          <div class="wa-label">${escapeHtml(strings.dateRangeLabel)}</div>
-          <div class="wa-daterow">
-            <input type="date" class="wa-date" id="wa-date-start" value="${escapeHtml(state.formDateStart)}" />
-            <span class="wa-to">${escapeHtml(strings.rangeTo)}</span>
-            <input type="date" class="wa-date" id="wa-date-end" value="${escapeHtml(state.formDateEnd)}" />
-          </div>
+          <div class="wa-label">${escapeHtml(strings.weekdaysLabel)}</div>
+          <div class="wa-days">${weekdayPills}</div>
         </div>
 
         <div class="wa-field">
@@ -292,16 +312,12 @@ function render() {
 // Text/date/time/range inputs commit on change (or live for the slider label) so
 // a re-render never clobbers what the user is typing.
 function wireInputs() {
-  const dateStart = document.getElementById("wa-date-start");
-  const dateEnd = document.getElementById("wa-date-end");
   const timeStart = document.getElementById("wa-time-start");
   const timeEnd = document.getElementById("wa-time-end");
   const price = document.getElementById("wa-price");
   const priceValue = document.getElementById("wa-price-val");
   const email = document.getElementById("wa-email");
 
-  dateStart.addEventListener("change", (event) => (state.formDateStart = event.target.value));
-  dateEnd.addEventListener("change", (event) => (state.formDateEnd = event.target.value));
   timeStart.addEventListener("change", (event) => (state.formTimeStart = event.target.value));
   timeEnd.addEventListener("change", (event) => (state.formTimeEnd = event.target.value));
   email.addEventListener("input", (event) => (state.formEmail = event.target.value));
@@ -327,15 +343,26 @@ function toggleFormCourse(rawCourseId) {
   render();
 }
 
+// 星期是多选：勾中的再点一次取消。一天都不勾的 watch 后端会拒，提交前先拦下来。
+function toggleFormWeekday(code) {
+  state.formWeekdays = state.formWeekdays.includes(code)
+    ? state.formWeekdays.filter((selected) => selected !== code)
+    : [...state.formWeekdays, code];
+  render();
+}
+
 async function submitForm() {
   const strings = STRINGS;
   if (!state.formEmail || state.formCourses.length === 0) {
     showToast(strings.needCourseEmail, 2200);
     return;
   }
+  if (state.formWeekdays.length === 0) {
+    showToast(strings.needWeekday, 2200);
+    return;
+  }
   const config = {
-    dateStart: state.formDateStart,
-    dateEnd: state.formDateEnd,
+    weekdays: sortWeekdays(state.formWeekdays),
     timeStart: state.formTimeStart,
     timeEnd: state.formTimeEnd,
     players: state.formPlayers,
@@ -368,8 +395,7 @@ function startEdit(watchId) {
   if (!watch) return;
   state.editingId = watch.id;
   state.formCourses = [watch.courseId];
-  state.formDateStart = watch.dateStart;
-  state.formDateEnd = watch.dateEnd;
+  state.formWeekdays = [...watch.weekdays];
   state.formTimeStart = watch.timeStart;
   state.formTimeEnd = watch.timeEnd;
   state.formPlayers = watch.players;
@@ -417,6 +443,9 @@ app.addEventListener("click", (event) => {
   switch (action) {
     case "course":
       toggleFormCourse(id);
+      break;
+    case "weekday":
+      toggleFormWeekday(value);
       break;
     case "players":
       state.formPlayers = parseInt(value, 10);
