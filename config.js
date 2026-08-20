@@ -27,6 +27,10 @@ const PRICE_DEFAULT = PRICE_MAX;
 const TIME_START_DEFAULT = "06:00";
 const TIME_END_DEFAULT = "20:00";
 
+// Minute choices for the time picker. A watch window is a coarse filter, so the
+// hour and the half hour are all it needs.
+const MINUTE_CHOICES = [0, 30];
+
 // Default players: a full foursome.
 const PLAYERS_DEFAULT = 4;
 
@@ -56,6 +60,7 @@ const STRINGS = {
   createBtn: "Create Watch", saveBtn: "Save",
   needCourseEmail: "Pick a course and enter your email.",
   needWeekday: "Pick at least one weekday.",
+  needTimeOrder: "End time must be later than start time.",
   saved: "Watch saved.", deleted: "Watch deleted.",
   offline: "Backend offline — please try again once it's up.",
   playerUnit: " players",
@@ -101,6 +106,30 @@ function weekdaysText(codes) {
   return sortWeekdays(codes)
     .map((code) => WEEKDAYS.find((weekday) => weekday.code === code)?.label ?? code)
     .join(", ");
+}
+
+// 时间在 state、界面和线上格式里都是 24 小时制的 "HH:MM"，和后端存的、
+// tee_time.time_local 用的是同一套，直接可比。
+//
+// 刻意不用 <input type="time">：那个控件在 12 小时制的设备上把 AM/PM 做成滚轮里的
+// 一列（iPhone）或键盘录入时可以不动的一段（桌面）。拨了时和分却漏掉 meridiem，
+// 下午 4:45 就存成了 04:45，窗口倒挂，这条 watch 从此一条都不命中。选 24 小时制的
+// 小时就没有 meridiem 这个东西可漏了。
+function parseClock(value) {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(String(value ?? "").trim());
+  if (!match) return { hour: 0, minute: 0 };
+  return { hour: Math.min(23, Number(match[1])), minute: Math.min(59, Number(match[2])) };
+}
+
+function formatClock(hour, minute) {
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+// 库里存着不在档位上的分钟（早先用原生控件存的，例如 16:45 / 16:57）。把当前值
+// 补进选项里，编辑一条老 watch 才不会顺手把分钟改掉。
+function minuteOptions(current) {
+  if (MINUTE_CHOICES.includes(current)) return MINUTE_CHOICES;
+  return [...MINUTE_CHOICES, current].sort((left, right) => left - right);
 }
 
 function escapeHtml(value) {
@@ -169,6 +198,32 @@ function resetForm() {
 }
 
 // --- Rendering --------------------------------------------------------------
+
+// 一段时间的选择器：24 小时制的时 + 分两个下拉。
+// which 是 "start" / "end"，用来在 id 上做区分。
+function timePicker(which, value24) {
+  const { hour, minute } = parseClock(value24);
+
+  const hourOptions = Array.from({ length: 24 }, (unused, index) => index)
+    .map(
+      (option) =>
+        `<option value="${option}"${option === hour ? " selected" : ""}>${String(option).padStart(2, "0")}</option>`
+    )
+    .join("");
+
+  const minutePicks = minuteOptions(minute)
+    .map(
+      (option) =>
+        `<option value="${option}"${option === minute ? " selected" : ""}>${String(option).padStart(2, "0")}</option>`
+    )
+    .join("");
+
+  return `<div class="wa-timepick">
+    <select class="wa-time-sel" id="wa-hour-${which}">${hourOptions}</select>
+    <span class="wa-colon">:</span>
+    <select class="wa-time-sel" id="wa-minute-${which}">${minutePicks}</select>
+  </div>`;
+}
 
 function render() {
   const strings = STRINGS;
@@ -266,10 +321,10 @@ function render() {
 
         <div class="wa-field">
           <div class="wa-label">${escapeHtml(strings.timeRangeLabel)}</div>
-          <div class="wa-daterow">
-            <input type="time" class="wa-date" id="wa-time-start" value="${escapeHtml(state.formTimeStart)}" />
+          <div class="wa-timerow">
+            ${timePicker("start", state.formTimeStart)}
             <span class="wa-to">${escapeHtml(strings.rangeTo)}</span>
-            <input type="time" class="wa-date" id="wa-time-end" value="${escapeHtml(state.formTimeEnd)}" />
+            ${timePicker("end", state.formTimeEnd)}
           </div>
         </div>
 
@@ -312,19 +367,26 @@ function render() {
 // Text/date/time/range inputs commit on change (or live for the slider label) so
 // a re-render never clobbers what the user is typing.
 function wireInputs() {
-  const timeStart = document.getElementById("wa-time-start");
-  const timeEnd = document.getElementById("wa-time-end");
   const price = document.getElementById("wa-price");
   const priceValue = document.getElementById("wa-price-val");
   const email = document.getElementById("wa-email");
 
-  timeStart.addEventListener("change", (event) => (state.formTimeStart = event.target.value));
-  timeEnd.addEventListener("change", (event) => (state.formTimeEnd = event.target.value));
+  wireTimeSelects("start");
+  wireTimeSelects("end");
   email.addEventListener("input", (event) => (state.formEmail = event.target.value));
   price.addEventListener("input", (event) => {
     state.formMaxPrice = parseInt(event.target.value, 10);
     priceValue.textContent = "$" + state.formMaxPrice;
   });
+}
+
+// 时/分下拉改动后只写回 state，不重绘：重绘会把手机上刚拉开的原生下拉关掉。
+function wireTimeSelects(which) {
+  const hour = document.getElementById(`wa-hour-${which}`);
+  const minute = document.getElementById(`wa-minute-${which}`);
+  const commit = () => writeFormTime(which, formatClock(Number(hour.value), Number(minute.value)));
+  hour.addEventListener("change", commit);
+  minute.addEventListener("change", commit);
 }
 
 // --- Actions ----------------------------------------------------------------
@@ -343,6 +405,15 @@ function toggleFormCourse(rawCourseId) {
   render();
 }
 
+function readFormTime(which) {
+  return which === "start" ? state.formTimeStart : state.formTimeEnd;
+}
+
+function writeFormTime(which, value) {
+  if (which === "start") state.formTimeStart = value;
+  else state.formTimeEnd = value;
+}
+
 // 星期是多选：勾中的再点一次取消。一天都不勾的 watch 后端会拒，提交前先拦下来。
 function toggleFormWeekday(code) {
   state.formWeekdays = state.formWeekdays.includes(code)
@@ -359,6 +430,12 @@ async function submitForm() {
   }
   if (state.formWeekdays.length === 0) {
     showToast(strings.needWeekday, 2200);
+    return;
+  }
+  // 两个值都是零填充的 "HH:MM"，字符串比较就是时间先后，和后端 BETWEEN 的口径一致。
+  // 结束不晚于开始的窗口在 SQL 里恒为空集，会静悄悄地一条都不命中——挡在这里。
+  if (state.formTimeEnd <= state.formTimeStart) {
+    showToast(strings.needTimeOrder, 2400);
     return;
   }
   const config = {

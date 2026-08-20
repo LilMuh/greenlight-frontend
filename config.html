@@ -238,15 +238,20 @@
         font-weight: 700;
       }
 
-      /* Time window */
-      .wa-daterow {
+      /* Time window. Start and end stack vertically so both fit a phone without
+         the selects being squeezed down to unreadable. */
+      .wa-timerow {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+      .wa-timepick {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
       }
-      .wa-date {
-        flex: 1;
-        min-width: 0;
+      .wa-time-sel {
         padding: 8px 10px;
         border-radius: 8px;
         border: 1px solid var(--line);
@@ -255,9 +260,14 @@
         font-family: inherit;
         background: #fff;
       }
+      .wa-colon {
+        font-size: 12.5px;
+        color: var(--muted2);
+      }
       .wa-to {
         font-size: 12px;
         color: var(--muted2);
+        padding-left: 2px;
       }
 
       /* Pills (period + players) */
