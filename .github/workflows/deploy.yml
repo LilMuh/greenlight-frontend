@@ -22,8 +22,11 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      # 后端地址不进源码，从仓库变量注入
-      - run: sed -i "s|__API_BASE__|${{ vars.API_BASE }}|" api.js
+      # 后端地址和 API 密钥都不进源码，部署时注入。
+      # 密钥最终会随静态产物公开（页面是公开的），放 secret 只是别让它出现在构建日志里。
+      - run: |
+          sed -i "s|__API_BASE__|${{ vars.API_BASE }}|g" api.js
+          sed -i "s|__API_KEY__|${{ secrets.API_KEY }}|g" api.js
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .

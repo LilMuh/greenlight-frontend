@@ -4,8 +4,20 @@
 // 部署时由 .github/workflows/deploy.yml 用仓库变量 API_BASE 替换掉。
 const API_BASE = "__API_BASE__";
 
-async function request(path, options) {
-  const response = await fetch(API_BASE + path, options);
+// /api/** 的共享密钥，后端 ApiKeyFilter 校验。同样在部署时替换（来自仓库 secret）。
+//
+// 这不是真正的凭据：本仓库是公开的、页面是静态的，密钥随构建产物一起发出去，
+// 打开开发者工具就能看到。它挡的是扫到域名随手试的人和自动扫描器——后端跑在
+// Tailscale Funnel 上，没有账号体系，写接口不能完全裸着。
+//
+// 占位符没被替换掉（本地直接开文件）时留空，后端那边留空密钥＝关卡关闭，正好对上。
+const API_KEY_SLOT = "__API_KEY__";
+const API_KEY = API_KEY_SLOT.startsWith("__") ? "" : API_KEY_SLOT;
+
+async function request(path, options = {}) {
+  const headers = { ...options.headers };
+  if (API_KEY) headers["X-Greenlight-Key"] = API_KEY;
+  const response = await fetch(API_BASE + path, { ...options, headers });
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
   return response.status === 204 ? null : response.json();
 }
