@@ -211,6 +211,19 @@
       .wa-course.is-on .wa-course-name {
         color: var(--ink);
       }
+      /* 编辑一条 watch 时球场不能改（换球场就是换成另一条 watch）。
+         选中的那个照常高亮，只是整块不再像可点的东西。 */
+      .wa-course.is-locked {
+        cursor: default;
+        opacity: 0.55;
+      }
+      /* 字段下面那行解释，比 .wa-label 更轻——它说明的是限制，不是标题 */
+      .wa-hint {
+        font-size: 12px;
+        line-height: 16px;
+        color: var(--muted);
+        padding-top: 2px;
+      }
 
       /* Weekday toggles — seven in a row, so they share the width evenly
          instead of taking .wa-pill's padding and wrapping onto three lines. */

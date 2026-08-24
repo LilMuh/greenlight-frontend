@@ -7,6 +7,7 @@
 // batch request; the backend loops and returns one watch per course, so each
 // course becomes its own card. Editing a watch edits that one row (single course).
 import {
+  ApiError,
   getCourses,
   listWatchConfigs,
   getMatches,
@@ -63,6 +64,9 @@ const STRINGS = {
   needTimeOrder: "End time must be later than start time.",
   saved: "Watch saved.", deleted: "Watch deleted.",
   offline: "Backend offline — please try again once it's up.",
+  // 后端好好的、只是这次请求不合法时的兜底。和 offline 分开：那句会让人跑去看服务
+  genericError: "That didn't go through — please try again.",
+  courseLocked: "A watch's course can't be changed — create a new one instead.",
   playerUnit: " players",
   everyDay: "Every day",
   countText: (watchCount) => `Watches: ${watchCount}`,
@@ -175,6 +179,39 @@ function toDto(watch) {
   };
 }
 
+// --- Error reporting --------------------------------------------------------
+//
+// 后端出错时回的是 {"code","message"}（code 取值见 greenlight-backend 的 ApiErrorCode）。
+// 这里只认 code，不显示后端那句 message —— 那是英文调试串，界面文案该跟着界面走。
+//
+// 认不出的 code 一律落到 genericError：后端加了新 code 而这份静态页还是旧的，
+// 页面会说得笼统一点，但不会崩、也不会谎称后端离线。
+const ERROR_MESSAGES = {
+  WATCH_DUPLICATE: "You already have an alert for that course — edit that one instead.",
+  WATCH_COURSE_IMMUTABLE: "A watch's course can't be changed — create a new one instead.",
+  WATCH_WEEKDAYS_REQUIRED: "Pick at least one weekday.",
+  WATCH_NOT_FOUND: "That alert is gone — reload the page.",
+  COURSE_NOT_FOUND: "That course is gone — reload the page.",
+};
+
+/**
+ * 把一次失败翻译成给人看的一句话，并决定要不要把页面标成离线。
+ *
+ * 分三档，因为对人的意思完全不同：
+ *   - 根本没连上（fetch 抛 TypeError）→ 后端离线，去看服务；
+ *   - 连上了、后端拒了这次请求（4xx 带 code）→ 是这次填的东西有问题，改了再来；
+ *   - 连上了、后端自己炸了（5xx）→ 不是用户的错，也不是离线，笼统说一句。
+ * 改这个之前所有失败都走「后端离线」，填错一个字也会被告知去检查服务器。
+ */
+function reportError(error) {
+  if (!(error instanceof ApiError)) {
+    state.offline = true;
+    showToast(STRINGS.offline, 2200);
+    return;
+  }
+  showToast(ERROR_MESSAGES[error.code] ?? STRINGS.genericError, 2600);
+}
+
 function showToast(message, durationMs = 2000) {
   state.toast = message;
   render();
@@ -228,10 +265,12 @@ function timePicker(which, value24) {
 function render() {
   const strings = STRINGS;
 
+  // 编辑态球场是锁死的（见 toggleFormCourse），整块置灰，选中的那个照常高亮
+  const coursesLocked = state.editingId != null;
   const courseRows = state.courses
     .map((course) => {
       const isSelected = state.formCourses.includes(course.id);
-      return `<div class="wa-course${isSelected ? " is-on" : ""}" data-act="course" data-id="${escapeHtml(course.id)}">
+      return `<div class="wa-course${isSelected ? " is-on" : ""}${coursesLocked ? " is-locked" : ""}" data-act="course" data-id="${escapeHtml(course.id)}">
         <span class="wa-box"></span>
         <span class="wa-course-name">${escapeHtml(course.name)}</span>
       </div>`;
@@ -312,6 +351,7 @@ function render() {
         <div class="wa-field">
           <div class="wa-label">${escapeHtml(strings.coursesLabel)}</div>
           <div>${courseRows}</div>
+          ${coursesLocked ? `<div class="wa-hint">${escapeHtml(strings.courseLocked)}</div>` : ""}
         </div>
 
         <div class="wa-field">
@@ -391,17 +431,20 @@ function wireTimeSelects(which) {
 
 // --- Actions ----------------------------------------------------------------
 
-// Create mode: multi-select (each course becomes its own watch). Edit mode: a
-// watch is a single course, so a click replaces the selection (radio-like).
+// Create mode: multi-select (each course becomes its own watch).
+//
+// 编辑态不给改球场：(邮箱, 球场) 是一条 watch 的身份，换球场等于换成另一条，
+// 而那条可能已经存在。后端会以 WATCH_COURSE_IMMUTABLE 拒掉，这里不等它拒——
+// 让人填完整个表单再被驳回是最差的顺序，直接点不动并说明原因。
 function toggleFormCourse(rawCourseId) {
-  const courseId = Number(rawCourseId);
   if (state.editingId != null) {
-    state.formCourses = [courseId];
-  } else {
-    state.formCourses = state.formCourses.includes(courseId)
-      ? state.formCourses.filter((selectedId) => selectedId !== courseId)
-      : [...state.formCourses, courseId];
+    showToast(STRINGS.courseLocked, 2600);
+    return;
   }
+  const courseId = Number(rawCourseId);
+  state.formCourses = state.formCourses.includes(courseId)
+    ? state.formCourses.filter((selectedId) => selectedId !== courseId)
+    : [...state.formCourses, courseId];
   render();
 }
 
@@ -460,9 +503,8 @@ async function submitForm() {
     resetForm();
     await loadMatches();
     showToast(strings.saved, 2000);
-  } catch {
-    state.offline = true;
-    showToast(strings.offline, 2200);
+  } catch (error) {
+    reportError(error);
   }
   render();
 }
@@ -485,9 +527,8 @@ async function deleteWatch(watchId) {
   const strings = STRINGS;
   try {
     await deleteWatchConfig(watchId);
-  } catch {
-    state.offline = true;
-    showToast(strings.offline, 2000);
+  } catch (error) {
+    reportError(error);
     return;
   }
   state.watches = state.watches.filter((watch) => watch.id !== watchId);
@@ -503,9 +544,11 @@ async function toggleActive(watchId) {
   render();
   try {
     await updateWatchConfig(watchId, toDto(updated));
-  } catch {
-    state.offline = true;
-    showToast(STRINGS.offline, 2000);
+  } catch (error) {
+    // 乐观更新已经画到界面上了，失败就滚回去，别让开关停在一个库里没有的状态
+    state.watches = state.watches.map((candidate) => (candidate.id === watchId ? watch : candidate));
+    reportError(error);
+    render();
   }
 }
 
