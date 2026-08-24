@@ -24,9 +24,15 @@ const CPS_DAY_MIN = "0";
 const CPS_DAY_MAX = "23.999722222222225"; // CPS 搜索页自己用的上界
 
 // slug → CPS 内部球场 id。CPS 用一个小整数区分同站点下的球场，/api/courses 不返回它，
-// 只能在前端留一份，来源是 greenlight-scraper 的 CpsCourseId 枚举。
+// 只能在前端留一份，来源是 greenlight-scraper 里按站点分的那几个枚举
+// （GolfVancouverCourseId / GolfBurnabyCourseId）。
+// 这个 id 只在站点内唯一——两个站点都有 1 号球场——但这张表按 slug 索引，slug 全局唯一，
+// 且 bookingUrl 拿到 id 时已经用 course.site 拼好了域名，所以撞号不影响。
 // 认不出的 slug 就不带 CourseId——落地页会列出当天全部球场，日期仍然是对的。
-const CPS_COURSE_IDS = { langara: 1, fraserview: 2, mccleery: 3 };
+const CPS_COURSE_IDS = {
+  langara: 1, fraserview: 2, mccleery: 3, // golfvancouver
+  "burnaby-mountain": 1, riverway: 2, // golfburnaby
+};
 
 function bookingUrl(course, isoDate) {
   if (course.source !== "cps" || !course.site) return null;
