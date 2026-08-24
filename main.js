@@ -2,7 +2,7 @@
 // the tee-times API in api.js. Data shown is only what the backend returns — if
 // it's unreachable the page shows an empty state and an offline notice rather
 // than any fabricated data. All filtering/sorting runs client-side.
-import { getHealth, getCourses, getTeeTimes } from "./api.js";
+import { ApiError, getHealth, getCourses, getTeeTimes } from "./api.js";
 
 const PRICE_BUCKETS = ["all", "low", "mid", "high"];
 const SORTS = ["rec", "price", "time"];
@@ -63,6 +63,10 @@ const STRINGS = {
   countText: (courseCount, slotCount) => `Found ${courseCount} courses, ${slotCount} time slots`,
   bookToast: (name) => "Redirecting to booking: " + name,
   offline: "Backend offline — no data to show.",
+  // 拿不到数据的原因不止「后端没开」一种，说错了会让人跑去查一台好好的服务器
+  unauthorized: "This page isn't authorized to talk to the backend — no data to show.",
+  serverError: "The backend hit an error — not your fault. Try again in a moment.",
+  loadFailed: "Couldn't load data from the backend.",
 };
 
 // --- State ------------------------------------------------------------------
@@ -193,6 +197,30 @@ function groupTeeTimes(teeTimeList) {
 
 // --- Data loading -----------------------------------------------------------
 
+// --- Failure reporting ------------------------------------------------------
+//
+// 这一页是只读的，任何一个读请求挂了结果都一样：没有数据可显示，走空态。
+// 但**原因**对人的意思完全不同——后端没开要去起服务，密钥不对要去改部署配置，
+// 后端 500 则什么都不用做。之前一律说「Backend offline」，会让人跑去查一台好好的机器。
+//
+// 所以空态照旧（state.offline 就是「没有数据」的意思），只让提示语说出真正的原因。
+// 记第一个原因：后面几个请求多半是同一个根因的连锁反应。
+let failureReason = null;
+
+function noteFailure(error) {
+  state.offline = true;
+  if (failureReason) return;
+  if (!(error instanceof ApiError)) {
+    failureReason = STRINGS.offline; // fetch 自己抛的 = 根本没连上
+  } else if (error.code === "UNAUTHORIZED") {
+    failureReason = STRINGS.unauthorized;
+  } else if (error.status >= 500) {
+    failureReason = STRINGS.serverError;
+  } else {
+    failureReason = STRINGS.loadFailed;
+  }
+}
+
 async function loadDay() {
   state.loading = true;
   render();
@@ -200,9 +228,9 @@ async function loadDay() {
   try {
     const teeTimeList = await getTeeTimes({ date: iso });
     state.dayData = groupTeeTimes(teeTimeList);
-  } catch {
-    state.offline = true;
-    state.dayData = []; // backend down — show nothing, not fake data
+  } catch (error) {
+    noteFailure(error);
+    state.dayData = []; // 拿不到就什么都不显示，绝不编造
   }
   state.loading = false;
   render();
@@ -463,8 +491,8 @@ async function init() {
   // Health check is best-effort; a failure just flags offline mode.
   try {
     await getHealth();
-  } catch {
-    state.offline = true;
+  } catch (error) {
+    noteFailure(error);
   }
 
   try {
@@ -483,13 +511,13 @@ async function init() {
         ratingCount: course.ratingCount ?? null,
       }));
     }
-  } catch {
-    state.offline = true;
+  } catch (error) {
+    noteFailure(error);
   }
 
   await loadDay();
 
-  if (state.offline) showToast(STRINGS.offline, 2600);
+  if (state.offline) showToast(failureReason ?? STRINGS.offline, 2600);
 }
 
 init();

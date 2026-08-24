@@ -187,11 +187,22 @@ function toDto(watch) {
 // 认不出的 code 一律落到 genericError：后端加了新 code 而这份静态页还是旧的，
 // 页面会说得笼统一点，但不会崩、也不会谎称后端离线。
 const ERROR_MESSAGES = {
+  // 业务规则：人能自己改好的，就说清楚该怎么改
   WATCH_DUPLICATE: "You already have an alert for that course — edit that one instead.",
   WATCH_COURSE_IMMUTABLE: "A watch's course can't be changed — create a new one instead.",
   WATCH_WEEKDAYS_REQUIRED: "Pick at least one weekday.",
   WATCH_NOT_FOUND: "That alert is gone — reload the page.",
   COURSE_NOT_FOUND: "That course is gone — reload the page.",
+  MAIL_SEND_FAILED: "The email couldn't be sent — check the mail settings.",
+  // 请求本身不合法。人改不了这些，但话得说得不一样：让人知道该找谁
+  UNAUTHORIZED: "This page isn't authorized to talk to the backend.",
+  MALFORMED_JSON_BODY: "The page sent something the backend couldn't read — reload and try again.",
+  MISSING_PARAMETER: "The page sent an incomplete request — reload and try again.",
+  INVALID_PARAMETER: "The page sent an unusable value — reload and try again.",
+  METHOD_NOT_ALLOWED: "The page called the backend the wrong way — reload and try again.",
+  ENDPOINT_NOT_FOUND: "This page is talking to a backend that doesn't have that feature.",
+  // 后端自己出 bug 了。明确说不是你的问题，免得人回去反复改表单
+  INTERNAL_ERROR: "Something broke on the server — not your fault. Try again in a moment.",
 };
 
 /**
