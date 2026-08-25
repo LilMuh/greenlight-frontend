@@ -409,17 +409,32 @@
         flex-direction: column;
         gap: 10px;
       }
+      /* 折叠时卡片里只剩标题行，收紧内边距，一屏能扫过更多条 */
+      .wa-card:not(.is-open) {
+        padding: 13px 20px;
+      }
       .wa-card-top {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
         gap: 12px;
+        cursor: pointer;
+      }
+      .wa-caret {
+        flex: none;
+        margin-top: 3px; /* 对齐球场名那一行，而不是两行的正中 */
+        color: var(--muted2);
+        transition: transform 0.15s ease;
+      }
+      .wa-card.is-open .wa-caret {
+        transform: rotate(90deg);
       }
       .wa-card-head {
         display: flex;
         flex-direction: column;
         gap: 3px;
         min-width: 0;
+        flex: 1;
       }
       .wa-card-head strong {
         font-size: 14.5px;

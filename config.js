@@ -81,6 +81,10 @@ const state = {
   courses: [], // [{ id: number, slug, name }]
   watches: [], // [{ id, courseId, courseName, ... }]
   hitsByWatchId: {}, // { [watchId]: hitCount } —— 来自 /api/matches
+  // 展开的卡片 id。默认全部折叠：一条 watch 平时只需要认出「哪个球场、发给谁」，
+  // 星期/时段/人数/价格是设置它的时候才看的东西。全展开时十条 watch 就有好几屏高，
+  // 想找某一条得一路滚下去。按 id 记而不是记一个「当前展开的」，是为了允许同时展开多条对比。
+  expandedWatchIds: [],
   formCourses: [], // selected course ids (numbers)
   formWeekdays: [], // selected weekday codes, e.g. ["SAT","SUN"]
   formTimeStart: TIME_START_DEFAULT,
@@ -302,6 +306,7 @@ function render() {
 
   const cards = state.watches
     .map((watch) => {
+      const isOpen = state.expandedWatchIds.includes(watch.id);
       const chips = [
         weekdaysText(watch.weekdays),
         `${watch.timeStart}–${watch.timeEnd}`,
@@ -313,8 +318,23 @@ function render() {
         .join("");
       const hitCount = state.hitsByWatchId[watch.id] ?? 0;
       const hitBadge = `<span class="wa-hits${hitCount > 0 ? " is-hot" : ""}">${escapeHtml(strings.hitsText(hitCount))}</span>`;
-      return `<div class="wa-card">
-        <div class="wa-card-top">
+      // 折叠时详情整块不渲染（而不是 display:none）：卡片高度就是真的只有一行，
+      // 也不会留下点得到、读屏能读到的隐藏按钮。
+      const detailHtml = isOpen
+        ? `<div class="wa-card-hits">${hitBadge}</div>
+        <div class="wa-chips">${chips}</div>
+        <div class="wa-card-actions">
+          <button class="wa-edit" data-act="edit" data-id="${escapeHtml(watch.id)}">${escapeHtml(strings.edit)}</button>
+          <button class="wa-delete" data-act="delete" data-id="${escapeHtml(watch.id)}">${escapeHtml(strings.delete)}</button>
+        </div>`
+        : "";
+      // 整行都是展开热区。Active/Paused 开关嵌在里面，但它自己也带 data-act，
+      // 事件委托取的是最内层那个 [data-act]，所以点开关不会顺手把卡片展开。
+      return `<div class="wa-card${isOpen ? " is-open" : ""}">
+        <div class="wa-card-top" data-act="expand" data-id="${escapeHtml(watch.id)}" role="button" tabindex="0" aria-expanded="${isOpen}">
+          <svg class="wa-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="9 6 15 12 9 18"></polyline>
+          </svg>
           <div class="wa-card-head">
             <strong>${escapeHtml(watch.courseName)}</strong>
             <span class="wa-card-email">${escapeHtml(watch.email)}</span>
@@ -324,12 +344,7 @@ function render() {
             <span class="wa-status-text">${escapeHtml(watch.active ? strings.active : strings.paused)}</span>
           </div>
         </div>
-        <div class="wa-card-hits">${hitBadge}</div>
-        <div class="wa-chips">${chips}</div>
-        <div class="wa-card-actions">
-          <button class="wa-edit" data-act="edit" data-id="${escapeHtml(watch.id)}">${escapeHtml(strings.edit)}</button>
-          <button class="wa-delete" data-act="delete" data-id="${escapeHtml(watch.id)}">${escapeHtml(strings.delete)}</button>
-        </div>
+        ${detailHtml}
       </div>`;
     })
     .join("");
@@ -520,6 +535,16 @@ async function submitForm() {
   render();
 }
 
+function toggleExpanded(watchId) {
+  state.expandedWatchIds = state.expandedWatchIds.includes(watchId)
+    ? state.expandedWatchIds.filter((expandedId) => expandedId !== watchId)
+    : [...state.expandedWatchIds, watchId];
+  render();
+  // render 换掉了整个 innerHTML，焦点会掉回 <body>。把它放回同一行，
+  // 键盘用户展开之后才能接着 Tab 到刚露出来的 Edit / Delete。
+  document.querySelector(`[data-act="expand"][data-id="${watchId}"]`)?.focus({ preventScroll: true });
+}
+
 // 表单在左栏（窄屏时在列表上方），列表长了以后 Edit 按钮多半已经滚出表单的视野。
 // 不滚过去的话点了 Edit 界面看着毫无变化——改动全发生在屏幕外。
 // scroll-margin-top 在 CSS 里给了，免得表单顶部被 sticky 表头盖住。
@@ -597,6 +622,9 @@ app.addEventListener("click", (event) => {
       resetForm();
       render();
       break;
+    case "expand":
+      toggleExpanded(Number(id));
+      break;
     case "toggle":
       toggleActive(Number(id));
       break;
@@ -607,6 +635,16 @@ app.addEventListener("click", (event) => {
       deleteWatch(Number(id));
       break;
   }
+});
+
+// 展开行是 <div role="button">，Enter / 空格的激活得自己补：折叠里藏着 Edit 和 Delete，
+// 打不开这一行的键盘用户就等于用不了这两个操作。
+app.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const row = event.target.closest?.('[data-act="expand"]');
+  if (!row) return;
+  event.preventDefault(); // 空格在 <div> 上的默认行为是往下滚一屏
+  toggleExpanded(Number(row.dataset.id));
 });
 
 // 拉一遍匹配结果，按 watchId 存命中数供卡片展示。只读——失败就当作 0，不打断页面。
