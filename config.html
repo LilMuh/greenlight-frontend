@@ -155,6 +155,9 @@
         flex-direction: column;
         gap: 16px;
         align-self: flex-start;
+        /* 点 Edit 会把表单滚进视野（config.js 的 scrollToForm）。表头是 sticky 的，
+           留出它的高度，否则表单标题正好停在表头底下看不见。 */
+        scroll-margin-top: 86px;
       }
       .wa-form-title {
         font-size: 15px;

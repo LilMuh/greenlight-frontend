@@ -520,6 +520,13 @@ async function submitForm() {
   render();
 }
 
+// 表单在左栏（窄屏时在列表上方），列表长了以后 Edit 按钮多半已经滚出表单的视野。
+// 不滚过去的话点了 Edit 界面看着毫无变化——改动全发生在屏幕外。
+// scroll-margin-top 在 CSS 里给了，免得表单顶部被 sticky 表头盖住。
+function scrollToForm() {
+  document.querySelector(".wa-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 function startEdit(watchId) {
   const watch = state.watches.find((candidate) => candidate.id === watchId);
   if (!watch) return;
@@ -532,6 +539,7 @@ function startEdit(watchId) {
   state.formMaxPrice = watch.maxPrice;
   state.formEmail = watch.email;
   render();
+  scrollToForm(); // 必须在 render 之后：render 换掉了整个 innerHTML，之前那个节点已经不在文档里
 }
 
 async function deleteWatch(watchId) {
