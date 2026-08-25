@@ -6,6 +6,9 @@ import { ApiError, getHealth, getCourses, getTeeTimes } from "./api.js";
 
 const PRICE_BUCKETS = ["all", "low", "mid", "high"];
 const SORTS = ["rec", "price", "time"];
+// 默认按开球时间从早到晚排。找 tee time 的人第一眼要看的是「几点能打」，
+// 评分（rec）是选球场时才有用的次要标准，何况它来自 Google Maps、可能整列都是 null。
+const SORT_DEFAULT = "time";
 
 // --- Booking deep links -----------------------------------------------------
 //
@@ -81,7 +84,7 @@ const state = {
   filterOpen: false,
   priceBucket: "all",
   excludedCourseIds: [],
-  sortBy: "rec",
+  sortBy: SORT_DEFAULT,
   selectedChip: null,
   toast: "",
 };
@@ -298,14 +301,14 @@ function render() {
   ).join("");
 
   // 面板收起时用户看不到自己选了什么，所以把生效的筛选摘成 chips 放在按钮旁边，
-  // 数量同时当作按钮上的角标。默认值（Any / Recommended / 球场全选）不算生效。
+  // 数量同时当作按钮上的角标。默认值（Any / Earliest time / 球场全选）不算生效。
   const summaryChips = [];
   if (state.priceBucket !== "all") summaryChips.push(strings.prices[state.priceBucket]);
   const includedCourseCount = state.courses.filter((course) => !state.excludedCourseIds.includes(course.id)).length;
   if (state.courses.length && includedCourseCount < state.courses.length) {
     summaryChips.push(strings.coursesChip(includedCourseCount, state.courses.length));
   }
-  if (state.sortBy !== "rec") summaryChips.push(strings.sorts[state.sortBy]);
+  if (state.sortBy !== SORT_DEFAULT) summaryChips.push(strings.sorts[state.sortBy]);
 
   const summaryHtml = summaryChips
     .map((label) => `<span class="tt-summary-chip">${escapeHtml(label)}</span>`)
@@ -452,7 +455,7 @@ app.addEventListener("click", (event) => {
       break;
     case "reset":
       state.priceBucket = "all";
-      state.sortBy = "rec";
+      state.sortBy = SORT_DEFAULT;
       state.excludedCourseIds = [];
       render();
       break;
