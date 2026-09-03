@@ -4,7 +4,9 @@
 // than any fabricated data. All filtering/sorting runs client-side.
 import { ApiError, getHealth, getCourses, getTeeTimes } from "./api.js";
 
-const PRICE_BUCKETS = ["all", "low", "mid", "high"];
+// 原来最高一档是开口的 "$70+"。接进 West Coast Golf Group 之后那一档从 $70 一路混到
+// $135（Hazelmere / Swaneset），点它等于没筛，所以在 120 处再切一刀。
+const PRICE_BUCKETS = ["all", "low", "mid", "high", "top"];
 const SORTS = ["rec", "price", "time"];
 // 默认按开球时间从早到晚排。找 tee time 的人第一眼要看的是「几点能打」，
 // 评分（rec）是选球场时才有用的次要标准，何况它来自 Google Maps、可能整列都是 null。
@@ -57,7 +59,7 @@ const STRINGS = {
   navQuery: "Search", navWatch: "Watch Alerts",
   filterTitle: "Filters", courseFilterTitle: "Golf Courses", priceFilterTitle: "Price Range",
   sortFilterTitle: "Sort by", reset: "Reset", done: "Done",
-  prices: { all: "Any", low: "≤$40", mid: "$41–70", high: "$70+" },
+  prices: { all: "Any", low: "≤$40", mid: "$41–70", high: "$71–120", top: "$120+" },
   sorts: { rec: "Recommended", price: "Lowest price", time: "Earliest time" },
   coursesChip: (selected, total) => `${selected} of ${total} courses`,
   book: "Book",
@@ -122,11 +124,13 @@ function escapeHtml(value) {
   }[character]));
 }
 
+// 边界都取开区间下界（price > 70 才算 high），和档位文案里的 "$71–120" 对得上。
 function priceMatch(price, bucket) {
   if (bucket === "all") return true;
   if (bucket === "low") return price <= 40;
   if (bucket === "mid") return price > 40 && price <= 70;
-  if (bucket === "high") return price > 70;
+  if (bucket === "high") return price > 70 && price <= 120;
+  if (bucket === "top") return price > 120;
   return true;
 }
 
