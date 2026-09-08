@@ -378,6 +378,29 @@
       .tt-course.is-on .tt-course-name {
         color: var(--ink);
       }
+      /* 维护中：上游抓不动，时段已经停更。默认就被排除，点也点不开，
+         所以整行压淡 + 一个说明用的小标，而不是留个看起来能勾的复选框。 */
+      .tt-course.is-maintenance {
+        cursor: not-allowed;
+        opacity: 0.45;
+        /* 徽章和球场名抢这一列的宽度时，让徽章换到下一行，别把名字挤成
+           「Burnaby / Mountain / Golf / Course」四行 */
+        flex-wrap: wrap;
+      }
+      .tt-course.is-maintenance .tt-course-name {
+        white-space: nowrap;
+      }
+      .tt-course-badge {
+        font-size: 11px;
+        line-height: 15px;
+        padding: 0 6px;
+        border-radius: 999px;
+        color: var(--muted);
+        background: oklch(94% 0.006 95);
+        border: 1px solid oklch(88% 0.006 95);
+        white-space: nowrap;
+        flex: none;
+      }
       .tt-chips {
         display: flex;
         flex-wrap: wrap;

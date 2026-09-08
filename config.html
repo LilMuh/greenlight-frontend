@@ -220,6 +220,42 @@
         cursor: default;
         opacity: 0.55;
       }
+      /* 球场在维护：谁都关注不了（和 is-locked 的「这条 watch 不给换球场」不是一回事）。
+         压得比 is-locked 更淡一点，右边的徽章负责说明原因。 */
+      .wa-course.is-maintenance {
+        cursor: not-allowed;
+        opacity: 0.45;
+        /* 同 index.html：宽度不够时徽章换行，不去挤球场名 */
+        flex-wrap: wrap;
+      }
+      .wa-course.is-maintenance .wa-course-name {
+        white-space: nowrap;
+      }
+      /* 「Under maintenance」小标。同时用在球场清单和 watch 卡片上，
+         所以颜色不跟着任一处的选中态走，自己是一块中性的静态标记。 */
+      .wa-course-badge {
+        font-size: 11px;
+        line-height: 15px;
+        padding: 0 6px;
+        border-radius: 999px;
+        color: var(--muted);
+        background: oklch(94% 0.006 95);
+        border: 1px solid oklch(88% 0.006 95);
+        white-space: nowrap;
+        flex: none;
+      }
+      /* .wa-card-head 是纵向 flex，默认 align-items: stretch 会把徽章拉成一条通栏横杠，
+         看起来像个进度条而不是标记。只有这里需要压回内容宽度，球场清单那边是横向 flex。 */
+      .wa-card-head .wa-course-badge {
+        align-self: flex-start;
+      }
+      /* 展开卡片里那句完整说明：解释这条 watch 为什么停着 */
+      .wa-card-maintenance {
+        font-size: 12px;
+        line-height: 17px;
+        color: var(--muted);
+        padding: 2px 0 6px;
+      }
       /* 字段下面那行解释，比 .wa-label 更轻——它说明的是限制，不是标题 */
       .wa-hint {
         font-size: 12px;

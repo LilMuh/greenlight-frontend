@@ -69,6 +69,11 @@ const STRINGS = {
   // 后端好好的、只是这次请求不合法时的兜底。和 offline 分开：那句会让人跑去看服务
   genericError: "That didn't go through — please try again.",
   courseLocked: "A watch's course can't be changed — create a new one instead.",
+  maintenanceBadge: "Under maintenance",
+  // 点到维护中的球场时说一句，否则那一行只是点不动，看不出是坏了还是没点中
+  maintenanceToast: "That course is under maintenance — it can't be watched right now.",
+  // 存量 watch 的卡片上说明它为什么不发邮件了
+  maintenanceCardNote: "This course is under maintenance — this watch is paused.",
   playerUnit: " players",
   everyDay: "Every day",
   countText: (watchCount) => `Watches: ${watchCount}`,
@@ -80,7 +85,7 @@ const STRINGS = {
 
 const state = {
   offline: false,
-  courses: [], // [{ id: number, slug, name }]
+  courses: [], // [{ id: number, slug, name, maintenance }]
   watches: [], // [{ id, courseId, courseName, ... }]
   hitsByWatchId: {}, // { [watchId]: hitCount } —— 来自 /api/matches
   // 展开的卡片 id。默认全部折叠：一条 watch 平时只需要认出「哪个球场、发给谁」，
@@ -153,6 +158,13 @@ function courseName(courseId) {
   return match ? match.name : courseId;
 }
 
+// 维护中：上游站点抓不动，后端已经把这个球场摘出去了（course.maintenance）。
+// 认不出的 courseId 当作正常，别因为清单还没加载完就把界面全锁死。
+function isCourseInMaintenance(courseId) {
+  const match = state.courses.find((course) => course.id === courseId);
+  return match ? match.maintenance === true : false;
+}
+
 // Coerce a backend watch record into the shape the UI expects. One watch holds a
 // single course (courseId + courseName come straight from the backend).
 function normalizeWatch(record) {
@@ -199,6 +211,7 @@ const ERROR_MESSAGES = {
   WATCH_WEEKDAYS_REQUIRED: "Pick at least one weekday.",
   WATCH_NOT_FOUND: "That alert is gone — reload the page.",
   COURSE_NOT_FOUND: "That course is gone — reload the page.",
+  COURSE_IN_MAINTENANCE: "That course is under maintenance — it can't be watched right now.",
   MAIL_SEND_FAILED: "The email couldn't be sent — check the mail settings.",
   // 请求本身不合法。人改不了这些，但话得说得不一样：让人知道该找谁
   UNAUTHORIZED: "This page isn't authorized to talk to the backend.",
@@ -239,8 +252,14 @@ function showToast(message, durationMs = 2000) {
   }, durationMs);
 }
 
+// 新建表单里球场的默认选中集：全选，但维护中的排除掉——不然一打开页面它就被勾上，
+// 一提交必被后端 409 拒掉。init 和 resetForm 都从这里取，别各写一遍（写重过一次了）。
+function defaultFormCourses() {
+  return state.courses.filter((course) => !course.maintenance).map((course) => course.id);
+}
+
 function resetForm() {
-  state.formCourses = state.courses.map((course) => course.id);
+  state.formCourses = defaultFormCourses();
   // 星期不给默认值：勾哪几天是这条 watch 最要紧的决定，替人预设只会被将错就错地提交
   state.formWeekdays = [];
   state.formTimeStart = TIME_START_DEFAULT;
@@ -287,9 +306,16 @@ function render() {
   const courseRows = state.courses
     .map((course) => {
       const isSelected = state.formCourses.includes(course.id);
-      return `<div class="wa-course${isSelected ? " is-on" : ""}${coursesLocked ? " is-locked" : ""}" data-act="course" data-id="${escapeHtml(course.id)}">
+      // 维护中的球场同样置灰、点不动，但和编辑态的锁是两回事：编辑态是「这条 watch 的球场
+      // 不给换」，维护是「这个球场谁都不能关注」。两个 class 分开，样式一致但语义不混。
+      const isMaintenance = course.maintenance === true;
+      const badge = isMaintenance
+        ? `<span class="wa-course-badge">${escapeHtml(STRINGS.maintenanceBadge)}</span>`
+        : "";
+      return `<div class="wa-course${isSelected ? " is-on" : ""}${coursesLocked ? " is-locked" : ""}${isMaintenance ? " is-maintenance" : ""}" data-act="course" data-id="${escapeHtml(course.id)}">
         <span class="wa-box"></span>
         <span class="wa-course-name">${escapeHtml(course.name)}</span>
+        ${badge}
       </div>`;
     })
     .join("");
@@ -322,8 +348,15 @@ function render() {
       const hitBadge = `<span class="wa-hits${hitCount > 0 ? " is-hot" : ""}">${escapeHtml(strings.hitsText(hitCount))}</span>`;
       // 折叠时详情整块不渲染（而不是 display:none）：卡片高度就是真的只有一行，
       // 也不会留下点得到、读屏能读到的隐藏按钮。
+      // 球场在维护：这条 watch 已经被停用，且开不回来。折叠时靠球场名旁边的徽章提示，
+      // 展开时给整句话——否则用户只看到「Paused」，会以为是自己关的。
+      const inMaintenance = isCourseInMaintenance(watch.courseId);
+      const maintenanceNote = inMaintenance
+        ? `<div class="wa-card-maintenance">${escapeHtml(strings.maintenanceCardNote)}</div>`
+        : "";
       const detailHtml = isOpen
-        ? `<div class="wa-card-hits">${hitBadge}</div>
+        ? `${maintenanceNote}
+        <div class="wa-card-hits">${hitBadge}</div>
         <div class="wa-chips">${chips}</div>
         <div class="wa-card-actions">
           <button class="wa-edit" data-act="edit" data-id="${escapeHtml(watch.id)}">${escapeHtml(strings.edit)}</button>
@@ -339,6 +372,7 @@ function render() {
           </svg>
           <div class="wa-card-head">
             <strong>${escapeHtml(watch.courseName)}</strong>
+            ${inMaintenance ? `<span class="wa-course-badge">${escapeHtml(strings.maintenanceBadge)}</span>` : ""}
             <span class="wa-card-email">${escapeHtml(watch.email)}</span>
           </div>
           <div class="wa-status${watch.active ? " is-on" : ""}" data-act="toggle" data-id="${escapeHtml(watch.id)}">
@@ -470,6 +504,11 @@ function toggleFormCourse(rawCourseId) {
     return;
   }
   const courseId = Number(rawCourseId);
+  // 同理，维护中的球场也别等后端 COURSE_IN_MAINTENANCE 才说
+  if (isCourseInMaintenance(courseId)) {
+    showToast(STRINGS.maintenanceToast, 2600);
+    return;
+  }
   state.formCourses = state.formCourses.includes(courseId)
     ? state.formCourses.filter((selectedId) => selectedId !== courseId)
     : [...state.formCourses, courseId];
@@ -585,6 +624,12 @@ async function deleteWatch(watchId) {
 async function toggleActive(watchId) {
   const watch = state.watches.find((candidate) => candidate.id === watchId);
   if (!watch) return;
+  // 维护中的球场开不回来（后端会 409）。这里先拦一道，省掉一次乐观更新再回滚的闪烁；
+  // 关掉照常放行——用户得能把自己那条已经不发邮件的 watch 停了或删了。
+  if (!watch.active && isCourseInMaintenance(watch.courseId)) {
+    showToast(STRINGS.maintenanceToast, 2600);
+    return;
+  }
   const updated = { ...watch, active: !watch.active };
   state.watches = state.watches.map((candidate) => (candidate.id === watchId ? updated : candidate));
   render();
@@ -671,8 +716,14 @@ async function init() {
   try {
     const courses = await getCourses();
     if (Array.isArray(courses) && courses.length) {
-      state.courses = courses.map((course) => ({ id: course.id, slug: course.slug, name: course.name }));
-      state.formCourses = state.courses.map((course) => course.id);
+      // maintenance 必须带上：默认全选、能不能点、徽章、卡片上那句说明全靠它
+      state.courses = courses.map((course) => ({
+        id: course.id,
+        slug: course.slug,
+        name: course.name,
+        maintenance: course.maintenance === true,
+      }));
+      state.formCourses = defaultFormCourses();
     }
   } catch {
     state.offline = true; // no courses to show; leave the list empty

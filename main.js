@@ -65,6 +65,9 @@ const STRINGS = {
   sorts: { rec: "Recommended", price: "Lowest price", time: "Earliest time" },
   coursesChip: (selected, total) => `${selected} of ${total} courses`,
   book: "Book",
+  // 维护中的球场：上游站点抓不动，时段数据已经停更，所以默认排除、也点不进来
+  maintenanceBadge: "Under maintenance",
+  maintenanceToast: "That course is under maintenance — its tee times aren't being updated.",
   noResults: "No tee times match your filters.",
   loading: "Loading…", seatsUnit: " seats", today: "Today",
   weekdays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
@@ -151,6 +154,12 @@ function showToast(message, durationMs = 2200) {
 // 地址和评分是抓 Google Maps 页面拿的，Google 改版式就会取不到，后端那边取不到写
 // null 不写假值。所以这两块各自独立降级：有就显示，没有就整块不渲染——绝不显示
 // "⭐ 0" 或者空括号，那看起来像「这个球场评分是 0」而不是「我们没拿到数据」。
+
+// 维护中的球场（course.maintenance）：上游站点抓不动，后端已经把它摘出去了。
+// 这里当作筛选的默认排除项用——init 和 Reset 都从这里取，两边不各写一遍。
+function maintenanceCourseIds() {
+  return state.courses.filter((course) => course.maintenance).map((course) => course.id);
+}
 
 // "⭐ 4.3 (1,330)"。只有评分没有评价数时就不显示括号那截。
 function ratingHtml(course) {
@@ -293,9 +302,13 @@ function render() {
   const courseChecks = state.courses
     .map((course) => {
       const isIncluded = !state.excludedCourseIds.includes(course.id);
-      return `<div class="tt-course${isIncluded ? " is-on" : ""}" data-act="course" data-id="${escapeHtml(course.id)}">
+      const badge = course.maintenance
+        ? `<span class="tt-course-badge">${escapeHtml(strings.maintenanceBadge)}</span>`
+        : "";
+      return `<div class="tt-course${isIncluded ? " is-on" : ""}${course.maintenance ? " is-maintenance" : ""}" data-act="course" data-id="${escapeHtml(course.id)}">
         <span class="tt-box"></span>
         <span class="tt-course-name">${escapeHtml(course.name)}</span>
+        ${badge}
       </div>`;
     })
     .join("");
@@ -312,9 +325,12 @@ function render() {
   // 数量同时当作按钮上的角标。默认值（Any / Earliest time / 球场全选）不算生效。
   const summaryChips = [];
   if (state.priceBucket !== "all") summaryChips.push(strings.prices[state.priceBucket]);
-  const includedCourseCount = state.courses.filter((course) => !state.excludedCourseIds.includes(course.id)).length;
-  if (state.courses.length && includedCourseCount < state.courses.length) {
-    summaryChips.push(strings.coursesChip(includedCourseCount, state.courses.length));
+  // 维护中的球场不算进「球场全选」这个默认值里：它们本来就排除掉了，
+  // 拿它们当分母的话页面一打开就挂着一个「8 of 10 courses」的角标，看着像用户自己筛过。
+  const selectableCourses = state.courses.filter((course) => !course.maintenance);
+  const includedCourseCount = selectableCourses.filter((course) => !state.excludedCourseIds.includes(course.id)).length;
+  if (selectableCourses.length && includedCourseCount < selectableCourses.length) {
+    summaryChips.push(strings.coursesChip(includedCourseCount, selectableCourses.length));
   }
   if (state.sortBy !== SORT_DEFAULT) summaryChips.push(strings.sorts[state.sortBy]);
 
@@ -464,15 +480,22 @@ app.addEventListener("click", (event) => {
     case "reset":
       state.priceBucket = "all";
       state.sortBy = SORT_DEFAULT;
-      state.excludedCourseIds = [];
+      // Reset 回到默认，而默认就包含「维护中的排除在外」，不是清空
+      state.excludedCourseIds = maintenanceCourseIds();
       render();
       break;
-    case "course":
+    case "course": {
+      const course = state.courses.find((candidate) => candidate.id === id);
+      if (course?.maintenance) {
+        showToast(STRINGS.maintenanceToast);
+        break;
+      }
       state.excludedCourseIds = state.excludedCourseIds.includes(id)
         ? state.excludedCourseIds.filter((excludedId) => excludedId !== id)
         : [...state.excludedCourseIds, id];
       render();
       break;
+    }
     case "price":
       state.priceBucket = value;
       render();
@@ -520,7 +543,11 @@ async function init() {
         address: course.address ?? null,
         rating: course.rating ?? null,
         ratingCount: course.ratingCount ?? null,
+        maintenance: course.maintenance === true,
       }));
+      // 维护中的球场默认排除：它们的时段早就停更了，混在结果里只会让人对着
+      // 一批过期数据点 Book。筛选面板里也点不开，见事件委托的 case "course"。
+      state.excludedCourseIds = maintenanceCourseIds();
     }
   } catch (error) {
     noteFailure(error);
