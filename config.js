@@ -21,8 +21,10 @@ import {
 // Price slider bounds (CAD). 上限原本是 100，够 Vancouver / Burnaby 那几个市政球场
 // （green fee ~$20–100）用。接进 West Coast Golf Group 之后不够了：2026-09-03 实测
 // Hazelmere 到 $135、Swaneset 两条球道到 $130，钉在 100 就设不出盯得住它们的 watch。
+// 接进 Nicklaus North（Whistler）之后 200 又不够了：2026-09-15 实测 $189 / $195 /
+// $225 / $285，钉在 200 的话这个球场大部分时段永远匹配不上，接进来等于白接。
 const PRICE_MIN = 20;
-const PRICE_MAX = 200;
+const PRICE_MAX = 300;
 // 默认拉满：不过滤价格，先把所有场次都收进来。
 const PRICE_DEFAULT = PRICE_MAX;
 
