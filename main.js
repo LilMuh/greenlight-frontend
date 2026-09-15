@@ -43,8 +43,16 @@ const CPS_COURSE_IDS = {
   "kings-links": 1, // kingslinks，整个站点就这一个球场
 };
 
+// TEI（Total e Integrated）的订位页【没有日期深链】：2026-09-15 实测 ?date= / ?Date= /
+// ?TeeDate= / ?SelectedDate= / 路径段全被忽略，一律回今天，日期只能靠页面里的回发。
+// 所以这里只给裸页面——硬拼一个站点不认的参数，人点进去还是落在今天，比不带更困惑。
+// 后端邮件里那条链接同理，见 application.yml 的 booking-url-template.tei。
 function bookingUrl(course, isoDate) {
-  if (course.source !== "cps" || !course.site) return null;
+  if (!course.site) return null;
+  if (course.source === "tei") {
+    return `https://${course.site}.totaleintegrated.com/Book-a-Tee-Time`;
+  }
+  if (course.source !== "cps") return null;
   const url = new URL(`https://${course.site}.cps.golf/onlineresweb/search-teetime`);
   url.searchParams.set("Date", isoDate);
   const cpsCourseId = CPS_COURSE_IDS[course.id];
@@ -365,7 +373,7 @@ function render() {
         ? `<img src="${escapeHtml(course.imageUrl)}" alt="" loading="lazy" onerror="this.remove()">`
         : "";
       // 拼得出链接就用真 <a>（能新标签打开、能右键复制）；拼不出（比如 /api/courses
-      // 没取到、source 不是 cps）退回原来的按钮 + toast，不给一个点了没反应的链接。
+      // 没取到、source 是我们还不认识的来源）退回原来的按钮 + toast，不给一个点了没反应的链接。
       const url = bookingUrl(course, selectedIso);
       const bookHtml = url
         ? `<a class="tt-book" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(strings.book)}</a>`
