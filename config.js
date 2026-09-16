@@ -211,6 +211,8 @@ const ERROR_MESSAGES = {
   WATCH_DUPLICATE: "You already have an alert for that course — edit that one instead.",
   WATCH_COURSE_IMMUTABLE: "A watch's course can't be changed — create a new one instead.",
   WATCH_WEEKDAYS_REQUIRED: "Pick at least one weekday.",
+  WATCH_TIME_INVALID: "Time window looks wrong — use 24h HH:MM with start no later than end.",
+  WATCH_EMAIL_INVALID: "That email address doesn't look right — check it and try again.",
   WATCH_NOT_FOUND: "That alert is gone — reload the page.",
   COURSE_NOT_FOUND: "That course is gone — reload the page.",
   COURSE_IN_MAINTENANCE: "That course is under maintenance — it can't be watched right now.",
