@@ -4,7 +4,9 @@
 
 GreenLight monitors Vancouver golf courses and emails you when a tee time matching your criteria becomes available.
 
-> Note: this project spans four repositories. The GitHub links below still use `OWNER` as a placeholder. Replace them once the repositories are pushed.
+**Live site: <https://lilmuh.github.io/greenlight-frontend/>**
+
+> The server side (backend, scraper, database schema) lives in a private monorepo; this public repository contains the web UI only.
 
 ## What it does
 
@@ -19,10 +21,10 @@ GreenLight handles the monitoring:
 
 ## Architecture
 
-Four repositories, each deployed independently.
+A public frontend (this repo) and a private server-side monorepo (`greenlight`), deployed independently.
 
 ```
-  greenlight-frontend  ──REST/JSON──▶  greenlight-backend
+  greenlight-frontend  ──REST/JSON──▶  greenlight/backend
   (this repo)                          Spring Boot
   static HTML/JS                       · REST API for the UI
                                        · @Scheduled poller
@@ -30,7 +32,7 @@ Four repositories, each deployed independently.
                                             │            │
                                         JPA │            │ HTTP
                                             ▼            ▼
-                              greenlight-database   greenlight-scraper
+                              greenlight/database   greenlight/scraper
                               Postgres + Liquibase  Node, fetches and
                                                     normalizes tee times
                                                     (POST /scrape)
@@ -39,11 +41,11 @@ Four repositories, each deployed independently.
 | Repository | Role | Stack |
 | --- | --- | --- |
 | **greenlight-frontend** (this repo) | The web UI: edit watch configs, view current tee times. | Vanilla HTML/JS |
-| [greenlight-backend](https://github.com/LilMuh/greenlight-backend) | REST API, scheduled polling, de-duplication, email alerts. | Java 21, Spring Boot, Gradle |
-| [greenlight-scraper](https://github.com/LilMuh/greenlight-scraper) | Fetches availability from each booking system and normalizes it. | Node, TypeScript |
-| [greenlight-database](https://github.com/LilMuh/greenlight-database) | Schema (Liquibase) and local database infrastructure (Docker). | PostgreSQL, Liquibase |
+| `greenlight/backend` (private) | REST API, scheduled polling, de-duplication, email alerts. | Java 21, Spring Boot, Gradle |
+| `greenlight/scraper` (private) | Fetches availability from each booking system and normalizes it. | Node, TypeScript |
+| `greenlight/database` (private) | Schema (Liquibase) and local database infrastructure (Docker). | PostgreSQL, Liquibase |
 
-The pieces are separate because they have little in common technically: a JVM service, a Node worker, a static site, and a database schema. Their release cadences differ as well. The only thing crossing a repository boundary is a documented JSON contract.
+The frontend stays public — a static site ships to the visitor's browser as-is anyway — while the backend, scraper, and database schema are maintained together in the private `greenlight` monorepo. The only thing crossing the repository boundary is a documented JSON contract.
 
 ## This repository
 
@@ -79,11 +81,11 @@ All `fetch` calls are wrapped in `api.js` behind named functions (`getTeeTimes()
 
 The frontend has nothing to display on its own, so bring up the rest of the stack first:
 
-1. [greenlight-database](https://github.com/LilMuh/greenlight-database): `docker compose up -d`, then apply the Liquibase changelog.
-2. [greenlight-scraper](https://github.com/LilMuh/greenlight-scraper): `npm install && npm run dev`.
-3. [greenlight-backend](https://github.com/LilMuh/greenlight-backend): start the Spring Boot application. In development, make sure CORS allows this frontend's origin, otherwise every request will fail.
+1. `greenlight/database`: `docker compose up -d`, then apply the Liquibase changelog.
+2. `greenlight/scraper`: `npm install && npm run dev`.
+3. `greenlight/backend`: start the Spring Boot application. In development, make sure CORS allows this frontend's origin, otherwise every request will fail.
 
-See each repository's README for details.
+See each directory's README in the monorepo for details.
 
 ### Running the frontend
 
@@ -115,10 +117,8 @@ const API_BASE = "http://localhost:8080";
 
 ## Related repositories
 
-* 🖥️ greenlight-frontend (this repo)
-* 🧠 [greenlight-backend](https://github.com/LilMuh/greenlight-backend)
-* 🕸️ [greenlight-scraper](https://github.com/LilMuh/greenlight-scraper)
-* 🗄️ [greenlight-database](https://github.com/LilMuh/greenlight-database)
+* 🖥️ greenlight-frontend (this repo, public) — live at <https://lilmuh.github.io/greenlight-frontend/>
+* 🔒 greenlight (private server-side monorepo) — `backend/` Spring Boot, `scraper/` Node, `database/` Liquibase
 
 ## License
 
@@ -128,4 +128,4 @@ You may use, modify and redistribute this code. The Affero clause adds one
 condition on top of the GPL: if you run a modified version as a network service,
 you must offer its source to the people using it.
 
-All four GreenLight repositories are under the same license.
+The server-side monorepo is under the same license.
