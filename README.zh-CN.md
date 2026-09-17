@@ -2,7 +2,9 @@
 
 GreenLight 会持续监控温哥华的高尔夫球场，一旦出现符合你条件的开球时段，就通过邮件通知你。
 
-> 说明：本项目由四个仓库组成，下方 GitHub 链接中的 `OWNER` 为占位符，仓库推送后需要替换。
+**线上地址：<https://lilmuh.github.io/greenlight-frontend/>**
+
+> 服务端（后端、抓取、数据库 schema）在一个私有 monorepo 里维护，这个公开仓库只包含网页前端。
 
 ## 功能说明
 
@@ -17,10 +19,10 @@ GreenLight 会持续监控温哥华的高尔夫球场，一旦出现符合你条
 
 ## 架构
 
-四个仓库，各自独立部署。
+公开的前端（本仓库）+ 私有的服务端 monorepo（`greenlight`），各自独立部署。
 
 ```
-  greenlight-frontend  ──REST/JSON──▶  greenlight-backend
+  greenlight-frontend  ──REST/JSON──▶  greenlight/backend
   （本仓库）                            Spring Boot
   纯静态 HTML/JS                        · 提供给前端的 REST API
                                        · @Scheduled 定时轮询
@@ -28,7 +30,7 @@ GreenLight 会持续监控温哥华的高尔夫球场，一旦出现符合你条
                                             │            │
                                         JPA │            │ HTTP
                                             ▼            ▼
-                              greenlight-database   greenlight-scraper
+                              greenlight/database   greenlight/scraper
                               Postgres + Liquibase  Node，负责抓取与
                                                     数据归一化
                                                     （POST /scrape）
@@ -37,11 +39,11 @@ GreenLight 会持续监控温哥华的高尔夫球场，一旦出现符合你条
 | 仓库 | 职责 | 技术栈 |
 | --- | --- | --- |
 | **greenlight-frontend**（本仓库） | 网页界面：编辑监控条件、查看当前可订时段。 | 原生 HTML/JS |
-| [greenlight-backend](https://github.com/LilMuh/greenlight-backend) | REST API、定时轮询、去重、邮件提醒。 | Java 21、Spring Boot、Gradle |
-| [greenlight-scraper](https://github.com/LilMuh/greenlight-scraper) | 从各订位系统抓取可订时段并统一格式。 | Node、TypeScript |
-| [greenlight-database](https://github.com/LilMuh/greenlight-database) | 表结构（Liquibase）与本地数据库环境（Docker）。 | PostgreSQL、Liquibase |
+| `greenlight/backend`（私有） | REST API、定时轮询、去重、邮件提醒。 | Java 21、Spring Boot、Gradle |
+| `greenlight/scraper`（私有） | 从各订位系统抓取可订时段并统一格式。 | Node、TypeScript |
+| `greenlight/database`（私有） | 表结构（Liquibase）与本地数据库环境（Docker）。 | PostgreSQL、Liquibase |
 
-拆分的原因是这几部分在技术上关联很少：一个 JVM 服务、一个 Node worker、一个静态站点和一套数据库 schema，发版节奏也各不相同。跨仓库的只有一份约定好的 JSON 契约。
+前端保持公开——静态站点本来就会原样发到访客浏览器里；后端、抓取和数据库 schema 则合并在私有 monorepo（`greenlight`）里维护。跨仓库的只有一份约定好的 JSON 契约。
 
 ## 本仓库
 
@@ -77,11 +79,11 @@ greenlight-frontend/
 
 前端单独运行没有数据可展示，需要先按顺序启动其余服务：
 
-1. [greenlight-database](https://github.com/LilMuh/greenlight-database)：`docker compose up -d`，然后执行 Liquibase changelog。
-2. [greenlight-scraper](https://github.com/LilMuh/greenlight-scraper)：`npm install && npm run dev`。
-3. [greenlight-backend](https://github.com/LilMuh/greenlight-backend)：启动 Spring Boot 应用。开发环境下需在 CORS 中放行前端来源，否则所有请求都会失败。
+1. `greenlight/database`：`docker compose up -d`，然后执行 Liquibase changelog。
+2. `greenlight/scraper`：`npm install && npm run dev`。
+3. `greenlight/backend`：启动 Spring Boot 应用。开发环境下需在 CORS 中放行前端来源，否则所有请求都会失败。
 
-详细步骤见各仓库的 README。
+详细步骤见 monorepo 中各目录的 README。
 
 ### 启动前端
 
@@ -113,10 +115,8 @@ const API_BASE = "http://localhost:8080";
 
 ## 相关仓库
 
-* 🖥️ greenlight-frontend（本仓库）
-* 🧠 [greenlight-backend](https://github.com/LilMuh/greenlight-backend)
-* 🕸️ [greenlight-scraper](https://github.com/LilMuh/greenlight-scraper)
-* 🗄️ [greenlight-database](https://github.com/LilMuh/greenlight-database)
+* 🖥️ greenlight-frontend（本仓库，公开）——线上地址 <https://lilmuh.github.io/greenlight-frontend/>
+* 🔒 greenlight（私有服务端 monorepo）——`backend/` Spring Boot、`scraper/` Node、`database/` Liquibase
 
 ## 开源协议
 
@@ -125,4 +125,4 @@ const API_BASE = "http://localhost:8080";
 可以自由使用、修改、再分发。Affero 条款在 GPL 之上多加一条：如果你把修改过的版本
 部署成网络服务，必须向使用者提供你那一份的源码。
 
-GreenLight 四个仓库采用同一个协议。
+服务端 monorepo 采用同一个协议。
