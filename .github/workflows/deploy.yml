@@ -22,13 +22,27 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      # 后端地址和 API 密钥都不进源码，部署时注入。
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      # 后端地址和 API 密钥都不进源码，构建期由 Vite 内联进产物。
       # 密钥最终会随静态产物公开（页面是公开的），放 secret 只是别让它出现在构建日志里。
-      - run: |
-          sed -i "s|__API_BASE__|${{ vars.API_BASE }}|g" api.js
-          sed -i "s|__API_KEY__|${{ secrets.API_KEY }}|g" api.js
+      - run: npm run build
+        env:
+          VITE_API_BASE: ${{ vars.API_BASE }}
+          VITE_API_KEY: ${{ secrets.API_KEY }}
+      # 环境变量没注入时产物里会带着 localhost 兜底值——部署前抓出来，别让它上线
+      - name: Fail if API_BASE was not injected
+        run: |
+          if grep -r "localhost:8080" dist; then
+            echo "VITE_API_BASE was not injected into the build"
+            exit 1
+          fi
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: dist
       - id: deployment
         uses: actions/deploy-pages@v4
