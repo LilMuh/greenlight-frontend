@@ -1,0 +1,149 @@
+// Tee-time search page. Mirrors the imported "TeeTime Query" design, wired to
+// the tee-times API in api.ts. Data shown is only what the backend returns — if
+// it's unreachable the page shows an empty state and an offline notice rather
+// than any fabricated data. All filtering/sorting runs client-side.
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { getCourses, getHealth, getTeeTimes } from "../../api";
+import { STRINGS } from "./strings";
+import { classifyFailure, computeCards, type CourseView } from "./logic";
+import { createInitialState, reducer } from "./reducer";
+import { DateStrip } from "./components/DateStrip";
+import { FilterBar } from "./components/FilterBar";
+import { CourseCard } from "./components/CourseCard";
+import { Toast } from "./components/Toast";
+
+export function App() {
+  const [state, dispatch] = useReducer(reducer, undefined, createInitialState);
+  const [toast, setToast] = useState("");
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const showToast = useCallback((message: string, durationMs = 2200) => {
+    setToast(message);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(""), durationMs);
+  }, []);
+
+  // 旧 loadDay 的直译。返回失败原因（成功为 null），init 用它挑「第一个失败原因」。
+  const loadDay = useCallback(async (iso: string): Promise<string | null> => {
+    dispatch({ type: "loadStart" });
+    try {
+      const teeTimeList = await getTeeTimes({ date: iso });
+      dispatch({ type: "dayLoaded", teeTimeList });
+      return null;
+    } catch (error) {
+      dispatch({ type: "dayFailed" });
+      return classifyFailure(error);
+    }
+  }, []);
+
+  // 旧 init 的直译：health 尽力而为 → courses → 第一天数据 → 失败原因 toast。
+  // 只记第一个失败原因：后面几个请求多半是同一个根因的连锁反应。
+  useEffect(() => {
+    const firstIso = state.dates[0].iso;
+    let firstReason: string | null = null;
+    const note = (reason: string | null) => {
+      if (reason) firstReason = firstReason ?? reason;
+    };
+    (async () => {
+      try {
+        await getHealth(); // health check is best-effort; a failure just flags offline mode
+      } catch (error) {
+        dispatch({ type: "failure" });
+        note(classifyFailure(error));
+      }
+      try {
+        const courses = await getCourses();
+        if (Array.isArray(courses) && courses.length) dispatch({ type: "coursesLoaded", courses });
+      } catch (error) {
+        dispatch({ type: "failure" });
+        note(classifyFailure(error));
+      }
+      note(await loadDay(firstIso));
+      if (firstReason) showToast(firstReason, 2600);
+    })();
+    // 只在挂载时跑一遍；dates 挂载后不再变化
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleSelectDate = (index: number) => {
+    dispatch({ type: "date", index });
+    void loadDay(state.dates[index].iso);
+  };
+
+  const handleToggleCourse = (course: CourseView) => {
+    // 维护中的球场点不动，并说明原因（旧事件委托 case "course" 的拦截）
+    if (course.maintenance) {
+      showToast(STRINGS.maintenanceToast);
+      return;
+    }
+    dispatch({ type: "course", id: course.id });
+  };
+
+  const selectedIso = state.dates[state.selectedDateIndex].iso;
+  const cards = computeCards(state.dayData, state.excludedCourseIds, state.priceBucket, state.sortBy);
+  const totalSlots = cards.reduce((total, card) => total + card.teeTimes.length, 0);
+  const countText = state.loading ? STRINGS.loading : STRINGS.countText(cards.length, totalSlots);
+
+  return (
+    <>
+      <div className="tt-header">
+        <div className="tt-brand">
+          <span className="tt-dot" />
+          <div className="tt-brand-text">
+            <strong>{STRINGS.appName}</strong>
+            <small>{STRINGS.tagline}</small>
+          </div>
+        </div>
+        <div className="tt-head-right">
+          <div className="tt-nav">
+            <a href="index.html" className="is-active">{STRINGS.navQuery}</a>
+            <a href="config.html">{STRINGS.navWatch}</a>
+          </div>
+        </div>
+      </div>
+
+      <div className="tt-toolbar">
+        <div className="tt-toolbar-inner">
+          <DateStrip dates={state.dates} selectedIndex={state.selectedDateIndex} onSelect={handleSelectDate} />
+          <FilterBar
+            courses={state.courses}
+            excludedCourseIds={state.excludedCourseIds}
+            priceBucket={state.priceBucket}
+            sortBy={state.sortBy}
+            filterOpen={state.filterOpen}
+            countText={countText}
+            onToggleOpen={() => dispatch({ type: "filter" })}
+            onReset={() => dispatch({ type: "reset" })}
+            onToggleCourse={handleToggleCourse}
+            onPrice={(value) => dispatch({ type: "price", value })}
+            onSort={(value) => dispatch({ type: "sort", value })}
+          />
+        </div>
+      </div>
+
+      <div className="tt-body">
+        {cards.length > 0 ? (
+          // 加载中不清空列表，只把上一天的卡片调淡：清空会让内容整整消失一帧（列表超过
+          // 一屏时还会连带滚动条消失、位置跳回顶部），切日期时看到的「闪」就是这一下。
+          // 只有首次加载、手上一条数据都没有时才留空。
+          <div className={`tt-cards${state.loading ? " is-loading" : ""}`}>
+            {cards.map((card) => (
+              <CourseCard
+                key={card.course.id}
+                card={card}
+                selectedIso={selectedIso}
+                selectedChip={state.selectedChip}
+                onChip={(key) => dispatch({ type: "chip", key })}
+                onBookFallback={(name) => showToast(STRINGS.bookToast(name))}
+              />
+            ))}
+          </div>
+        ) : state.loading ? null : (
+          <div className="tt-empty">{STRINGS.noResults}</div>
+        )}
+      </div>
+
+      <Toast message={toast} />
+    </>
+  );
+}
