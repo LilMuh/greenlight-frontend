@@ -1,18 +1,17 @@
 // Every backend call lives here. Point API_BASE at your greenlight-backend.
 // Keeping all fetch calls behind named functions means a future framework move
 // only rewrites rendering, not this module.
-// 部署时由 .github/workflows/deploy.yml 用仓库变量 API_BASE 替换掉。
-const API_BASE = "__API_BASE__";
+// 构建期由 Vite 注入（deploy.yml 的 VITE_API_BASE）。本地开发不设时退回 localhost:8080。
+const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8080";
 
-// /api/** 的共享密钥，后端 ApiKeyFilter 校验。同样在部署时替换（来自仓库 secret）。
+// /api/** 的共享密钥，后端 ApiKeyFilter 校验。同样在构建期注入（来自仓库 secret）。
 //
 // 这不是真正的凭据：本仓库是公开的、页面是静态的，密钥随构建产物一起发出去，
 // 打开开发者工具就能看到。它挡的是扫到域名随手试的人和自动扫描器——后端跑在
 // Tailscale Funnel 上，没有账号体系，写接口不能完全裸着。
 //
-// 占位符没被替换掉（本地直接开文件）时留空，后端那边留空密钥＝关卡关闭，正好对上。
-const API_KEY_SLOT = "__API_KEY__";
-const API_KEY = API_KEY_SLOT.startsWith("__") ? "" : API_KEY_SLOT;
+// 本地不设 VITE_API_KEY 时留空，后端那边留空密钥＝关卡关闭，正好对上。
+const API_KEY = import.meta.env.VITE_API_KEY ?? "";
 
 /**
  * 后端回的一次业务失败。区别于网络层失败（fetch 自己抛的 TypeError）——
