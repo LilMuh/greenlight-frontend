@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   buildDates, priceMatch, bookingUrl, groupTeeTimes, computeCards,
-  normalizeCourses, maintenanceCourseIds, classifyFailure,
+  normalizeCourses, maintenanceCourseIds, classifyFailure, shortCourseName,
 } from "./logic";
 import { STRINGS } from "./strings";
 import { ApiError, type CourseDto } from "../../api";
@@ -136,6 +136,22 @@ describe("computeCards", () => {
   });
   it("sort=rec 评分高在前，null 评分排最后（不是当 0）", () => {
     expect(computeCards(day(), [], "all", "rec").map((card) => card.course.id)).toEqual(["langara", "riverway"]);
+  });
+});
+
+describe("shortCourseName", () => {
+  it("去掉 Golf / Course 关键词", () => {
+    expect(shortCourseName("Langara Golf Course")).toBe("Langara");
+    expect(shortCourseName("Fraserview Golf Course")).toBe("Fraserview");
+  });
+  it("Golf & Country Club 这类：连 & 一起收拾干净", () => {
+    expect(shortCourseName("Hazelmere Golf & Country Club")).toBe("Hazelmere Country Club");
+  });
+  it("不含关键词的名字原样返回", () => {
+    expect(shortCourseName("Kings Links by the Sea")).toBe("Kings Links by the Sea");
+  });
+  it("整个名字都是关键词时退回原名，不给空白", () => {
+    expect(shortCourseName("Golf Course")).toBe("Golf Course");
   });
 });
 

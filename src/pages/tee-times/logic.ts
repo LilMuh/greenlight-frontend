@@ -210,6 +210,19 @@ export function computeCards(
   return cards;
 }
 
+// 卡片标题用的短名："Langara Golf Course" → "Langara"。Golf/Course 这类词每张卡
+// 都重复、又把手机上的球场名挤成两行，去掉不损失信息（完整名留在 title 提示里）。
+// "Golf & Country Club" 的 & 跟着 Golf 一起摘，免得剩下一个孤零零的 &。
+// 全名都是关键词时退回原名，不渲染空标题。
+export function shortCourseName(name: string): string {
+  const short = name
+    .replace(/\bGolf\b\s*&\s*/gi, "")
+    .replace(/\b(Golf|Course)\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return short || name;
+}
+
 /**
  * 旧 noteFailure 的分类部分（offline 标记归 reducer 管）。
  * 这一页是只读的，任何一个读请求挂了结果都一样：没有数据可显示，走空态。

@@ -23,7 +23,9 @@ export const STRINGS = {
   noResults: "No tee times match your filters.",
   // 时段行翻页箭头的读屏标签（视觉上就是 ‹ ›）
   earlierTimes: "Earlier times", laterTimes: "Later times",
-  loading: "Loading…", seatsUnit: " seats", today: "Today",
+  // "(1/4)"：剩 1 个位、一组满员 4 人。比 "1 seats" 短，还顺带交代了容量。
+  seatsText: (available: number) => `(${available}/4)`,
+  loading: "Loading…", today: "Today",
   weekdays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
   monthLabel: (monthIndex: number) => ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][monthIndex],
   countText: (courseCount: number, slotCount: number) => `Found ${courseCount} courses, ${slotCount} time slots`,

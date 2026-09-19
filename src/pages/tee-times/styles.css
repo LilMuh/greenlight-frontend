@@ -640,3 +640,34 @@
       .tt-tees-nav.is-next {
         right: -8px;
       }
+
+/* 手机端紧凑化：header 藏 tagline 争取一行放下、日期胶囊/时段 chip/照片各收一点。
+   箭头顺带放大到 34px——触摸目标本来就该比鼠标目标大。 */
+      @media (max-width: 560px) {
+        .tt-header {
+          padding: 10px 16px;
+          gap: 8px;
+        }
+        .tt-brand-text small {
+          display: none;
+        }
+        .tt-nav a {
+          padding: 6px 12px;
+        }
+        .tt-date {
+          min-width: 46px;
+          padding: 6px 5px;
+        }
+        .tt-photo {
+          width: 48px;
+          height: 48px;
+        }
+        .tt-tee {
+          min-width: 58px;
+          padding: 7px 9px;
+        }
+        .tt-tees-nav {
+          width: 34px;
+          height: 34px;
+        }
+      }

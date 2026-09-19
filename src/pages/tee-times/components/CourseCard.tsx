@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { STRINGS } from "../strings";
-import { bookingUrl, type Card } from "../logic";
+import { bookingUrl, shortCourseName, type Card } from "../logic";
 
 interface Props {
   card: Card;
@@ -60,7 +60,7 @@ export function CourseCard({ card, selectedIso, selectedChip, onChip, onBookFall
           )}
         </div>
         <div className="tt-card-info">
-          <strong className="tt-card-name">{course.name}</strong>
+          <strong className="tt-card-name" title={course.name}>{shortCourseName(course.name)}</strong>
           {/* 评分/地址来自 Google Maps，可能为 null——有就显示，没有整块不渲染，
               绝不显示 "⭐ 0" 或空括号，那看起来像「评分是 0」而不是「没拿到数据」 */}
           {course.rating != null && (
@@ -99,8 +99,7 @@ export function CourseCard({ card, selectedIso, selectedChip, onChip, onBookFall
               <span className="tt-tee-price">${teeTime.price}</span>
               {teeTime.availableSeats != null && (
                 <span className={`tt-tee-slots${isLow ? " is-low" : ""}`}>
-                  {teeTime.availableSeats}
-                  {STRINGS.seatsUnit}
+                  {STRINGS.seatsText(teeTime.availableSeats)}
                 </span>
               )}
             </div>
