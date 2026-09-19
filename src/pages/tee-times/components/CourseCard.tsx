@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { STRINGS } from "../strings";
 import { bookingUrl, type Card } from "../logic";
 
@@ -11,6 +12,35 @@ interface Props {
 
 export function CourseCard({ card, selectedIso, selectedChip, onChip, onBookFallback }: Props) {
   const { course, teeTimes } = card;
+
+  // 时段一多，横向滚动条在电脑上很难用（滚轮不管横向、内容也不能拖），
+  // 所以给时段行加 ‹ › 翻页箭头：点一下滚一屏。手机的触摸横滑不受影响。
+  // 箭头按需显隐：没溢出不显示，滚到头的那侧隐藏。
+  const teesRef = useRef<HTMLDivElement | null>(null);
+  const [canPage, setCanPage] = useState({ left: false, right: false });
+
+  const updateArrows = () => {
+    const container = teesRef.current;
+    if (!container) return;
+    const left = container.scrollLeft > 1;
+    const right = container.scrollLeft + container.clientWidth < container.scrollWidth - 1;
+    setCanPage((prev) => (prev.left === left && prev.right === right ? prev : { left, right }));
+  };
+
+  useEffect(() => {
+    updateArrows();
+    // 窗口变宽可能让溢出消失（或反过来），箭头得跟着变
+    window.addEventListener("resize", updateArrows);
+    return () => window.removeEventListener("resize", updateArrows);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teeTimes]);
+
+  const page = (direction: 1 | -1) => {
+    const container = teesRef.current;
+    if (!container) return;
+    // 滚 0.9 屏而不是整屏：边缘留半个 chip，让人看出「后面还有」
+    container.scrollBy({ left: direction * container.clientWidth * 0.9, behavior: "smooth" });
+  };
   // 拼得出链接就用真 <a>（能新标签打开、能右键复制）；拼不出（比如 /api/courses
   // 没取到、source 是我们还不认识的来源）退回按钮 + toast，不给一个点了没反应的链接。
   const url = bookingUrl(course, selectedIso);
@@ -52,8 +82,14 @@ export function CourseCard({ card, selectedIso, selectedChip, onChip, onBookFall
           <button className="tt-book" onClick={() => onBookFallback(course.name)}>{STRINGS.book}</button>
         )}
       </div>
-      <div className="tt-tees">
-        {teeTimes.map((teeTime) => {
+      <div className="tt-tees-wrap">
+        {canPage.left && (
+          <button className="tt-tees-nav is-prev" aria-label={STRINGS.earlierTimes} onClick={() => page(-1)}>
+            ‹
+          </button>
+        )}
+        <div className="tt-tees" ref={teesRef} onScroll={updateArrows}>
+          {teeTimes.map((teeTime) => {
           const chipKey = course.id + "|" + teeTime.time;
           const isSelected = selectedChip === chipKey;
           const isLow = teeTime.availableSeats != null && teeTime.availableSeats <= 2;
@@ -69,7 +105,13 @@ export function CourseCard({ card, selectedIso, selectedChip, onChip, onBookFall
               )}
             </div>
           );
-        })}
+          })}
+        </div>
+        {canPage.right && (
+          <button className="tt-tees-nav is-next" aria-label={STRINGS.laterTimes} onClick={() => page(1)}>
+            ›
+          </button>
+        )}
       </div>
     </div>
   );

@@ -596,3 +596,47 @@
           display: none;
         }
       }
+
+/* --- 以下为迁移后追加的样式；上面的整块是从旧 index.html 原样搬运的，保持不动 --- */
+
+/* 时段行翻页箭头：横向滚动条在电脑上难用（滚轮不管横向、内容不能拖），
+   翻页入口换成 ‹ ›，那根细滚动条藏掉。手机的触摸横滑不受影响。 */
+      .tt-tees-wrap {
+        position: relative;
+      }
+      .tt-tees {
+        scrollbar-width: none;
+      }
+      .tt-tees::-webkit-scrollbar {
+        display: none;
+      }
+      .tt-tees-nav {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 1;
+        width: 26px;
+        height: 26px;
+        padding: 0;
+        border-radius: 50%;
+        border: 1px solid var(--line);
+        background: #fff;
+        color: var(--ink2);
+        font-size: 16px;
+        line-height: 1;
+        cursor: pointer;
+        box-shadow: 0 1px 4px rgb(0 0 0 / 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .tt-tees-nav:hover {
+        border-color: var(--green);
+        color: var(--green-ink);
+      }
+      .tt-tees-nav.is-prev {
+        left: -8px;
+      }
+      .tt-tees-nav.is-next {
+        right: -8px;
+      }

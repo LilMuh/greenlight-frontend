@@ -21,6 +21,8 @@ export const STRINGS = {
   maintenanceBadge: "Under maintenance",
   maintenanceToast: "That course is under maintenance — its tee times aren't being updated.",
   noResults: "No tee times match your filters.",
+  // 时段行翻页箭头的读屏标签（视觉上就是 ‹ ›）
+  earlierTimes: "Earlier times", laterTimes: "Later times",
   loading: "Loading…", seatsUnit: " seats", today: "Today",
   weekdays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
   monthLabel: (monthIndex: number) => ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][monthIndex],
