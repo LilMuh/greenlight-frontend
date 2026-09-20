@@ -26,7 +26,7 @@ A public frontend (this repo) and a private server-side monorepo (`greenlight`),
 ```
   greenlight-frontend  ──REST/JSON──▶  greenlight/backend
   (this repo)                          Spring Boot
-  static HTML/JS                       · REST API for the UI
+  React + TypeScript (Vite)            · REST API for the UI
                                        · @Scheduled poller
                                        · dedup + email alerts
                                             │            │
@@ -40,7 +40,7 @@ A public frontend (this repo) and a private server-side monorepo (`greenlight`),
 
 | Repository | Role | Stack |
 | --- | --- | --- |
-| **greenlight-frontend** (this repo) | The web UI: edit watch configs, view current tee times. | Vanilla HTML/JS |
+| **greenlight-frontend** (this repo) | The web UI: edit watch configs, view current tee times. | React, TypeScript, Vite |
 | `greenlight/backend` (private) | REST API, scheduled polling, de-duplication, email alerts. | Java 21, Spring Boot, Gradle |
 | `greenlight/scraper` (private) | Fetches availability from each booking system and normalizes it. | Node, TypeScript |
 | `greenlight/database` (private) | Schema (Liquibase) and local database infrastructure (Docker). | PostgreSQL, Liquibase |
@@ -49,19 +49,21 @@ The frontend stays public — a static site ships to the visitor's browser as-is
 
 ## This repository
 
-Plain HTML, CSS, and JavaScript. No framework and no build step. It only talks to the backend's REST API, never to the scraper or the database directly.
+React + TypeScript, built with Vite as a two-entry MPA (each page is its own React root; navigation between them is a plain link). It only talks to the backend's REST API, never to the scraper or the database directly.
 
 ```
 greenlight-frontend/
-├── index.html     # tee-time view, showing what the backend has stored
-├── config.html    # watch-config editor: courses, weekdays, time window, group size
-├── api.js         # all backend calls live here
-├── main.js        # page logic and rendering
-├── styles.css
-└── README.md
+├── index.html               # entry: tee-time view
+├── config.html              # entry: watch-config editor
+├── vite.config.ts           # two-entry MPA build
+└── src/
+    ├── api.ts               # all backend calls + DTO types live here
+    └── pages/
+        ├── tee-times/       # strings / logic / reducer / components / styles.css
+        └── config/          # same structure
 ```
 
-All `fetch` calls are wrapped in `api.js` behind named functions (`getTeeTimes()`, `listWatchConfigs()`, `saveWatchConfig()`, and so on). If the UI later moves to a framework, that file carries over largely unchanged and only the rendering needs rewriting.
+All `fetch` calls are wrapped in `src/api.ts` behind named functions (`getTeeTimes()`, `listWatchConfigs()`, `createWatchConfigs()`, and so on), with the backend's JSON contract captured as TypeScript types. Pure logic (grouping, filtering, booking links, form normalization) is covered by Vitest — `npm test`.
 
 ### Endpoints used
 
@@ -89,31 +91,29 @@ See each directory's README in the monorepo for details.
 
 ### Running the frontend
 
-The files are static, so any server will do:
-
 ```bash
-npx serve .
-# or
-python -m http.server 5173
+npm install
+npm run dev
 ```
 
-Then open the URL it prints.
+Then open the URL it prints. `npm test` runs the unit tests; `npm run build` produces the static site in `dist/`.
 
 ### Configuring the API base URL
 
-`api.js` defaults to `http://localhost:8080`. Update it there if your backend runs elsewhere.
+The backend address and API key are read from Vite environment variables at build/dev time (the deploy workflow injects them from repository settings):
 
-```js
-// api.js
-const API_BASE = "http://localhost:8080";
+```bash
+VITE_API_BASE=http://localhost:8080 VITE_API_KEY=yourkey npm run dev
 ```
+
+Unset, `VITE_API_BASE` falls back to `http://localhost:8080` and the key is sent only when non-empty (an empty key matches a backend running with its API-key gate off).
 
 ## Roadmap
 
-- [ ] Connect `config.html` to the watch-config API
-- [ ] Tee-time view with course and date filters plus an "available only" toggle
+- [x] Connect `config.html` to the watch-config API
+- [x] Tee-time view with course and date filters
 - [ ] Live refresh, polling `/api/tee-times` initially and moving to SSE or WebSockets later
-- [ ] Migrate to a framework if the UI grows enough to justify it
+- [x] Migrate to a framework — React + TypeScript on Vite (2026-09)
 
 ## Related repositories
 

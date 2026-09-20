@@ -24,7 +24,7 @@ GreenLight 会持续监控温哥华的高尔夫球场，一旦出现符合你条
 ```
   greenlight-frontend  ──REST/JSON──▶  greenlight/backend
   （本仓库）                            Spring Boot
-  纯静态 HTML/JS                        · 提供给前端的 REST API
+  React + TypeScript（Vite）            · 提供给前端的 REST API
                                        · @Scheduled 定时轮询
                                        · 去重与邮件提醒
                                             │            │
@@ -38,7 +38,7 @@ GreenLight 会持续监控温哥华的高尔夫球场，一旦出现符合你条
 
 | 仓库 | 职责 | 技术栈 |
 | --- | --- | --- |
-| **greenlight-frontend**（本仓库） | 网页界面：编辑监控条件、查看当前可订时段。 | 原生 HTML/JS |
+| **greenlight-frontend**（本仓库） | 网页界面：编辑监控条件、查看当前可订时段。 | React、TypeScript、Vite |
 | `greenlight/backend`（私有） | REST API、定时轮询、去重、邮件提醒。 | Java 21、Spring Boot、Gradle |
 | `greenlight/scraper`（私有） | 从各订位系统抓取可订时段并统一格式。 | Node、TypeScript |
 | `greenlight/database`（私有） | 表结构（Liquibase）与本地数据库环境（Docker）。 | PostgreSQL、Liquibase |
@@ -47,19 +47,21 @@ GreenLight 会持续监控温哥华的高尔夫球场，一旦出现符合你条
 
 ## 本仓库
 
-纯 HTML、CSS 和 JavaScript，不使用框架，也无需构建。仅与后端 REST API 通信，不直接访问 scraper 或数据库。
+React + TypeScript，Vite 双入口 MPA 构建（每个页面各自一个 React root，页面间跳转是普通链接）。仅与后端 REST API 通信，不直接访问 scraper 或数据库。
 
 ```
 greenlight-frontend/
-├── index.html     # 时段列表，展示后端已存储的数据
-├── config.html    # 监控条件编辑：球场、星期、时间范围、人数
-├── api.js         # 所有后端请求集中在这里
-├── main.js        # 页面逻辑与渲染
-├── styles.css
-└── README.md
+├── index.html               # 入口：时段列表
+├── config.html              # 入口：监控条件编辑
+├── vite.config.ts           # 双入口 MPA 构建
+└── src/
+    ├── api.ts               # 所有后端请求 + DTO 类型集中在这里
+    └── pages/
+        ├── tee-times/       # strings / logic / reducer / components / styles.css
+        └── config/          # 同样的结构
 ```
 
-所有 `fetch` 调用都封装在 `api.js` 中，对外暴露具名函数（`getTeeTimes()`、`listWatchConfigs()`、`saveWatchConfig()` 等）。日后若迁移到框架，该文件基本可以沿用，只需重写渲染部分。
+所有 `fetch` 调用都封装在 `src/api.ts` 中，对外暴露具名函数（`getTeeTimes()`、`listWatchConfigs()`、`createWatchConfigs()` 等），前后端的 JSON 契约用 TypeScript 类型固定下来。纯逻辑（分组、筛选、预订链接、表单归一化）有 Vitest 覆盖——`npm test`。
 
 ### 使用的接口
 
@@ -87,31 +89,29 @@ greenlight-frontend/
 
 ### 启动前端
 
-均为静态文件，任意静态服务器均可：
-
 ```bash
-npx serve .
-# 或者
-python -m http.server 5173
+npm install
+npm run dev
 ```
 
-打开命令行输出的地址即可。
+打开命令行输出的地址即可。`npm test` 跑单元测试；`npm run build` 产出静态站到 `dist/`。
 
 ### 配置后端地址
 
-`api.js` 中默认为 `http://localhost:8080`，后端地址不同时在此修改。
+后端地址和 API 密钥在构建/开发时从 Vite 环境变量读取（部署 workflow 会从仓库配置注入）：
 
-```js
-// api.js
-const API_BASE = "http://localhost:8080";
+```bash
+VITE_API_BASE=http://localhost:8080 VITE_API_KEY=你的密钥 npm run dev
 ```
+
+不设置时 `VITE_API_BASE` 退回 `http://localhost:8080`；密钥非空才会发送（空密钥对应后端关掉 API-key 关卡的情况）。
 
 ## 后续计划
 
-- [ ] 将 `config.html` 接入 watch-config 接口
-- [ ] 时段列表支持球场、日期筛选和「仅看可订」开关
+- [x] 将 `config.html` 接入 watch-config 接口
+- [x] 时段列表支持球场、日期筛选
 - [ ] 增加实时刷新，先采用轮询 `/api/tee-times`，后续改为 SSE 或 WebSocket
-- [ ] 界面复杂度上升后再考虑迁移到框架
+- [x] 迁移到框架——React + TypeScript（Vite），2026-09
 
 ## 相关仓库
 
