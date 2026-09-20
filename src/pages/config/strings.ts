@@ -1,0 +1,95 @@
+// --- Static reference data --------------------------------------------------
+
+// Price slider bounds (CAD). 上限原本是 100，够 Vancouver / Burnaby 那几个市政球场
+// （green fee ~$20–100）用。接进 West Coast Golf Group 之后不够了：2026-09-03 实测
+// Hazelmere 到 $135、Swaneset 两条球道到 $130，钉在 100 就设不出盯得住它们的 watch。
+// 接进 Nicklaus North（Whistler）之后 200 又不够了：2026-09-15 实测 $189 / $195 /
+// $225 / $285，钉在 200 的话这个球场大部分时段永远匹配不上，接进来等于白接。
+export const PRICE_MIN = 20;
+export const PRICE_MAX = 300;
+// 默认拉满：不过滤价格，先把所有场次都收进来。
+export const PRICE_DEFAULT = PRICE_MAX;
+
+// Default watch time window: whole playable day.
+export const TIME_START_DEFAULT = "06:00";
+export const TIME_END_DEFAULT = "20:00";
+
+// Minute choices for the time picker. A watch window is a coarse filter, so the
+// hour and the half hour are all it needs.
+export const MINUTE_CHOICES = [0, 30];
+
+// Default players: a full foursome.
+export const PLAYERS_DEFAULT = 4;
+
+// A watch is pinned to weekdays, not dates: "every Saturday morning" stays true
+// next month, a date range doesn't. The backend turns each weekday back into
+// concrete dates inside its 8-day scrape window. Codes match what it stores.
+export const WEEKDAYS = [
+  { code: "MON", label: "Mon" },
+  { code: "TUE", label: "Tue" },
+  { code: "WED", label: "Wed" },
+  { code: "THU", label: "Thu" },
+  { code: "FRI", label: "Fri" },
+  { code: "SAT", label: "Sat" },
+  { code: "SUN", label: "Sun" },
+] as const;
+
+export const STRINGS = {
+  appName: "GreenLight", tagline: "Watch tee times, get notified",
+  navQuery: "Search", navWatch: "Watch Alerts",
+  coursesLabel: "Golf Courses", weekdaysLabel: "Weekdays", rangeTo: "to",
+  timeRangeLabel: "Time Window", playersLabel: "Players", maxPriceLabel: "Max Price",
+  emailLabel: "Notify Email", emailPlaceholder: "you@example.com",
+  cancel: "Cancel", edit: "Edit", delete: "Delete",
+  noWatches: "No watches yet — create one on the left.",
+  active: "Active", paused: "Paused",
+  newTitle: "New Watch", editTitle: "Edit Watch",
+  createBtn: "Create Watch", saveBtn: "Save",
+  needCourseEmail: "Pick a course and enter your email.",
+  needWeekday: "Pick at least one weekday.",
+  needTimeOrder: "End time must be later than start time.",
+  saved: "Watch saved.", deleted: "Watch deleted.",
+  offline: "Backend offline — please try again once it's up.",
+  // 后端好好的、只是这次请求不合法时的兜底。和 offline 分开：那句会让人跑去看服务
+  genericError: "That didn't go through — please try again.",
+  courseLocked: "A watch's course can't be changed — create a new one instead.",
+  maintenanceBadge: "Under maintenance",
+  // 点到维护中的球场时说一句，否则那一行只是点不动，看不出是坏了还是没点中
+  maintenanceToast: "That course is under maintenance — it can't be watched right now.",
+  // 存量 watch 的卡片上说明它为什么不发邮件了
+  maintenanceCardNote: "This course is under maintenance — this watch is paused.",
+  playerUnit: " players",
+  everyDay: "Every day",
+  countText: (watchCount: number) => `Watches: ${watchCount}`,
+  hitsText: (hitCount: number) =>
+    hitCount > 0 ? `${hitCount} matching now` : "No matches yet",
+} as const;
+
+// --- Error reporting --------------------------------------------------------
+//
+// 后端出错时回的是 {"code","message"}（code 取值见 greenlight-backend 的 ApiErrorCode）。
+// 这里只认 code，不显示后端那句 message —— 那是英文调试串，界面文案该跟着界面走。
+//
+// 认不出的 code 一律落到 genericError：后端加了新 code 而这份静态页还是旧的，
+// 页面会说得笼统一点，但不会崩、也不会谎称后端离线。
+export const ERROR_MESSAGES: Record<string, string> = {
+  // 业务规则：人能自己改好的，就说清楚该怎么改
+  WATCH_DUPLICATE: "You already have an alert for that course — edit that one instead.",
+  WATCH_COURSE_IMMUTABLE: "A watch's course can't be changed — create a new one instead.",
+  WATCH_WEEKDAYS_REQUIRED: "Pick at least one weekday.",
+  WATCH_TIME_INVALID: "Time window looks wrong — use 24h HH:MM with start no later than end.",
+  WATCH_EMAIL_INVALID: "That email address doesn't look right — check it and try again.",
+  WATCH_NOT_FOUND: "That alert is gone — reload the page.",
+  COURSE_NOT_FOUND: "That course is gone — reload the page.",
+  COURSE_IN_MAINTENANCE: "That course is under maintenance — it can't be watched right now.",
+  MAIL_SEND_FAILED: "The email couldn't be sent — check the mail settings.",
+  // 请求本身不合法。人改不了这些，但话得说得不一样：让人知道该找谁
+  UNAUTHORIZED: "This page isn't authorized to talk to the backend.",
+  MALFORMED_JSON_BODY: "The page sent something the backend couldn't read — reload and try again.",
+  MISSING_PARAMETER: "The page sent an incomplete request — reload and try again.",
+  INVALID_PARAMETER: "The page sent an unusable value — reload and try again.",
+  METHOD_NOT_ALLOWED: "The page called the backend the wrong way — reload and try again.",
+  ENDPOINT_NOT_FOUND: "This page is talking to a backend that doesn't have that feature.",
+  // 后端自己出 bug 了。明确说不是你的问题，免得人回去反复改表单
+  INTERNAL_ERROR: "Something broke on the server — not your fault. Try again in a moment.",
+};
