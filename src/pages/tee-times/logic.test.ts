@@ -88,7 +88,7 @@ describe("groupTeeTimes", () => {
       { time: "07:30", price: 63, availableSeats: null },
     ]);
   });
-  it("认不出的 courseId：名字退回 course 字段，元数据 null", () => {
+  it("courseId 不在球场清单里（比如清单没取到）：名字用 course 字段，元数据 null", () => {
     const grouped = groupTeeTimes(
       [{ courseId: "ghost", course: "Ghost GC", time: "09:00", price: 50, availableSeats: null }],
       courses,
@@ -97,7 +97,7 @@ describe("groupTeeTimes", () => {
   });
   it("price 解析不了 -> 0；null 入参 -> []", () => {
     const grouped = groupTeeTimes(
-      [{ courseId: "langara", course: null, time: "07:00", price: "abc", availableSeats: null }],
+      [{ courseId: "langara", course: "Langara", time: "07:00", price: "abc", availableSeats: null }],
       courses,
     );
     expect(grouped[0].teeTimes[0].price).toBe(0);

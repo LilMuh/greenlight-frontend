@@ -24,8 +24,10 @@ export interface CourseDto {
 
 /** GET /api/tee-times 的一项（扁平列表，前端再按球场分组）。 */
 export interface TeeTimeDto {
-  courseId: string | null; // slug
-  course: string | null; // 球场名，courseId 缺失时的后备
+  // 后端契约保证非空：tee_time.course_id NOT NULL（外键），course.slug NOT NULL UNIQUE，
+  // DTO 直接取 course.getSlug()/getName()，序列化不省略字段
+  courseId: string; // 球场 slug
+  course: string; // 球场展示名
   time: string; // "HH:MM"
   price: number | string;
   availableSeats: number | string | null;

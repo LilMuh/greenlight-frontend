@@ -138,15 +138,14 @@ export function groupTeeTimes(
 ): CourseDay[] {
   const byCourseId = new Map<string, CourseDay>();
   for (const teeTime of teeTimeList || []) {
-    // 这条时段自称属于谁：优先 courseId（slug），缺了退回球场名，都缺就空串
-    const courseKey = String(teeTime.courseId ?? teeTime.course ?? "");
-    // 拿 key 去球场清单认亲：key 可能是 slug 也可能是名字，两个字段都试
-    const matchedCourse = courses.find((course) => course.id === courseKey || course.name === courseKey);
-    const courseId = matchedCourse ? matchedCourse.id : courseKey;
+    // courseId 是球场 slug（后端契约保证非空），拿它去球场清单挂元数据；
+    // 清单里没有（比如 /api/courses 没取到）只降级元数据，分组照常
+    const courseId = teeTime.courseId;
+    const matchedCourse = courses.find((course) => course.id === courseId);
     if (!byCourseId.has(courseId)) {
       byCourseId.set(courseId, {
         id: courseId,
-        name: matchedCourse ? matchedCourse.name : String(teeTime.course ?? courseKey),
+        name: matchedCourse ? matchedCourse.name : teeTime.course,
         // 元数据来自 /api/courses；认亲失败就全 null，卡片各自降级
         imageUrl: matchedCourse ? matchedCourse.imageUrl : null,
         source: matchedCourse ? matchedCourse.source : null,
