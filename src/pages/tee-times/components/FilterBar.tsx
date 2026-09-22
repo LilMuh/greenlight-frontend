@@ -23,8 +23,7 @@ export function FilterBar(props: Props) {
   // 数量同时当作按钮上的角标。默认值（Any / Earliest time / 球场全选）不算生效。
   const summaryChips: string[] = [];
   if (priceBucket !== "all") summaryChips.push(STRINGS.prices[priceBucket]);
-  // 维护中的球场不算进「球场全选」这个默认值里：它们本来就排除掉了，
-  // 拿它们当分母的话页面一打开就挂着一个「8 of 10 courses」的角标，看着像用户自己筛过。
+  // 维护中的球场不算分母：不然页面一打开就挂着「8 of 10 courses」，像用户自己筛过
   const selectableCourses = courses.filter((course) => !course.maintenance);
   const includedCourseCount = selectableCourses.filter(
     (course) => !excludedCourseIds.includes(course.id),

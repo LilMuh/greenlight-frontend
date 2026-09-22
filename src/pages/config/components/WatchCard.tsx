@@ -24,9 +24,8 @@ export function WatchCard({ watch, isOpen, hitCount, inMaintenance, ...actions }
 
   return (
     <div className={`wa-card${isOpen ? " is-open" : ""}`}>
-      {/* 整行都是展开热区。Active/Paused 开关嵌在里面，stopPropagation 保证点开关不会顺手把卡片展开。
-          展开行是 <div role="button">，Enter / 空格的激活得自己补：折叠里藏着 Edit 和 Delete，
-          打不开这一行的键盘用户就等于用不了这两个操作。 */}
+      {/* 整行都是展开热区；开关在行内，stopPropagation 防止点开关顺带展开卡片。
+          <div role="button"> 的 Enter/空格激活要自己补，不然键盘用户打不开折叠里的 Edit/Delete。 */}
       <div
         className="wa-card-top"
         role="button"
@@ -58,10 +57,8 @@ export function WatchCard({ watch, isOpen, hitCount, inMaintenance, ...actions }
           <span className="wa-status-text">{watch.active ? STRINGS.active : STRINGS.paused}</span>
         </div>
       </div>
-      {/* 折叠时详情整块不渲染（而不是 display:none）：卡片高度就是真的只有一行，
-          也不会留下点得到、读屏能读到的隐藏按钮。
-          球场在维护：折叠时靠球场名旁边的徽章提示，展开时给整句话——
-          否则用户只看到「Paused」，会以为是自己关的。 */}
+      {/* 折叠时详情整块不渲染（不是 display:none）。维护中的球场展开后给整句说明，
+          不然用户只看到 Paused 会以为是自己关的。 */}
       {isOpen && (
         <>
           {inMaintenance && <div className="wa-card-maintenance">{STRINGS.maintenanceCardNote}</div>}

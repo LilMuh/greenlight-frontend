@@ -12,9 +12,7 @@ export interface State {
   courses: CourseRef[];
   watches: WatchView[];
   hitsByWatchId: Record<number, number>; // 来自 /api/matches
-  // 展开的卡片 id。默认全部折叠：一条 watch 平时只需要认出「哪个球场、发给谁」，
-  // 星期/时段/人数/价格是设置它的时候才看的东西。按 id 记而不是记一个「当前展开的」，
-  // 是为了允许同时展开多条对比。
+  // 展开的卡片 id（按 id 记而不是只记一个，允许同时展开多条对比）
   expandedWatchIds: number[];
   formCourses: number[]; // selected course ids (numbers)
   formWeekdays: string[]; // selected weekday codes, e.g. ["SAT","SUN"]

@@ -43,15 +43,13 @@ export function courseName(courses: CourseRef[], courseId: number): string {
   return match ? match.name : String(courseId);
 }
 
-// 维护中：上游站点抓不动，后端已经把这个球场摘出去了（course.maintenance）。
-// 认不出的 courseId 当作正常，别因为清单还没加载完就把界面全锁死。
+// 球场是否在维护。认不出的 courseId 当作正常，别因为清单没加载完把界面锁死。
 export function isCourseInMaintenance(courses: CourseRef[], courseId: number): boolean {
   const match = courses.find((course) => course.id === courseId);
   return match ? match.maintenance === true : false;
 }
 
-// Coerce a backend watch record into the shape the UI expects. One watch holds a
-// single course (courseId + courseName come straight from the backend).
+// 把后端的 watch 记录整理成 UI 用的形状（缺字段落默认值）。一条 watch 只对应一个球场。
 export function normalizeWatch(record: WatchConfigDto, courses: CourseRef[]): WatchView {
   return {
     id: record.id,
@@ -67,7 +65,7 @@ export function normalizeWatch(record: WatchConfigDto, courses: CourseRef[]): Wa
   };
 }
 
-// The payload shape the backend's PUT /{id} expects.
+// PUT /{id} 的请求体形状。
 export function toDto(watch: WatchView): WatchConfigDto {
   return {
     id: watch.id,
@@ -97,13 +95,9 @@ export function weekdaysText(codes: string[]): string {
     .join(", ");
 }
 
-// 时间在 state、界面和线上格式里都是 24 小时制的 "HH:MM"，和后端存的、
-// tee_time.time_local 用的是同一套，直接可比。
-//
-// 刻意不用 <input type="time">：那个控件在 12 小时制的设备上把 AM/PM 做成滚轮里的
-// 一列（iPhone）或键盘录入时可以不动的一段（桌面）。拨了时和分却漏掉 meridiem，
-// 下午 4:45 就存成了 04:45，窗口倒挂，这条 watch 从此一条都不命中。选 24 小时制的
-// 小时就没有 meridiem 这个东西可漏了。
+// 时间统一用 24 小时制 "HH:MM"，和后端存的一致，字符串可以直接比大小。
+// 刻意不用 <input type="time">：12 小时制设备上容易漏拨 AM/PM，
+// 下午 4:45 存成 04:45 就是一条永远不命中的 watch。
 export function parseClock(value: unknown): { hour: number; minute: number } {
   const match = /^(\d{1,2}):(\d{2})$/.exec(String(value ?? "").trim());
   if (!match) return { hour: 0, minute: 0 };
@@ -121,20 +115,13 @@ export function minuteOptions(current: number): number[] {
   return [...MINUTE_CHOICES, current].sort((left, right) => left - right);
 }
 
-// 新建表单里球场的默认选中集：全选，但维护中的排除掉——不然一打开页面它就被勾上，
-// 一提交必被后端 409 拒掉。init 和 resetForm 都从这里取，别各写一遍（写重过一次了）。
+// 新建表单的默认球场：全选但排除维护中的——不然一提交就被后端 409 拒掉。
 export function defaultFormCourses(courses: CourseRef[]): number[] {
   return courses.filter((course) => !course.maintenance).map((course) => course.id);
 }
 
-/**
- * 把一次失败翻译成给人看的一句话，并决定要不要把页面标成离线。
- *
- * 分三档，因为对人的意思完全不同：
- *   - 根本没连上（fetch 抛 TypeError）→ 后端离线，去看服务；
- *   - 连上了、后端拒了这次请求（4xx 带 code）→ 是这次填的东西有问题，改了再来；
- *   - 认不出的 code → 说得笼统一点，但不崩、也不谎称后端离线。
- */
+// 把一次失败翻译成给人看的一句话，并决定要不要把页面标成离线：
+// 没连上 → offline 文案；后端拒了 → 按 code 挑文案；认不出的 code → 笼统兜底。
 export function classifyError(error: unknown): { offline: boolean; message: string } {
   if (!(error instanceof ApiError)) {
     return { offline: true, message: STRINGS.offline };

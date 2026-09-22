@@ -14,9 +14,8 @@ interface Props {
 export function CourseCard({ card, selectedIso, selectedChip, onChip, onBookFallback }: Props) {
   const { course, teeTimes } = card;
 
-  // 时段一多，横向滚动条在电脑上很难用（滚轮不管横向、内容也不能拖），
-  // 所以给时段行加 ‹ › 翻页箭头：点一下滚一屏。手机的触摸横滑不受影响。
-  // 箭头按需显隐：没溢出不显示，滚到头的那侧隐藏。
+  // 时段行的 ‹ › 翻页箭头：点一下滚一屏（电脑上横向滚动条难用），手机触摸横滑不受影响。
+  // 按需显隐：没溢出不显示，滚到头的那侧隐藏。
   const teesRef = useRef<HTMLDivElement | null>(null);
   const [canPage, setCanPage] = useState({ left: false, right: false });
 
@@ -42,13 +41,10 @@ export function CourseCard({ card, selectedIso, selectedChip, onChip, onBookFall
     // 滚 0.9 屏而不是整屏：边缘留半个 chip，让人看出「后面还有」
     container.scrollBy({ left: direction * container.clientWidth * 0.9, behavior: "smooth" });
   };
-  // 拼得出链接就用真 <a>（能新标签打开、能右键复制）；拼不出（比如 /api/courses
-  // 没取到、source 是我们还不认识的来源）退回按钮 + toast，不给一个点了没反应的链接。
+  // 拼得出预订链接就用真 <a>；拼不出退回按钮 + toast，不给一个点了没反应的链接。
   const url = bookingUrl(course, selectedIso);
-  // 库里存的是完整地址（"7800 Vivian Dr, Vancouver, BC V5S 2V9, Canada"），
-  // 卡片放不下也不需要省市邮编，只取前两段："7800 Vivian Dr, Vancouver"。
-  // 城市那段单独包一层 .tt-addr-city：手机宽度下 CSS 会把它藏掉，只剩街道，
-  // 省得和球场名抢那一行。放 CSS 里做是为了不必监听 resize 重渲染。
+  // 完整地址只取前两段（"7800 Vivian Dr, Vancouver"）；
+  // 城市段单独包 .tt-addr-city，手机宽度下由 CSS 藏掉。
   const [street = "", city = ""] = String(course.address ?? "").split(",");
 
   return (
@@ -62,8 +58,7 @@ export function CourseCard({ card, selectedIso, selectedChip, onChip, onBookFall
         </div>
         <div className="tt-card-info">
           <strong className="tt-card-name" title={course.name}>{shortCourseName(course.name)}</strong>
-          {/* 评分/地址来自 Google Maps，可能为 null——有就显示，没有整块不渲染，
-              绝不显示 "⭐ 0" 或空括号，那看起来像「评分是 0」而不是「没拿到数据」 */}
+          {/* 评分/地址可能为 null：有就显示，没有整块不渲染，绝不显示 "⭐ 0" */}
           {course.rating != null && (
             <span className="tt-card-rating">
               ⭐ {course.rating}

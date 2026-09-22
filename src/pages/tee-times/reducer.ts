@@ -6,7 +6,7 @@ import {
 } from "./logic";
 
 export interface State {
-  offline: boolean; // 有过一次拿不到数据的失败。UI 的空态由 dayData 为空表达，这个标记只决定 init 时要不要弹失败 toast
+  offline: boolean; // 有过一次加载失败；只决定 init 时要不要弹失败 toast
   loading: boolean;
   courses: CourseView[];
   dayData: CourseDay[];

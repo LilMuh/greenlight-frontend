@@ -1,11 +1,5 @@
-// Watch Alerts page. Mirrors the imported "Watch Alerts" design, wired to the
-// watch-config API in api.ts. Data shown (courses, existing watches) is only
-// what the backend returns — if it's unreachable the page shows an empty state
-// and an offline notice rather than any fabricated data.
-//
-// One watch = one course. Creating with several courses checked sends a single
-// batch request; the backend loops and returns one watch per course, so each
-// course becomes its own card. Editing a watch edits that one row (single course).
+// Watch Alerts 页。数据只来自后端：连不上就显示空态 + 离线提示，绝不编数据。
+// 一条 watch 对应一个球场：勾多个球场新建时发一次批量请求，后端逐球场各建一条。
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import {
   createWatchConfigs, deleteWatchConfig, getCourses, getMatches,
@@ -75,11 +69,8 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Create mode: multi-select (each course becomes its own watch).
-  //
-  // 编辑态不给改球场：(邮箱, 球场) 是一条 watch 的身份，换球场等于换成另一条，
-  // 而那条可能已经存在。后端会以 WATCH_COURSE_IMMUTABLE 拒掉，这里不等它拒——
-  // 让人填完整个表单再被驳回是最差的顺序，直接点不动并说明原因。
+  // 勾选球场（新建态多选）。编辑态不给改球场：换球场等于换成另一条 watch，
+  // 后端会拒（WATCH_COURSE_IMMUTABLE），这里直接点不动并说明原因。
   const handleToggleCourse = (course: CourseRef) => {
     if (state.editingId != null) {
       showToast(STRINGS.courseLocked, 2600);
@@ -103,8 +94,7 @@ export function App() {
       showToast(STRINGS.needWeekday, 2200);
       return;
     }
-    // 两个值都是零填充的 "HH:MM"，字符串比较就是时间先后，和后端 BETWEEN 的口径一致。
-    // 结束不晚于开始的窗口在 SQL 里恒为空集，会静悄悄地一条都不命中——挡在这里。
+    // 零填充的 "HH:MM" 字符串比较就是时间先后；结束不晚于开始的窗口永远不命中，挡在这里
     if (state.formTimeEnd <= state.formTimeStart) {
       showToast(STRINGS.needTimeOrder, 2400);
       return;
@@ -134,9 +124,7 @@ export function App() {
     }
   };
 
-  // 表单在左栏（窄屏时在列表上方），列表长了以后 Edit 按钮多半已经滚出表单的视野。
-  // 不滚过去的话点了 Edit 界面看着毫无变化——改动全发生在屏幕外。
-  // scroll-margin-top 在 CSS 里给了，免得表单顶部被 sticky 表头盖住。
+  // 点 Edit 后平滑滚到表单：列表长了表单多半在屏幕外，不滚过去看着像没反应。
   const startEdit = (watchId: number) => {
     dispatch({ type: "edit", id: watchId });
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -158,8 +146,7 @@ export function App() {
   const toggleActive = async (watchId: number) => {
     const watch = state.watches.find((candidate) => candidate.id === watchId);
     if (!watch) return;
-    // 维护中的球场开不回来（后端会 409）。这里先拦一道，省掉一次乐观更新再回滚的闪烁；
-    // 关掉照常放行——用户得能把自己那条已经不发邮件的 watch 停了或删了。
+    // 维护中的球场开不回来（后端会 409），先拦一道；关掉照常放行
     if (!watch.active && isCourseInMaintenance(state.courses, watch.courseId)) {
       showToast(STRINGS.maintenanceToast, 2600);
       return;
@@ -169,7 +156,7 @@ export function App() {
     try {
       await updateWatchConfig(watchId, toDto(updated));
     } catch (error) {
-      // 乐观更新已经画到界面上了，失败就滚回去，别让开关停在一个库里没有的状态
+      // 失败就把开关翻回去，别停在一个库里没有的状态
       dispatch({ type: "setWatchActive", id: watchId, active: watch.active });
       reportError(error);
     }

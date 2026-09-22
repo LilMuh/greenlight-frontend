@@ -1,29 +1,23 @@
 // --- Static reference data --------------------------------------------------
 
-// Price slider bounds (CAD). 上限原本是 100，够 Vancouver / Burnaby 那几个市政球场
-// （green fee ~$20–100）用。接进 West Coast Golf Group 之后不够了：2026-09-03 实测
-// Hazelmere 到 $135、Swaneset 两条球道到 $130，钉在 100 就设不出盯得住它们的 watch。
-// 接进 Nicklaus North（Whistler）之后 200 又不够了：2026-09-15 实测 $189 / $195 /
-// $225 / $285，钉在 200 的话这个球场大部分时段永远匹配不上，接进来等于白接。
+// 价格滑块范围（CAD）。上限要盖住最贵球场的时段（Nicklaus North 到 $285），
+// 钉低了那些场次永远匹配不上。
 export const PRICE_MIN = 20;
 export const PRICE_MAX = 300;
 // 默认拉满：不过滤价格，先把所有场次都收进来。
 export const PRICE_DEFAULT = PRICE_MAX;
 
-// Default watch time window: whole playable day.
+// 默认时间窗：全天可打的时段。
 export const TIME_START_DEFAULT = "06:00";
 export const TIME_END_DEFAULT = "20:00";
 
-// Minute choices for the time picker. A watch window is a coarse filter, so the
-// hour and the half hour are all it needs.
+// 分钟档位：watch 的时间窗是粗筛，整点和半点够用。
 export const MINUTE_CHOICES = [0, 30];
 
-// Default players: a full foursome.
+// 默认人数：一组打满 4 人。
 export const PLAYERS_DEFAULT = 4;
 
-// A watch is pinned to weekdays, not dates: "every Saturday morning" stays true
-// next month, a date range doesn't. The backend turns each weekday back into
-// concrete dates inside its 8-day scrape window. Codes match what it stores.
+// watch 按星期定，不按日期：「每周六早上」下个月还成立。code 和后端存的一致。
 export const WEEKDAYS = [
   { code: "MON", label: "Mon" },
   { code: "TUE", label: "Tue" },
@@ -66,12 +60,8 @@ export const STRINGS = {
 } as const;
 
 // --- Error reporting --------------------------------------------------------
-//
-// 后端出错时回的是 {"code","message"}（code 取值见 greenlight-backend 的 ApiErrorCode）。
-// 这里只认 code，不显示后端那句 message —— 那是英文调试串，界面文案该跟着界面走。
-//
-// 认不出的 code 一律落到 genericError：后端加了新 code 而这份静态页还是旧的，
-// 页面会说得笼统一点，但不会崩、也不会谎称后端离线。
+// 后端错误按 code 挑文案（后端的 message 是调试串，不进界面）。
+// 认不出的 code 落到 genericError：不崩、也不谎称后端离线。
 export const ERROR_MESSAGES: Record<string, string> = {
   // 业务规则：人能自己改好的，就说清楚该怎么改
   WATCH_DUPLICATE: "You already have an alert for that course — edit that one instead.",

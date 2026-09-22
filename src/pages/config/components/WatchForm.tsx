@@ -58,8 +58,7 @@ export function WatchForm(props: Props) {
         <div>
           {state.courses.map((course) => {
             const isSelected = state.formCourses.includes(course.id);
-            // 维护中的球场同样置灰、点不动，但和编辑态的锁是两回事：编辑态是「这条 watch
-            // 的球场不给换」，维护是「这个球场谁都不能关注」。两个 class 分开，样式一致但语义不混。
+            // 维护中的球场也置灰点不动；和编辑锁语义不同，class 分开
             const isMaintenance = course.maintenance === true;
             return (
               <div

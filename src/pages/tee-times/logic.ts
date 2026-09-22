@@ -40,40 +40,25 @@ export interface Card {
 }
 
 // --- Booking deep links -----------------------------------------------------
-//
-// tee_time / course 表里都没存预订页 URL，只能按 source + site + slug 反推。后端邮件
-// 里那条 BOOK 链接（BookingLinkBuilder + greenlight.mail.booking-url-template）做的是
-// 同一件事，但那份模板在后端配置里，没有任何 API 暴露出来，所以这里另拼一份。
-//
-// 参数名 Date / CourseId / TeeOffTimeMin / TeeOffTimeMax 是 2026-08-06 在
-// golfvancouver.cps.golf 上实测的：改这两个参数，页面自己发出的 TeeTimes 请求里
-// searchDate / courseIds 会跟着变，左侧球场下拉也会选中对应球场。注意这套首字母大写的
-// 参数名，和它转发给自己后端 API 时用的 searchDate / courseIds 不是一套。
-//
-// 不带 Player：这一页没有「几个人打」这个概念，落地页的 Players 默认就是 Any，
-// 那已经是最宽松的，硬塞一个数字反而会把时段筛掉。
+// 数据库没存预订页 URL，按 source + site + slug 拼出来。
+// CPS 的参数名（Date / CourseId / TeeOffTimeMin/Max）是在真站上实测出来的。
+// 不带 Players：落地页默认 Any 已是最宽松，塞数字反而会筛掉时段。
 const CPS_DAY_MIN = "0";
 const CPS_DAY_MAX = "23.999722222222225"; // CPS 搜索页自己用的上界
 
-// slug → CPS 内部球场 id。CPS 用一个小整数区分同站点下的球场，/api/courses 不返回它，
-// 只能在前端留一份，来源是 greenlight-scraper 里按站点分的那几个枚举
-// （GolfVancouverCourseId / GolfBurnabyCourseId / WestCoastGolfGroupCourseId /
-// KingsLinksCourseId）。
-// 这个 id 只在站点内唯一——四个站点都有 1 号球场——但这张表按 slug 索引，slug 全局唯一，
-// 且 bookingUrl 拿到 id 时已经用 course.site 拼好了域名，所以撞号不影响。
-// 认不出的 slug 就不带 CourseId——落地页会列出当天全部球场，日期仍然是对的。
+// slug → CPS 站内球场 id（/api/courses 不返回它，只能前端留一份）。
+// id 只在站点内唯一，但这张表按全局唯一的 slug 索引，不怕撞号；
+// 认不出的 slug 就不带 CourseId，落地页退化成列出当天全部球场。
 const CPS_COURSE_IDS: Record<string, number> = {
   langara: 1, fraserview: 2, mccleery: 3, // golfvancouver
   "burnaby-mountain": 1, riverway: 2, // golfburnaby
-  // westcoastgolfgroup。Swaneset 在 CPS 里是两条各自有 id 的 18 洞球道，分开两行
+  // westcoastgolfgroup。Swaneset 是两条各自有 id 的球道，分开两行
   hazelmere: 1, belmont: 2, "swaneset-resort": 3, "swaneset-links": 4,
   "kings-links": 1, // kingslinks，整个站点就这一个球场
 };
 
-// TEI（Total e Integrated）的订位页【没有日期深链】：2026-09-15 实测 ?date= / ?Date= /
-// ?TeeDate= / ?SelectedDate= / 路径段全被忽略，一律回今天，日期只能靠页面里的回发。
-// 所以这里只给裸页面——硬拼一个站点不认的参数，人点进去还是落在今天，比不带更困惑。
-// 后端邮件里那条链接同理，见 application.yml 的 booking-url-template.tei。
+// 拼某球场某天的预订页链接；拼不出返回 null（UI 退化成按钮 + toast）。
+// TEI 的订位页没有日期深链（各种日期参数实测都被忽略），所以只给裸页面链接。
 export function bookingUrl(
   course: { id: string; source: string | null; site: string | null },
   isoDate: string,
@@ -140,15 +125,13 @@ export function normalizeCourses(courseDtos: CourseDto[]): CourseView[] {
   }));
 }
 
-// 维护中的球场（course.maintenance）：上游站点抓不动，后端已经把它摘出去了。
-// 这里当作筛选的默认排除项用——init 和 Reset 都从这里取，两边不各写一遍。
+// 维护中球场的 id 列表：筛选的默认排除项，init 和 Reset 都从这里取。
 export function maintenanceCourseIds(courses: CourseView[]): string[] {
   return courses.filter((course) => course.maintenance).map((course) => course.id);
 }
 
-// Turn a flat /api/tee-times list into the design's per-course grouping. The
-// backend gives { courseId, course, time, price, availableSeats, ... }; the seat
-// count may be missing, so it degrades to null rather than breaking the card.
+// 把 /api/tee-times 的扁平列表按球场分组，并把 /api/courses 的元数据（照片、评分等）挂上去。
+// 缺什么降级什么（seats 缺就 null），不让一条脏数据毁掉整页。
 export function groupTeeTimes(
   teeTimeList: TeeTimeDto[] | null | undefined,
   courses: CourseView[],
@@ -164,8 +147,7 @@ export function groupTeeTimes(
       byCourseId.set(courseId, {
         id: courseId,
         name: matchedCourse ? matchedCourse.name : String(teeTime.course ?? courseKey),
-        // 照片、地址、评分、source/site 都来自 /api/courses，tee-time 接口不带它们，
-        // 在这里挂上去。source/site 是拼预订链接用的，取不到就退化成不可点的按钮。
+        // 元数据来自 /api/courses；认亲失败就全 null，卡片各自降级
         imageUrl: matchedCourse ? matchedCourse.imageUrl : null,
         source: matchedCourse ? matchedCourse.source : null,
         site: matchedCourse ? matchedCourse.site : null,
@@ -228,12 +210,8 @@ export function shortCourseName(name: string): string {
   return short || name;
 }
 
-/**
- * 把一次请求失败翻译成给人看的一句话。
- * 这一页是只读的，任何一个读请求挂了结果都一样：没有数据可显示，走空态。
- * 但**原因**对人的意思完全不同——后端没开要去起服务，密钥不对要去改部署配置，
- * 后端 500 则什么都不用做。之前一律说「Backend offline」，会让人跑去查一台好好的机器。
- */
+// 把一次请求失败翻译成给人看的一句话。三种原因要说清楚：
+// 没连上（去起服务）、密钥不对（去改部署配置）、后端 5xx（等一会就好）。
 export function classifyFailure(error: unknown): string {
   if (!(error instanceof ApiError)) return STRINGS.offline; // fetch 自己抛的 = 根本没连上
   if (error.code === "UNAUTHORIZED") return STRINGS.unauthorized;

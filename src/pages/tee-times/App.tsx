@@ -1,7 +1,5 @@
-// Tee-time search page. Mirrors the imported "TeeTime Query" design, wired to
-// the tee-times API in api.ts. Data shown is only what the backend returns — if
-// it's unreachable the page shows an empty state and an offline notice rather
-// than any fabricated data. All filtering/sorting runs client-side.
+// 时段查询页。数据只来自后端：连不上就显示空态 + 离线提示，绝不编数据。
+// 所有筛选/排序都在浏览器端做。
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { getCourses, getHealth, getTeeTimes } from "../../api";
 import { STRINGS } from "./strings";
@@ -47,7 +45,7 @@ export function App() {
     };
     (async () => {
       try {
-        await getHealth(); // health check is best-effort; a failure just flags offline mode
+        await getHealth(); // 健康检查是尽力而为，失败只记一笔，不拦后面的请求
       } catch (error) {
         dispatch({ type: "failure" });
         note(classifyFailure(error));
@@ -125,9 +123,7 @@ export function App() {
 
       <div className="tt-body">
         {cards.length > 0 ? (
-          // 加载中不清空列表，只把上一天的卡片调淡：清空会让内容整整消失一帧（列表超过
-          // 一屏时还会连带滚动条消失、位置跳回顶部），切日期时看到的「闪」就是这一下。
-          // 只有首次加载、手上一条数据都没有时才留空。
+          // 加载中不清空列表、只把旧卡片调淡：避免切日期时闪白屏；只有首次加载才留空
           <div className={`tt-cards${state.loading ? " is-loading" : ""}`}>
             {cards.map((card) => (
               <CourseCard

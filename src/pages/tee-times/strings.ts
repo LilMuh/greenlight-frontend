@@ -1,11 +1,9 @@
-// 原来最高一档是开口的 "$70+"。接进 West Coast Golf Group 之后那一档从 $70 一路混到
-// $135（Hazelmere / Swaneset），点它等于没筛，所以在 120 处再切一刀。
+// 价格档位。最高档在 120 再切一刀：不然 "$70+" 一档从 70 混到 135，点了等于没筛。
 export const PRICE_BUCKETS = ["all", "low", "mid", "high", "top"] as const;
 export type PriceBucket = (typeof PRICE_BUCKETS)[number];
 export const SORTS = ["rec", "price", "time"] as const;
 export type SortBy = (typeof SORTS)[number];
-// 默认按开球时间从早到晚排。找 tee time 的人第一眼要看的是「几点能打」，
-// 评分（rec）是选球场时才有用的次要标准，何况它来自 Google Maps、可能整列都是 null。
+// 默认按开球时间排：找 tee time 第一眼看的是「几点能打」。
 export const SORT_DEFAULT: SortBy = "time";
 
 export const STRINGS = {

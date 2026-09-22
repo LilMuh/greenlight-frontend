@@ -1,16 +1,9 @@
-// Every backend call lives here. Point VITE_API_BASE at your greenlight-backend.
-// Keeping all fetch calls behind named functions means UI code never touches fetch.
-// 部署时由 .github/workflows/deploy.yml 在构建期注入（仓库变量 API_BASE / secret API_KEY），
-// Vite 会把 VITE_* 内联进产物。本地开发不设环境变量时退回 localhost:8080。
+// 所有后端调用都集中在这个文件，UI 代码不直接碰 fetch。
+// VITE_API_BASE 部署时由 deploy.yml 在构建期注入；本地不设就退回 localhost:8080。
 const API_BASE: string = import.meta.env.VITE_API_BASE ?? "http://localhost:8080";
 
-// /api/** 的共享密钥，后端 ApiKeyFilter 校验。
-//
-// 这不是真正的凭据：本仓库是公开的、页面是静态的，密钥随构建产物一起发出去，
-// 打开开发者工具就能看到。它挡的是扫到域名随手试的人和自动扫描器——后端跑在
-// Tailscale Funnel 上，没有账号体系，写接口不能完全裸着。
-//
-// 本地不设 VITE_API_KEY 时留空，后端那边留空密钥＝关卡关闭，正好对上。
+// /api/** 的共享密钥（后端 ApiKeyFilter 校验）。不是真凭据——静态页藏不住秘密，
+// 挡的只是扫描器和随手试的人。本地留空 = 对上后端「空密钥即关卡关闭」。
 const API_KEY: string = import.meta.env.VITE_API_KEY ?? "";
 
 // --- 后端 DTO（以旧代码实际读写的字段为准） -----------------------------------
@@ -71,11 +64,8 @@ export interface MatchDto {
 }
 
 /**
- * 后端回的一次业务失败。区别于网络层失败（fetch 自己抛的 TypeError）——
- * 那个说明后端不可达，这个说明后端好好的、是这次请求本身不合法。
- *
- * code 是后端 ApiErrorCode 的名字（如 "WATCH_DUPLICATE"），页面按它挑文案；
- * 后端的 message 是英文调试串，不进界面。拿不到 body（502、纯文本错误页）时 code 为 null。
+ * 后端回的业务失败（网络层失败是 fetch 自己抛的 TypeError，那说明后端不可达）。
+ * code 是后端 ApiErrorCode 的名字，页面按它挑文案；拿不到错误体时 code 为 null。
  */
 export class ApiError extends Error {
   readonly status: number;
