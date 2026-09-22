@@ -49,11 +49,12 @@ const CPS_DAY_MAX = "23.999722222222225"; // CPS 搜索页自己用的上界
 // slug → CPS 站内球场 id（/api/courses 不返回它，只能前端留一份）。
 // id 只在站点内唯一，但这张表按全局唯一的 slug 索引，不怕撞号；
 // 认不出的 slug 就不带 CourseId，落地页退化成列出当天全部球场。
+// key 必须逐字等于后端的 slug（查表用 course.id），所以保持 kebab-case、统一加引号
 const CPS_COURSE_IDS: Record<string, number> = {
-  langara: 1, fraserview: 2, mccleery: 3, // golfvancouver
-  "burnaby-mountain": 1, riverway: 2, // golfburnaby
+  "langara": 1, "fraserview": 2, "mccleery": 3, // golfvancouver
+  "burnaby-mountain": 1, "riverway": 2, // golfburnaby
   // westcoastgolfgroup。Swaneset 是两条各自有 id 的球道，分开两行
-  hazelmere: 1, belmont: 2, "swaneset-resort": 3, "swaneset-links": 4,
+  "hazelmere": 1, "belmont": 2, "swaneset-resort": 3, "swaneset-links": 4,
   "kings-links": 1, // kingslinks，整个站点就这一个球场
 };
 
