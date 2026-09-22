@@ -35,8 +35,8 @@ export function createInitialState(): State {
   };
 }
 
-// action.type 沿用旧 data-act 值，和 main.js 事件委托的 switch 并排可对读。
-// 维护中球场点击的拦截（toast）是副作用，在 App 层做，这里只进纯状态变更。
+// 整页唯一的状态机：一个用户交互 = 一个 action，reducer 收到后算出下一份 state。
+// 副作用（请求、toast）都在 App 层；维护中球场点击的拦截也在那边做。
 export type Action =
   | { type: "date"; index: number }
   | { type: "filter" }

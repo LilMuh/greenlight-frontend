@@ -1,5 +1,4 @@
-// tee-time 页的纯逻辑层：从旧 main.js 逐字搬运，唯一结构性改动是把对模块级
-// state 的闭包引用改成显式参数（courses / excludedCourseIds / ...），好让它们可测。
+// tee-time 页的纯逻辑层：不碰 DOM、不发请求，输入什么就返回什么，全部可以单测。
 import { ApiError, type CourseDto, type TeeTimeDto } from "../../api";
 import { STRINGS, type PriceBucket, type SortBy } from "./strings";
 
@@ -93,9 +92,10 @@ export function bookingUrl(
   return url.toString();
 }
 
+// 日期条的数据源：今天起连续 8 天，每天配一个本地时区的 "YYYY-MM-DD"。
 export function buildDates(): { date: Date; iso: string }[] {
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0); // 把「此刻」抹成当天零点：这组对象表示日期，不是时刻
   const dates = [];
   // 今天 + 后 7 天，共 8 天，和 scraper 的抓取范围对齐
   for (let index = 0; index < 8; index++) {
@@ -106,6 +106,7 @@ export function buildDates(): { date: Date; iso: string }[] {
   return dates;
 }
 
+// 本地时区的 "YYYY-MM-DD"。不用 toISOString()：那个按 UTC 算，温哥华的晚上会串成第二天。
 export function toISO(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -154,7 +155,9 @@ export function groupTeeTimes(
 ): CourseDay[] {
   const byCourseId = new Map<string, CourseDay>();
   for (const teeTime of teeTimeList || []) {
+    // 这条时段自称属于谁：优先 courseId（slug），缺了退回球场名，都缺就空串
     const courseKey = String(teeTime.courseId ?? teeTime.course ?? "");
+    // 拿 key 去球场清单认亲：key 可能是 slug 也可能是名字，两个字段都试
     const matchedCourse = courses.find((course) => course.id === courseKey || course.name === courseKey);
     const courseId = matchedCourse ? matchedCourse.id : courseKey;
     if (!byCourseId.has(courseId)) {
@@ -181,6 +184,8 @@ export function groupTeeTimes(
   return [...byCourseId.values()];
 }
 
+// 把当天数据变成要显示的卡片：去掉被排除的球场、按价格档过滤时段，
+// 时段全被滤光的卡整张消失，剩下的算出最低价/最早时段，再按选定方式排序。
 export function computeCards(
   dayData: CourseDay[],
   excludedCourseIds: string[],
@@ -224,7 +229,7 @@ export function shortCourseName(name: string): string {
 }
 
 /**
- * 旧 noteFailure 的分类部分（offline 标记归 reducer 管）。
+ * 把一次请求失败翻译成给人看的一句话。
  * 这一页是只读的，任何一个读请求挂了结果都一样：没有数据可显示，走空态。
  * 但**原因**对人的意思完全不同——后端没开要去起服务，密钥不对要去改部署配置，
  * 后端 500 则什么都不用做。之前一律说「Backend offline」，会让人跑去查一台好好的机器。

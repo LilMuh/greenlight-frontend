@@ -15,6 +15,7 @@ interface Props {
   onSort: (sort: SortBy) => void;
 }
 
+// 筛选区：一行「Filters 按钮 + 生效筛选摘要 + 结果计数」，展开后是球场勾选/价格档/排序面板。
 export function FilterBar(props: Props) {
   const { courses, excludedCourseIds, priceBucket, sortBy, filterOpen, countText } = props;
 

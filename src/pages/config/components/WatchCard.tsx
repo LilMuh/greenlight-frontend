@@ -12,6 +12,8 @@ interface Props {
   onDelete: (id: number) => void;
 }
 
+// 一条 watch 的卡片：折叠时只有「球场 + 邮箱 + 启停开关」一行，
+// 展开后是命中数、条件 chips 和 Edit / Delete。
 export function WatchCard({ watch, isOpen, hitCount, inMaintenance, ...actions }: Props) {
   const chips = [
     weekdaysText(watch.weekdays),
@@ -22,8 +24,7 @@ export function WatchCard({ watch, isOpen, hitCount, inMaintenance, ...actions }
 
   return (
     <div className={`wa-card${isOpen ? " is-open" : ""}`}>
-      {/* 整行都是展开热区。Active/Paused 开关嵌在里面，stopPropagation 保证点开关不会顺手把卡片展开
-          （旧版靠事件委托取最内层 [data-act] 达到同样效果）。
+      {/* 整行都是展开热区。Active/Paused 开关嵌在里面，stopPropagation 保证点开关不会顺手把卡片展开。
           展开行是 <div role="button">，Enter / 空格的激活得自己补：折叠里藏着 Edit 和 Delete，
           打不开这一行的键盘用户就等于用不了这两个操作。 */}
       <div

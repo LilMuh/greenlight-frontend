@@ -24,13 +24,14 @@ export function App() {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const formRef = useRef<HTMLDivElement | null>(null);
 
+  // 弹一条会自动消失的提示；连续弹时新消息顶掉旧的、重新计时
   const showToast = useCallback((message: string, durationMs = 2000) => {
     setToast(message);
     clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(""), durationMs);
   }, []);
 
-  // 旧 reportError 的直译：翻译文案 + 必要时置 offline，然后弹 toast
+  // 把请求失败弹成 toast；连不上后端时顺带把页面标成离线
   const reportError = useCallback((error: unknown) => {
     const { offline, message } = classifyError(error);
     if (offline) dispatch({ type: "offline" });
@@ -49,7 +50,7 @@ export function App() {
     }
   }, []);
 
-  // 旧 init 的直译：courses → watches → matches，各自失败置 offline，最后统一 toast
+  // 页面打开时跑一次：球场清单 → 已有 watch 列表 → 命中数，各自失败置 offline，最后统一 toast
   useEffect(() => {
     (async () => {
       let sawOffline = false;
@@ -92,6 +93,7 @@ export function App() {
     dispatch({ type: "course", id: course.id });
   };
 
+  // 提交表单：先过三道本地校验，再按「编辑单条 / 批量新建」调后端，成功后刷新命中数
   const submitForm = async () => {
     if (!state.formEmail || state.formCourses.length === 0) {
       showToast(STRINGS.needCourseEmail, 2200);
@@ -140,6 +142,7 @@ export function App() {
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  // 删除一条 watch：后端确认成功才从列表移除
   const deleteWatch = async (watchId: number) => {
     try {
       await deleteWatchConfig(watchId);
@@ -151,6 +154,7 @@ export function App() {
     showToast(STRINGS.deleted, 1800);
   };
 
+  // 启停开关：界面先翻（乐观更新），后端失败再翻回来
   const toggleActive = async (watchId: number) => {
     const watch = state.watches.find((candidate) => candidate.id === watchId);
     if (!watch) return;

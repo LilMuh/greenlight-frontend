@@ -2,9 +2,7 @@ import { PRICE_MAX, PRICE_MIN, STRINGS, WEEKDAYS } from "../strings";
 import { formatClock, minuteOptions, parseClock, type CourseRef } from "../logic";
 import type { State } from "../reducer";
 
-// 一段时间的选择器：24 小时制的时 + 分两个下拉（不用 <input type="time"> 的原因见 logic.ts）。
-// React 下改值只走受控 value，不重建 <select> 节点，手机上拉开的原生下拉不会被关掉——
-// 旧版「改动后只写回 state、不重绘」的例外不再需要。
+// 时间选择器：24 小时制的时 + 分两个下拉（不用 <input type="time"> 的原因见 logic.ts）。
 function TimePicker({ value24, onChange }: { value24: string; onChange: (value: string) => void }) {
   const { hour, minute } = parseClock(value24);
   return (
@@ -45,6 +43,7 @@ interface Props {
   onCancel: () => void;
 }
 
+// 左栏整个表单：球场多选、星期、时间窗、人数、价格上限、邮箱，新建/编辑共用。
 export function WatchForm(props: Props) {
   const { state } = props;
   // 编辑态球场是锁死的（换球场等于换成另一条 watch），整块置灰，选中的那个照常高亮
@@ -120,7 +119,7 @@ export function WatchForm(props: Props) {
       <div className="wa-field">
         <div className="wa-price-head">
           <span>{STRINGS.maxPriceLabel}</span>
-          {/* 单一渲染路径：旧版这里有第二条手动 textContent 的路，React 下不存在 */}
+          {/* 数字跟着滑块实时变：它和滑块读的是同一个 state，天然一致 */}
           <span className="wa-price-val">${state.formMaxPrice}</span>
         </div>
         <input

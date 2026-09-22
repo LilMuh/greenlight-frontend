@@ -17,13 +17,14 @@ export function App() {
   const [toast, setToast] = useState("");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
+  // 弹一条会自动消失的提示；连续弹时新消息顶掉旧的、重新计时
   const showToast = useCallback((message: string, durationMs = 2200) => {
     setToast(message);
     clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(""), durationMs);
   }, []);
 
-  // 旧 loadDay 的直译。返回失败原因（成功为 null），init 用它挑「第一个失败原因」。
+  // 拉选中那天的时段并写进 state。成功返回 null，失败返回一句给人看的原因。
   const loadDay = useCallback(async (iso: string): Promise<string | null> => {
     dispatch({ type: "loadStart" });
     try {
@@ -36,8 +37,8 @@ export function App() {
     }
   }, []);
 
-  // 旧 init 的直译：health 尽力而为 → courses → 第一天数据 → 失败原因 toast。
-  // 只记第一个失败原因：后面几个请求多半是同一个根因的连锁反应。
+  // 页面打开时跑一次：健康检查（尽力而为）→ 球场清单 → 第一天的时段 → 失败则 toast。
+  // 只记第一个失败原因：后面几个请求多半是同一根因的连锁反应。
   useEffect(() => {
     const firstIso = state.dates[0].iso;
     let firstReason: string | null = null;
@@ -65,13 +66,14 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 点日期条：切换选中日并拉那天的数据
   const handleSelectDate = (index: number) => {
     dispatch({ type: "date", index });
     void loadDay(state.dates[index].iso);
   };
 
   const handleToggleCourse = (course: CourseView) => {
-    // 维护中的球场点不动，并说明原因（旧事件委托 case "course" 的拦截）
+    // 维护中的球场点不动，并说明原因
     if (course.maintenance) {
       showToast(STRINGS.maintenanceToast);
       return;

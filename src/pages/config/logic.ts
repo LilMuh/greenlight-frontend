@@ -1,5 +1,4 @@
-// config 页的纯逻辑层：从旧 legacy/config.js 逐字搬运，唯一结构性改动是把对模块级
-// state 的闭包引用改成显式参数（courses），好让它们可测。
+// config 页的纯逻辑层：不碰 DOM、不发请求，全部可以单测。
 import { ApiError, type CourseDto, type WatchConfigDto } from "../../api";
 import {
   ERROR_MESSAGES, MINUTE_CHOICES, PLAYERS_DEFAULT, PRICE_DEFAULT, STRINGS,
@@ -38,6 +37,7 @@ export function normalizeCourses(courseDtos: CourseDto[]): CourseRef[] {
   }));
 }
 
+// 按数字 id 查球场名；清单里没有就把 id 当名字用
 export function courseName(courses: CourseRef[], courseId: number): string {
   const match = courses.find((course) => course.id === courseId);
   return match ? match.name : String(courseId);
@@ -128,7 +128,7 @@ export function defaultFormCourses(courses: CourseRef[]): number[] {
 }
 
 /**
- * 把一次失败翻译成给人看的一句话，并决定要不要把页面标成离线（旧 reportError 的纯分类部分）。
+ * 把一次失败翻译成给人看的一句话，并决定要不要把页面标成离线。
  *
  * 分三档，因为对人的意思完全不同：
  *   - 根本没连上（fetch 抛 TypeError）→ 后端离线，去看服务；

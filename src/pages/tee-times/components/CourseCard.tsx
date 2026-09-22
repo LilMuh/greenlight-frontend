@@ -10,6 +10,7 @@ interface Props {
   onBookFallback: (courseName: string) => void;
 }
 
+// 一张球场卡：照片、评分、地址、Book 按钮，下面一排可横向翻页的时段 chip。
 export function CourseCard({ card, selectedIso, selectedChip, onChip, onBookFallback }: Props) {
   const { course, teeTimes } = card;
 

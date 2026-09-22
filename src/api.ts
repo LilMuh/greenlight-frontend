@@ -89,6 +89,7 @@ export class ApiError extends Error {
   }
 }
 
+// 所有请求的共同通道：拼上后端地址、带上密钥，非 2xx 解析错误体并抛 ApiError。
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = { ...(options.headers as Record<string, string>) };
   if (API_KEY) headers["X-Greenlight-Key"] = API_KEY;
@@ -105,6 +106,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return response.status === 204 ? (null as T) : response.json();
 }
 
+// 把对象序列化成 JSON 请求体（默认 POST，调用方可覆盖 method）
 const jsonBody = (body: unknown) => ({
   method: "POST",
   headers: { "content-type": "application/json" },

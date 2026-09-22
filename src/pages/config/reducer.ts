@@ -44,7 +44,7 @@ export function createInitialState(): State {
   };
 }
 
-// resetForm 的直译（编辑锁一并解除）。
+// 表单回到「新建」的默认态（编辑锁一并解除）。
 function withFormReset(state: State): State {
   return {
     ...state,
@@ -59,7 +59,7 @@ function withFormReset(state: State): State {
   };
 }
 
-// action 名沿用旧 data-act / 函数名，和 legacy/config.js 的事件委托并排可对读。
+// 整页唯一的状态机：一个交互 = 一个 action，reducer 收到后算出下一份 state。
 // 副作用（请求、toast、滚动到表单）都在 App 层；这里只有纯状态变更。
 export type Action =
   | { type: "coursesLoaded"; courses: CourseDto[] }
