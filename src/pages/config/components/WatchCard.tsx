@@ -44,7 +44,6 @@ export function WatchCard({ watch, isOpen, hitCount, inMaintenance, ...actions }
         <div className="wa-card-head">
           <strong>{watch.courseName}</strong>
           {inMaintenance && <span className="wa-course-badge">{STRINGS.maintenanceBadge}</span>}
-          <span className="wa-card-email">{watch.email}</span>
         </div>
         <div
           className={`wa-status${watch.active ? " is-on" : ""}`}

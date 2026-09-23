@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createInitialState, reducer, type State } from "./reducer";
-import type { CourseDto, WatchConfigDto } from "../../api";
+import type { CourseDto, UserDto, WatchConfigDto } from "../../api";
 
 const courseDtos: CourseDto[] = [
   { id: 1, slug: "langara", name: "Langara Golf Course", imageUrl: null, source: "cps", site: "golfvancouver", address: null, rating: null, ratingCount: null, maintenance: false },
@@ -10,7 +10,7 @@ const courseDtos: CourseDto[] = [
 const watchDto = (over: Partial<WatchConfigDto> = {}): WatchConfigDto => ({
   id: 7, courseId: 1, courseName: "Langara Golf Course", weekdays: ["SAT"],
   timeStart: "08:00", timeEnd: "12:00", players: 2, maxPrice: 80,
-  email: "a@b.c", active: true, ...over,
+  active: true, ...over,
 });
 
 const loaded = (): State => {
@@ -32,7 +32,7 @@ describe("config reducer", () => {
     const state = reducer(createInitialState(), { type: "coursesLoaded", courses: courseDtos });
     expect(state.formCourses).toEqual([1]);
   });
-  it("course/weekday/players/price/email/time 各自更新表单", () => {
+  it("course/weekday/players/price/time 各自更新表单", () => {
     let state = loaded();
     state = reducer(state, { type: "course", id: 1 }); // 已选中 -> 取消
     expect(state.formCourses).toEqual([]);
@@ -42,31 +42,29 @@ describe("config reducer", () => {
     expect(state.formWeekdays).toEqual([]);
     state = reducer(state, { type: "players", count: 2 });
     state = reducer(state, { type: "price", value: 120 });
-    state = reducer(state, { type: "email", value: "x@y.z" });
     state = reducer(state, { type: "time", which: "end", value: "18:30" });
-    expect(state).toMatchObject({ formPlayers: 2, formMaxPrice: 120, formEmail: "x@y.z", formTimeEnd: "18:30" });
+    expect(state).toMatchObject({ formPlayers: 2, formMaxPrice: 120, formTimeEnd: "18:30" });
   });
   it("edit：表单载入该 watch；cancel：回默认态（星期清空、editingId 清掉）", () => {
     let state = reducer(loaded(), { type: "edit", id: 7 });
     expect(state.editingId).toBe(7);
     expect(state.formCourses).toEqual([1]);
     expect(state.formWeekdays).toEqual(["SAT"]);
-    expect(state.formEmail).toBe("a@b.c");
     state = reducer(state, { type: "cancel" });
     expect(state.editingId).toBeNull();
     expect(state.formWeekdays).toEqual([]);
     expect(state.formCourses).toEqual([1]); // 默认全选（排除维护中）
   });
   it("created：前插并重置表单", () => {
-    let state = reducer(loaded(), { type: "email", value: "keep@me.no" });
+    let state = reducer(loaded(), { type: "players", count: 1 });
     state = reducer(state, { type: "created", watches: [watchDto({ id: 8, courseId: 1 })] });
     expect(state.watches.map((watch) => watch.id)).toEqual([8, 7]);
-    expect(state.formEmail).toBe("");
+    expect(state.formPlayers).toBe(4);
   });
   it("updated：原位替换并重置表单", () => {
     let state = reducer(loaded(), { type: "edit", id: 7 });
-    state = reducer(state, { type: "updated", watch: watchDto({ email: "new@b.c" }) });
-    expect(state.watches[0].email).toBe("new@b.c");
+    state = reducer(state, { type: "updated", watch: watchDto({ maxPrice: 150 }) });
+    expect(state.watches[0].maxPrice).toBe(150);
     expect(state.editingId).toBeNull();
   });
   it("deleted：过滤；恰好在编辑这条则重置表单", () => {
@@ -91,4 +89,27 @@ describe("config reducer", () => {
     state = reducer(state, { type: "offline" });
     expect(state.offline).toBe(true);
   });
+  it("初始登录态未知；signedIn / userUpdated 记下账号", () => {
+    expect(createInitialState().user).toBeUndefined();
+    let state = reducer(loaded(), { type: "signedIn", user });
+    expect(state.user).toEqual(user);
+    state = reducer(state, { type: "userUpdated", user: { ...user, notifyEmail: "alerts@b.c" } });
+    expect(state.user?.notifyEmail).toBe("alerts@b.c");
+  });
+  it("signedOut：清掉上一个人的 watch、命中数和编辑中的表单，球场清单保留", () => {
+    let state = reducer(loaded(), { type: "signedIn", user });
+    state = reducer(state, { type: "hitsLoaded", hits: { 7: 3 } });
+    state = reducer(state, { type: "edit", id: 7 });
+    state = reducer(state, { type: "signedOut" });
+    expect(state.user).toBeNull();
+    expect(state.watches).toEqual([]);
+    expect(state.hitsByWatchId).toEqual({});
+    expect(state.editingId).toBeNull();
+    expect(state.courses).toHaveLength(2);
+  });
 });
+
+const user: UserDto = {
+  id: 1, loginEmail: "a@b.c", displayName: null, notifyEmail: "a@b.c",
+  notificationsEnabled: true, admin: false, googleLinked: false,
+};

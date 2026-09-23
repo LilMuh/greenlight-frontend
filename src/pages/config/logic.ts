@@ -23,7 +23,6 @@ export interface WatchView {
   timeEnd: string;
   players: number;
   maxPrice: number;
-  email: string;
   active: boolean;
 }
 
@@ -60,7 +59,6 @@ export function normalizeWatch(record: WatchConfigDto, courses: CourseRef[]): Wa
     timeEnd: record.timeEnd ?? TIME_END_DEFAULT,
     players: Number(record.players ?? PLAYERS_DEFAULT),
     maxPrice: Number(record.maxPrice ?? PRICE_DEFAULT),
-    email: record.email ?? "",
     active: record.active !== false,
   };
 }
@@ -75,7 +73,6 @@ export function toDto(watch: WatchView): WatchConfigDto {
     timeEnd: watch.timeEnd,
     players: watch.players,
     maxPrice: watch.maxPrice,
-    email: watch.email,
     active: watch.active,
   };
 }
@@ -122,9 +119,14 @@ export function defaultFormCourses(courses: CourseRef[]): number[] {
 
 // 把一次失败翻译成给人看的一句话，并决定要不要把页面标成离线：
 // 没连上 → offline 文案；后端拒了 → 按 code 挑文案；认不出的 code → 笼统兜底。
-export function classifyError(error: unknown): { offline: boolean; message: string } {
+export function classifyError(error: unknown): { offline: boolean; signedOut: boolean; message: string } {
   if (!(error instanceof ApiError)) {
-    return { offline: true, message: STRINGS.offline };
+    return { offline: true, signedOut: false, message: STRINGS.offline };
   }
-  return { offline: false, message: ERROR_MESSAGES[error.code ?? ""] ?? STRINGS.genericError };
+  return {
+    offline: false,
+    // 会话过期：api.ts 已经丢掉了令牌，页面要跟着回到登录态
+    signedOut: error.code === "UNAUTHORIZED",
+    message: ERROR_MESSAGES[error.code ?? ""] ?? STRINGS.genericError,
+  };
 }

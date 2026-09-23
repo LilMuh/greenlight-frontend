@@ -1,10 +1,8 @@
 // 所有后端调用都集中在这个文件，UI 代码不直接碰 fetch。
 // VITE_API_BASE 部署时由 deploy.yml 在构建期注入；本地不设就退回 localhost:8080。
-const API_BASE: string = import.meta.env.VITE_API_BASE ?? "http://localhost:8080";
+import { clearToken, getToken } from "./auth";
 
-// /api/** 的共享密钥（后端 ApiKeyFilter 校验）。不是真凭据——静态页藏不住秘密，
-// 挡的只是扫描器和随手试的人。本地留空 = 对上后端「空密钥即关卡关闭」。
-const API_KEY: string = import.meta.env.VITE_API_KEY ?? "";
+const API_BASE: string = import.meta.env.VITE_API_BASE ?? "http://localhost:8080";
 
 // --- 后端 DTO（以旧代码实际读写的字段为准） -----------------------------------
 
@@ -43,7 +41,6 @@ export interface WatchConfigDto {
   timeEnd: string;
   players: number;
   maxPrice: number;
-  email: string;
   active: boolean;
 }
 
@@ -55,8 +52,24 @@ export interface CreateWatchBatchDto {
   timeEnd: string;
   players: number;
   maxPrice: number;
-  email: string;
   active: boolean;
+}
+
+/** GET /api/me：当前账号。提醒发到 notifyEmail，它可以和登录邮箱不同。 */
+export interface UserDto {
+  id: number;
+  loginEmail: string;
+  displayName: string | null;
+  notifyEmail: string;
+  notificationsEnabled: boolean; // false = 在邮件里点了退订
+  admin: boolean;
+  googleLinked: boolean;
+}
+
+/** 两种登录方式成功后都回这个。token 只在这一次响应里出现。 */
+export interface LoginResultDto {
+  token: string;
+  user: UserDto;
 }
 
 /** GET /api/matches 的一项：每条启用中的 watch 当前命中的空位数。 */
@@ -81,14 +94,17 @@ export class ApiError extends Error {
   }
 }
 
-// 所有请求的共同通道：拼上后端地址、带上密钥，非 2xx 解析错误体并抛 ApiError。
+// 所有请求的共同通道：拼上后端地址、带上会话令牌，非 2xx 解析错误体并抛 ApiError。
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = { ...(options.headers as Record<string, string>) };
-  if (API_KEY) headers["X-Greenlight-Key"] = API_KEY;
+  const token = getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
   const response = await fetch(API_BASE + path, { ...options, headers });
   if (!response.ok) {
     // 错误体是 {"code","message"}，但网关和未处理异常给的是 HTML，所以解析失败要吞掉
     const body = await response.json().catch(() => null);
+    // 会话过期或被撤销：丢掉本地令牌，页面据此回到登录态
+    if (body?.code === "UNAUTHORIZED") clearToken();
     throw new ApiError(
       response.status,
       body?.code ?? null,
@@ -122,3 +138,21 @@ export const updateWatchConfig = (id: number, config: WatchConfigDto) =>
   request<WatchConfigDto>(`/api/watch-configs/${id}`, { ...jsonBody(config), method: "PUT" });
 export const deleteWatchConfig = (id: number) =>
   request<null>(`/api/watch-configs/${id}`, { method: "DELETE" });
+
+// --- 登录与账号 -----------------------------------------------------------------
+export const loginWithGoogle = (idToken: string) =>
+  request<LoginResultDto>("/api/auth/google", jsonBody({ idToken }));
+// 不管邮箱有没有注册都回 204
+export const startEmailLogin = (email: string) =>
+  request<null>("/api/auth/email/start", jsonBody({ email }));
+export const verifyEmailLogin = (email: string, code: string) =>
+  request<LoginResultDto>("/api/auth/email/verify", jsonBody({ email, code }));
+export const logout = () => request<null>("/api/auth/logout", { method: "POST" });
+export const getMe = () => request<UserDto>("/api/me");
+export const setNotificationsEnabled = (notificationsEnabled: boolean) =>
+  request<UserDto>("/api/me", { ...jsonBody({ notificationsEnabled }), method: "PATCH" });
+// 换通知邮箱：先给新地址发码，填对了才换
+export const startNotifyEmailChange = (email: string) =>
+  request<null>("/api/me/notify-email/start", jsonBody({ email }));
+export const verifyNotifyEmailChange = (code: string) =>
+  request<UserDto>("/api/me/notify-email/verify", jsonBody({ code }));

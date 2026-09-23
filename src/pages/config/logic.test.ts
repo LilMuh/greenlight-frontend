@@ -57,12 +57,12 @@ describe("normalizeCourses / defaultFormCourses / isCourseInMaintenance", () => 
 
 describe("normalizeWatch / toDto", () => {
   it("缺省字段落默认值；courseName 缺失按 courses 查名", () => {
-    const record = { id: 7, courseId: 1, weekdays: null, email: null } as unknown as WatchConfigDto;
+    const record = { id: 7, courseId: 1, weekdays: null } as unknown as WatchConfigDto;
     const watch = normalizeWatch(record, courses);
     expect(watch).toEqual({
       id: 7, courseId: 1, courseName: "Langara Golf Course",
       weekdays: [], timeStart: "06:00", timeEnd: "20:00",
-      players: 4, maxPrice: 300, email: "", active: true,
+      players: 4, maxPrice: 300, active: true,
     });
   });
   it("active !== false 才算启用（undefined 当启用）", () => {
@@ -70,22 +70,27 @@ describe("normalizeWatch / toDto", () => {
     expect(off.active).toBe(false);
   });
   it("toDto 字段齐全，PUT 请求体形状不变", () => {
-    const watch = normalizeWatch({ id: 7, courseId: 1, courseName: "Langara Golf Course", weekdays: ["SAT"], timeStart: "08:00", timeEnd: "12:00", players: 2, maxPrice: 80, email: "a@b.c", active: true }, courses);
+    const watch = normalizeWatch({ id: 7, courseId: 1, courseName: "Langara Golf Course", weekdays: ["SAT"], timeStart: "08:00", timeEnd: "12:00", players: 2, maxPrice: 80, active: true }, courses);
     expect(toDto(watch)).toEqual({
       id: 7, courseId: 1, weekdays: ["SAT"], timeStart: "08:00", timeEnd: "12:00",
-      players: 2, maxPrice: 80, email: "a@b.c", active: true,
+      players: 2, maxPrice: 80, active: true,
     });
   });
 });
 
 describe("classifyError", () => {
   it("非 ApiError（fetch 抛的）= 后端离线，置 offline", () => {
-    expect(classifyError(new TypeError("Failed to fetch"))).toEqual({ offline: true, message: STRINGS.offline });
+    expect(classifyError(new TypeError("Failed to fetch"))).toEqual({ offline: true, signedOut: false, message: STRINGS.offline });
   });
   it("认识的 code 用对应文案，不置 offline", () => {
-    expect(classifyError(new ApiError(409, "WATCH_DUPLICATE", ""))).toEqual({ offline: false, message: ERROR_MESSAGES.WATCH_DUPLICATE });
+    expect(classifyError(new ApiError(409, "WATCH_DUPLICATE", ""))).toEqual({ offline: false, signedOut: false, message: ERROR_MESSAGES.WATCH_DUPLICATE });
   });
   it("认不出的 code 落 genericError——不崩、不谎称离线", () => {
-    expect(classifyError(new ApiError(422, "BRAND_NEW_CODE", ""))).toEqual({ offline: false, message: STRINGS.genericError });
+    expect(classifyError(new ApiError(422, "BRAND_NEW_CODE", ""))).toEqual({ offline: false, signedOut: false, message: STRINGS.genericError });
+  });
+  it("UNAUTHORIZED = 会话没了，页面要回到登录态", () => {
+    expect(classifyError(new ApiError(401, "UNAUTHORIZED", ""))).toEqual({
+      offline: false, signedOut: true, message: ERROR_MESSAGES.UNAUTHORIZED,
+    });
   });
 });

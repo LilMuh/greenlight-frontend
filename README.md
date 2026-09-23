@@ -100,13 +100,17 @@ Then open the URL it prints. `npm test` runs the unit tests; `npm run build` pro
 
 ### Configuring the API base URL
 
-The backend address and API key are read from Vite environment variables at build/dev time (the deploy workflow injects them from repository settings):
+The backend address and the Google OAuth Client ID are read from Vite environment variables at build/dev time (the deploy workflow injects them from repository variables `API_BASE` and `GOOGLE_CLIENT_ID`):
 
 ```bash
-VITE_API_BASE=http://localhost:8080 VITE_API_KEY=yourkey npm run dev
+VITE_API_BASE=http://localhost:8080 VITE_GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com npm run dev
 ```
 
-Unset, `VITE_API_BASE` falls back to `http://localhost:8080` and the key is sent only when non-empty (an empty key matches a backend running with its API-key gate off).
+Unset, `VITE_API_BASE` falls back to `http://localhost:8080`. Without a Client ID the Google button is hidden and only email-code sign-in is offered; with the backend in dev mail mode the code is printed in the backend log.
+
+### Sign-in
+
+The tee-time search page is public. The Watch Alerts page requires sign-in (Google, or a 6-digit code sent by email); each account only sees its own watches. The session token is kept in `localStorage` and sent as `Authorization: Bearer …`.
 
 ## Roadmap
 

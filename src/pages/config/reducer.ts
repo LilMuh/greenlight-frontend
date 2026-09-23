@@ -1,4 +1,4 @@
-import type { CourseDto, WatchConfigDto } from "../../api";
+import type { CourseDto, UserDto, WatchConfigDto } from "../../api";
 import {
   PLAYERS_DEFAULT, PRICE_DEFAULT, TIME_END_DEFAULT, TIME_START_DEFAULT,
 } from "./strings";
@@ -9,6 +9,7 @@ import {
 
 export interface State {
   offline: boolean;
+  user: UserDto | null | undefined; // undefined = 还在确认登录态；null = 没登录
   courses: CourseRef[];
   watches: WatchView[];
   hitsByWatchId: Record<number, number>; // 来自 /api/matches
@@ -20,13 +21,13 @@ export interface State {
   formTimeEnd: string;
   formPlayers: number;
   formMaxPrice: number;
-  formEmail: string;
   editingId: number | null;
 }
 
 export function createInitialState(): State {
   return {
     offline: false,
+    user: undefined,
     courses: [],
     watches: [],
     hitsByWatchId: {},
@@ -37,7 +38,6 @@ export function createInitialState(): State {
     formTimeEnd: TIME_END_DEFAULT,
     formPlayers: PLAYERS_DEFAULT,
     formMaxPrice: PRICE_DEFAULT,
-    formEmail: "",
     editingId: null,
   };
 }
@@ -52,7 +52,6 @@ function withFormReset(state: State): State {
     formTimeEnd: TIME_END_DEFAULT,
     formPlayers: PLAYERS_DEFAULT,
     formMaxPrice: PRICE_DEFAULT,
-    formEmail: "",
     editingId: null,
   };
 }
@@ -64,11 +63,13 @@ export type Action =
   | { type: "watchesLoaded"; watches: WatchConfigDto[] }
   | { type: "hitsLoaded"; hits: Record<number, number> }
   | { type: "offline" }
+  | { type: "signedIn"; user: UserDto }
+  | { type: "signedOut" }
+  | { type: "userUpdated"; user: UserDto }
   | { type: "course"; id: number } // 编辑锁/维护拦截在组件层
   | { type: "weekday"; code: string }
   | { type: "players"; count: number }
   | { type: "price"; value: number }
-  | { type: "email"; value: string }
   | { type: "time"; which: "start" | "end"; value: string }
   | { type: "expand"; id: number }
   | { type: "edit"; id: number }
@@ -90,6 +91,12 @@ export function reducer(state: State, action: Action): State {
       return { ...state, hitsByWatchId: action.hits };
     case "offline":
       return { ...state, offline: true };
+    case "signedIn":
+    case "userUpdated":
+      return { ...state, user: action.user };
+    case "signedOut":
+      // 上一个人的 watch 和表单一样不留：同一台电脑换人登录不能看到前一个人的东西
+      return withFormReset({ ...state, user: null, watches: [], hitsByWatchId: {}, expandedWatchIds: [] });
     case "course":
       return {
         ...state,
@@ -109,8 +116,6 @@ export function reducer(state: State, action: Action): State {
       return { ...state, formPlayers: action.count };
     case "price":
       return { ...state, formMaxPrice: action.value };
-    case "email":
-      return { ...state, formEmail: action.value };
     case "time":
       return action.which === "start"
         ? { ...state, formTimeStart: action.value }
@@ -134,7 +139,6 @@ export function reducer(state: State, action: Action): State {
         formTimeEnd: watch.timeEnd,
         formPlayers: watch.players,
         formMaxPrice: watch.maxPrice,
-        formEmail: watch.email,
       };
     }
     case "cancel":

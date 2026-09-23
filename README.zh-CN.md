@@ -98,13 +98,17 @@ npm run dev
 
 ### 配置后端地址
 
-后端地址和 API 密钥在构建/开发时从 Vite 环境变量读取（部署 workflow 会从仓库配置注入）：
+后端地址和 Google OAuth Client ID 在构建/开发时从 Vite 环境变量读取（部署 workflow 从仓库变量 `API_BASE`、`GOOGLE_CLIENT_ID` 注入）：
 
 ```bash
-VITE_API_BASE=http://localhost:8080 VITE_API_KEY=你的密钥 npm run dev
+VITE_API_BASE=http://localhost:8080 VITE_GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com npm run dev
 ```
 
-不设置时 `VITE_API_BASE` 退回 `http://localhost:8080`；密钥非空才会发送（空密钥对应后端关掉 API-key 关卡的情况）。
+不设置时 `VITE_API_BASE` 退回 `http://localhost:8080`。没有 Client ID 就隐藏 Google 按钮、只能用邮箱验证码登录；后端 dev 邮件模式下验证码会打在后端日志里。
+
+### 登录
+
+时段查询页公开。Watch Alerts 页要登录（Google，或邮箱收 6 位验证码），每个账号只看得到自己的 watch。会话令牌存在 `localStorage`，请求时带 `Authorization: Bearer …`。
 
 ## 后续计划
 

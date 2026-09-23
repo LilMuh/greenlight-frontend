@@ -37,7 +37,6 @@ interface Props {
   onWeekday: (code: string) => void;
   onPlayers: (count: number) => void;
   onPrice: (value: number) => void;
-  onEmail: (value: string) => void;
   onTime: (which: "start" | "end", value: string) => void;
   onSubmit: () => void;
   onCancel: () => void;
@@ -132,16 +131,13 @@ export function WatchForm(props: Props) {
         />
       </div>
 
-      <div className="wa-field">
-        <div className="wa-label">{STRINGS.emailLabel}</div>
-        <input
-          type="email"
-          className="wa-email"
-          placeholder={STRINGS.emailPlaceholder}
-          value={state.formEmail}
-          onChange={(event) => props.onEmail(event.target.value)}
-        />
-      </div>
+      {/* 提醒发到账号的通知邮箱，在「Account」里改 */}
+      {state.user && (
+        <div className="wa-field">
+          <div className="wa-label">{STRINGS.emailLabel}</div>
+          <div className="wa-account-value">{state.user.notifyEmail}</div>
+        </div>
+      )}
 
       <div className="wa-actions">
         <button className="wa-submit" onClick={props.onSubmit}>
