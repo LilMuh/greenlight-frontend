@@ -424,6 +424,23 @@
         flex-direction: column;
         gap: 14px;
       }
+      /* 管理员视图：一个主人一组，组头是邮箱 */
+      .wa-group {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .wa-group + .wa-group {
+        margin-top: 8px;
+      }
+      .wa-group-head {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ink);
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--line);
+        overflow-wrap: anywhere;
+      }
       .wa-card {
         background: #fff;
         border: 1px solid var(--line);

@@ -108,7 +108,7 @@ VITE_API_BASE=http://localhost:8080 VITE_GOOGLE_CLIENT_ID=xxx.apps.googleusercon
 
 ### 登录
 
-时段查询页公开。Watch Alerts 页要登录（Google，或邮箱收 6 位验证码），每个账号只看得到自己的 watch。会话令牌存在 `localStorage`，请求时带 `Authorization: Bearer …`。
+时段查询页公开。Watch Alerts 页要登录（Google，或邮箱收 6 位验证码），每个账号只看得到自己的 watch。管理员账号（用户名 + 密码）看得到所有人的，按主人分组，任何一条都能改、启停、删除。会话令牌存在 `localStorage`，请求时带 `Authorization: Bearer …`。
 
 ## 后续计划
 

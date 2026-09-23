@@ -1,5 +1,5 @@
 import { PRICE_MAX, PRICE_MIN, STRINGS, WEEKDAYS } from "../strings";
-import { formatClock, minuteOptions, parseClock, type CourseRef } from "../logic";
+import { foreignOwnerEmail, formatClock, minuteOptions, parseClock, type CourseRef } from "../logic";
 import type { State } from "../reducer";
 
 // 时间选择器：24 小时制的时 + 分两个下拉（不用 <input type="time"> 的原因见 logic.ts）。
@@ -47,10 +47,17 @@ export function WatchForm(props: Props) {
   const { state } = props;
   // 编辑态球场是锁死的（换球场等于换成另一条 watch），整块置灰，选中的那个照常高亮
   const coursesLocked = state.editingId != null;
+  // 管理员改的是别人的 watch 时，标题写明是谁的
+  const otherOwner = state.user
+    ? foreignOwnerEmail(state.watches.find((watch) => watch.id === state.editingId), state.user.id)
+    : null;
+  const title = state.editingId
+    ? otherOwner ? STRINGS.editOthersTitle(otherOwner) : STRINGS.editTitle
+    : STRINGS.newTitle;
 
   return (
     <div className="wa-form" ref={props.formRef}>
-      <div className="wa-form-title">{state.editingId ? STRINGS.editTitle : STRINGS.newTitle}</div>
+      <div className="wa-form-title">{title}</div>
 
       <div className="wa-field">
         <div className="wa-label">{STRINGS.coursesLabel}</div>
@@ -131,8 +138,9 @@ export function WatchForm(props: Props) {
         />
       </div>
 
-      {/* 提醒发到账号的通知邮箱，在「Account」里改 */}
-      {state.user && (
+      {/* 提醒发到账号的通知邮箱，在「Account」里改。
+          管理员改别人的 watch 时不显示：那条发到主人自己的通知邮箱，这里只知道他的登录邮箱，宁可不写也别写错 */}
+      {state.user && !otherOwner && (
         <div className="wa-field">
           <div className="wa-label">{STRINGS.emailLabel}</div>
           <div className="wa-account-value">{state.user.notifyEmail ?? STRINGS.notSet}</div>

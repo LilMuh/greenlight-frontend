@@ -42,6 +42,9 @@ export interface WatchConfigDto {
   players: number;
   maxPrice: number;
   active: boolean;
+  // 这条 watch 的主人，只读（PUT 时不用带）。管理员看的是所有人的，靠它分组
+  ownerId?: number;
+  ownerEmail?: string | null;
 }
 
 /** POST /api/watch-configs：一组球场 + 共享配置，后端逐球场建一条 watch。 */

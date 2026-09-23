@@ -56,6 +56,8 @@ export const STRINGS = {
   noWatches: "No watches yet — create one on the left.",
   active: "Active", paused: "Paused",
   newTitle: "New Watch", editTitle: "Edit Watch",
+  // 管理员改别人的 watch 时写明是谁的
+  editOthersTitle: (ownerEmail: string) => `Edit ${ownerEmail}'s Watch`,
   createBtn: "Create Watch", saveBtn: "Save",
   needCourse: "Pick at least one course.",
   needWeekday: "Pick at least one weekday.",
@@ -73,6 +75,9 @@ export const STRINGS = {
   playerUnit: " players",
   everyDay: "Every day",
   countText: (watchCount: number) => `Watches: ${watchCount}`,
+  // 管理员视图：所有人的 watch 按主人分组
+  countTextAdmin: (watchCount: number, userCount: number) => `Watches: ${watchCount} · Users: ${userCount}`,
+  ownerYou: (loginEmail: string) => `${loginEmail} (you)`,
   hitsText: (hitCount: number) =>
     hitCount > 0 ? `${hitCount} matching now` : "No matches yet",
 } as const;

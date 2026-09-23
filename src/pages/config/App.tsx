@@ -1,4 +1,5 @@
 // Watch Alerts 页。要登录：没登录只显示登录面板；登录后只看得到、改得了自己的 watch。
+// 管理员例外：看得到、改得了所有人的，列表按主人分组。
 // 一条 watch 对应一个球场：勾多个球场新建时发一次批量请求，后端逐球场各建一条。
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import {
@@ -7,7 +8,10 @@ import {
 } from "../../api";
 import { clearToken, getToken, setToken } from "../../auth";
 import { STRINGS } from "./strings";
-import { classifyError, isCourseInMaintenance, sortWeekdays, toDto, type CourseRef } from "./logic";
+import {
+  classifyError, groupByOwner, isCourseInMaintenance, sortWeekdays, toDto,
+  type CourseRef, type WatchView,
+} from "./logic";
 import { createInitialState, reducer } from "./reducer";
 import { WatchForm } from "./components/WatchForm";
 import { WatchCard } from "./components/WatchCard";
@@ -201,6 +205,22 @@ export function App() {
   };
 
   const { user } = state;
+  // 管理员才分组；普通用户的列表只有自己的，和以前一样平铺
+  const groups = user?.admin ? groupByOwner(state.watches, user) : null;
+
+  const renderCard = (watch: WatchView) => (
+    <WatchCard
+      key={watch.id}
+      watch={watch}
+      isOpen={state.expandedWatchIds.includes(watch.id)}
+      hitCount={state.hitsByWatchId[watch.id] ?? 0}
+      inMaintenance={isCourseInMaintenance(state.courses, watch.courseId)}
+      onExpand={(id) => dispatch({ type: "expand", id })}
+      onToggleActive={toggleActive}
+      onEdit={startEdit}
+      onDelete={deleteWatch}
+    />
+  );
 
   return (
     <>
@@ -253,23 +273,24 @@ export function App() {
           </div>
 
           <div className="wa-list">
-            <div className="wa-count">{STRINGS.countText(state.watches.length)}</div>
+            <div className="wa-count">
+              {groups
+                ? STRINGS.countTextAdmin(state.watches.length, groups.length)
+                : STRINGS.countText(state.watches.length)}
+            </div>
             {state.watches.length ? (
-              <div className="wa-cards">
-                {state.watches.map((watch) => (
-                  <WatchCard
-                    key={watch.id}
-                    watch={watch}
-                    isOpen={state.expandedWatchIds.includes(watch.id)}
-                    hitCount={state.hitsByWatchId[watch.id] ?? 0}
-                    inMaintenance={isCourseInMaintenance(state.courses, watch.courseId)}
-                    onExpand={(id) => dispatch({ type: "expand", id })}
-                    onToggleActive={toggleActive}
-                    onEdit={startEdit}
-                    onDelete={deleteWatch}
-                  />
-                ))}
-              </div>
+              groups ? (
+                groups.map((group) => (
+                  <section key={group.ownerId} className="wa-group">
+                    <div className="wa-group-head">
+                      {group.isMe ? STRINGS.ownerYou(group.ownerEmail) : group.ownerEmail}
+                    </div>
+                    <div className="wa-cards">{group.watches.map(renderCard)}</div>
+                  </section>
+                ))
+              ) : (
+                <div className="wa-cards">{state.watches.map(renderCard)}</div>
+              )
             ) : (
               <div className="wa-empty">{STRINGS.noWatches}</div>
             )}

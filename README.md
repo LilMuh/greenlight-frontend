@@ -110,7 +110,7 @@ Unset, `VITE_API_BASE` falls back to `http://localhost:8080`. Without a Client I
 
 ### Sign-in
 
-The tee-time search page is public. The Watch Alerts page requires sign-in (Google, or a 6-digit code sent by email); each account only sees its own watches. The session token is kept in `localStorage` and sent as `Authorization: Bearer …`.
+The tee-time search page is public. The Watch Alerts page requires sign-in (Google, or a 6-digit code sent by email); each account only sees its own watches. The admin account (username + password) sees everyone's, grouped by owner, and can edit, pause or delete any of them. The session token is kept in `localStorage` and sent as `Authorization: Bearer …`.
 
 ## Roadmap
 

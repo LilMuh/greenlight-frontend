@@ -24,6 +24,16 @@ export interface WatchView {
   players: number;
   maxPrice: number;
   active: boolean;
+  ownerId: number | null; // 旧后端不带主人时为 null
+  ownerEmail: string | null;
+}
+
+/** 管理员视图里的一组：一个主人名下的 watch。 */
+export interface WatchGroup {
+  ownerId: number;
+  ownerEmail: string;
+  isMe: boolean;
+  watches: WatchView[];
 }
 
 // maintenance 必须带上：默认全选、能不能点、徽章、卡片上那句说明全靠它
@@ -60,6 +70,8 @@ export function normalizeWatch(record: WatchConfigDto, courses: CourseRef[]): Wa
     players: Number(record.players ?? PLAYERS_DEFAULT),
     maxPrice: Number(record.maxPrice ?? PRICE_DEFAULT),
     active: record.active !== false,
+    ownerId: record.ownerId ?? null,
+    ownerEmail: record.ownerEmail ?? null,
   };
 }
 
@@ -75,6 +87,31 @@ export function toDto(watch: WatchView): WatchConfigDto {
     maxPrice: watch.maxPrice,
     active: watch.active,
   };
+}
+
+// 管理员视图：按主人分组，自己一组排最前，其余按邮箱排；组内保持后端给的顺序（新的在前）。
+// 没带主人的（旧后端）算自己的。
+export function groupByOwner(watches: WatchView[], me: { id: number; loginEmail: string }): WatchGroup[] {
+  const groups = new Map<number, WatchGroup>();
+  for (const watch of watches) {
+    const ownerId = watch.ownerId ?? me.id;
+    const isMe = ownerId === me.id;
+    let group = groups.get(ownerId);
+    if (!group) {
+      group = { ownerId, ownerEmail: isMe ? me.loginEmail : watch.ownerEmail ?? String(ownerId), isMe, watches: [] };
+      groups.set(ownerId, group);
+    }
+    group.watches.push(watch);
+  }
+  return [...groups.values()].sort((left, right) =>
+    left.isMe !== right.isMe ? (left.isMe ? -1 : 1) : left.ownerEmail.localeCompare(right.ownerEmail),
+  );
+}
+
+// 管理员正在改的是不是别人的 watch：是就返回主人邮箱，表单标题要写明，免得以为改的是自己的。
+export function foreignOwnerEmail(watch: WatchView | undefined, meId: number): string | null {
+  if (!watch || watch.ownerId == null || watch.ownerId === meId) return null;
+  return watch.ownerEmail;
 }
 
 // 后端按 ISO 序（周一在前）存和返回，前端跟着排：卡片上的顺序和邮件里的一致。

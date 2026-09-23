@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   sortWeekdays, weekdaysText, parseClock, formatClock, minuteOptions,
   normalizeCourses, normalizeWatch, toDto, defaultFormCourses,
-  isCourseInMaintenance, classifyError,
+  isCourseInMaintenance, classifyError, groupByOwner, foreignOwnerEmail,
 } from "./logic";
 import { STRINGS, ERROR_MESSAGES } from "./strings";
 import { ApiError, type CourseDto, type WatchConfigDto } from "../../api";
@@ -62,8 +62,13 @@ describe("normalizeWatch / toDto", () => {
     expect(watch).toEqual({
       id: 7, courseId: 1, courseName: "Langara Golf Course",
       weekdays: [], timeStart: "06:00", timeEnd: "20:00",
-      players: 4, maxPrice: 300, active: true,
+      players: 4, maxPrice: 300, active: true, ownerId: null, ownerEmail: null,
     });
+  });
+  it("带上主人（管理员按它分组）", () => {
+    const watch = normalizeWatch({ id: 7, courseId: 1, ownerId: 3, ownerEmail: "amy@x.com" } as unknown as WatchConfigDto, courses);
+    expect(watch.ownerId).toBe(3);
+    expect(watch.ownerEmail).toBe("amy@x.com");
   });
   it("active !== false 才算启用（undefined 当启用）", () => {
     const off = normalizeWatch({ id: 1, courseId: 1, active: false } as unknown as WatchConfigDto, courses);
@@ -75,6 +80,42 @@ describe("normalizeWatch / toDto", () => {
       id: 7, courseId: 1, weekdays: ["SAT"], timeStart: "08:00", timeEnd: "12:00",
       players: 2, maxPrice: 80, active: true,
     });
+  });
+});
+
+// 管理员视图：所有人的 watch 按主人分组
+const ADMIN = { id: 9, loginEmail: "admin" };
+const owned = (id: number, ownerId: number | null, ownerEmail: string | null) =>
+  normalizeWatch({ id, courseId: 1, ownerId, ownerEmail } as unknown as WatchConfigDto, courses);
+
+describe("groupByOwner", () => {
+  it("自己一组排最前，其余按邮箱排；组内保持原顺序（新的在前）", () => {
+    const groups = groupByOwner(
+      [owned(6, 2, "zoe@x.com"), owned(5, 9, "admin"), owned(4, 3, "amy@x.com"), owned(3, 2, "zoe@x.com")],
+      ADMIN,
+    );
+    expect(groups.map((group) => [group.ownerEmail, group.isMe, group.watches.map((watch) => watch.id)])).toEqual([
+      ["admin", true, [5]],
+      ["amy@x.com", false, [4]],
+      ["zoe@x.com", false, [6, 3]],
+    ]);
+  });
+  it("没带主人的（旧后端）算自己的", () => {
+    expect(groupByOwner([owned(1, null, null)], ADMIN)).toEqual([
+      { ownerId: 9, ownerEmail: "admin", isMe: true, watches: [owned(1, null, null)] },
+    ]);
+  });
+  it("没有 watch 就没有组", () => {
+    expect(groupByOwner([], ADMIN)).toEqual([]);
+  });
+});
+
+describe("foreignOwnerEmail", () => {
+  it("别人的 watch 返回主人邮箱；自己的、没带主人的、没找到的都是 null", () => {
+    expect(foreignOwnerEmail(owned(1, 3, "amy@x.com"), ADMIN.id)).toBe("amy@x.com");
+    expect(foreignOwnerEmail(owned(1, 9, "admin"), ADMIN.id)).toBeNull();
+    expect(foreignOwnerEmail(owned(1, null, null), ADMIN.id)).toBeNull();
+    expect(foreignOwnerEmail(undefined, ADMIN.id)).toBeNull();
   });
 });
 
