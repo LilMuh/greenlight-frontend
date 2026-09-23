@@ -629,6 +629,11 @@
         opacity: 0.6;
         cursor: default;
       }
+      .wa-admin-link {
+        color: var(--muted2);
+        font-weight: 600;
+        align-self: center;
+      }
       .wa-account-row {
         display: flex;
         align-items: center;

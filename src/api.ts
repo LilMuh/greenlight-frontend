@@ -60,7 +60,7 @@ export interface UserDto {
   id: number;
   loginEmail: string;
   displayName: string | null;
-  notifyEmail: string;
+  notifyEmail: string | null; // 管理员账号设置前为空
   notificationsEnabled: boolean; // false = 在邮件里点了退订
   admin: boolean;
   googleLinked: boolean;
@@ -147,6 +147,9 @@ export const startEmailLogin = (email: string) =>
   request<null>("/api/auth/email/start", jsonBody({ email }));
 export const verifyEmailLogin = (email: string, code: string) =>
   request<LoginResultDto>("/api/auth/email/verify", jsonBody({ email, code }));
+// 管理员专用：账号密码登录。普通用户没有密码
+export const loginAsAdmin = (username: string, password: string) =>
+  request<LoginResultDto>("/api/auth/admin", jsonBody({ username, password }));
 export const logout = () => request<null>("/api/auth/logout", { method: "POST" });
 export const getMe = () => request<UserDto>("/api/me");
 export const setNotificationsEnabled = (notificationsEnabled: boolean) =>

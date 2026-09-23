@@ -135,7 +135,7 @@ export function WatchForm(props: Props) {
       {state.user && (
         <div className="wa-field">
           <div className="wa-label">{STRINGS.emailLabel}</div>
-          <div className="wa-account-value">{state.user.notifyEmail}</div>
+          <div className="wa-account-value">{state.user.notifyEmail ?? STRINGS.notSet}</div>
         </div>
       )}
 

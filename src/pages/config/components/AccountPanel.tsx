@@ -64,7 +64,7 @@ export function AccountPanel({ user, onUserUpdated, onError }: Props) {
         <div className="wa-label">{STRINGS.alertEmailLabel}</div>
         {!editing ? (
           <div className="wa-account-row">
-            <span className="wa-account-value">{user.notifyEmail}</span>
+            <span className="wa-account-value">{user.notifyEmail ?? STRINGS.notSet}</span>
             <button type="button" className="wa-linkbtn" onClick={() => setEditing(true)}>{STRINGS.changeEmail}</button>
           </div>
         ) : !codeSent ? (
