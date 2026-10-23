@@ -56,6 +56,7 @@ const CPS_COURSE_IDS: Record<string, number> = {
   // westcoastgolfgroup。Swaneset 是两条各自有 id 的球道，分开两行
   "hazelmere": 1, "belmont": 2, "swaneset-resort": 3, "swaneset-links": 4,
   "kings-links": 1, // kingslinks，整个站点就这一个球场
+  "northlands": 1, // northlands，整个站点就这一个球场
 };
 
 // 拼某球场某天的预订页链接；拼不出返回 null（UI 退化成按钮 + toast）。

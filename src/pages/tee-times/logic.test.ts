@@ -57,6 +57,12 @@ describe("bookingUrl", () => {
     expect(url.searchParams.get("TeeOffTimeMin")).toBe("0");
     expect(url.searchParams.get("TeeOffTimeMax")).toBe("23.999722222222225");
   });
+  it("CPS northlands：CourseId=1，落到 northlands 站点", () => {
+    const url = new URL(bookingUrl({ id: "northlands", source: "cps", site: "northlands" }, "2026-10-24")!);
+    expect(url.origin + url.pathname).toBe("https://northlands.cps.golf/onlineresweb/search-teetime");
+    expect(url.searchParams.get("Date")).toBe("2026-10-24");
+    expect(url.searchParams.get("CourseId")).toBe("1");
+  });
   it("CPS 认不出的 slug：不带 CourseId，其余参数照旧", () => {
     const url = new URL(bookingUrl({ id: "brand-new", source: "cps", site: "golfburnaby" }, "2026-09-20")!);
     expect(url.searchParams.has("CourseId")).toBe(false);
