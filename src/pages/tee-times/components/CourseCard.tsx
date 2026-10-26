@@ -10,12 +10,13 @@ interface Props {
   onBookFallback: (courseName: string) => void;
 }
 
-// 一张球场卡：照片、评分、地址、Book 按钮，下面一排可横向翻页的时段 chip。
+// 一张球场卡。上半部分是照片、评分、地址和 Book 按钮。下面是一排可横向翻页的时段 chip。
 export function CourseCard({ card, selectedIso, selectedChip, onChip, onBookFallback }: Props) {
   const { course, teeTimes } = card;
 
-  // 时段行的 ‹ › 翻页箭头：点一下滚一屏（电脑上横向滚动条难用），手机触摸横滑不受影响。
-  // 按需显隐：没溢出不显示，滚到头的那侧隐藏。
+  // 时段行的 ‹ › 翻页箭头：点一下滚动一屏。原因：电脑上的横向滚动条不好用。
+  // 手机上的触摸横滑不受影响。
+  // 箭头按需显示：没有溢出时不显示，滚到头的那一侧隐藏。
   const teesRef = useRef<HTMLDivElement | null>(null);
   const [canPage, setCanPage] = useState({ left: false, right: false });
 
@@ -29,7 +30,7 @@ export function CourseCard({ card, selectedIso, selectedChip, onChip, onBookFall
 
   useEffect(() => {
     updateArrows();
-    // 窗口变宽可能让溢出消失（或反过来），箭头得跟着变
+    // 窗口宽度变化可能让溢出消失或出现，箭头要随之更新
     window.addEventListener("resize", updateArrows);
     return () => window.removeEventListener("resize", updateArrows);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -38,13 +39,14 @@ export function CourseCard({ card, selectedIso, selectedChip, onChip, onBookFall
   const page = (direction: 1 | -1) => {
     const container = teesRef.current;
     if (!container) return;
-    // 滚 0.9 屏而不是整屏：边缘留半个 chip，让人看出「后面还有」
+    // 滚动 0.9 屏，不滚整屏。原因：边缘留半个 chip，用户能看出「后面还有」
     container.scrollBy({ left: direction * container.clientWidth * 0.9, behavior: "smooth" });
   };
-  // 拼得出预订链接就用真 <a>；拼不出退回按钮 + toast，不给一个点了没反应的链接。
+  // 能拼出预订链接时，用真正的 <a>。
+  // 拼不出时，退回按钮 + toast。不要给一个点了没反应的链接。
   const url = bookingUrl(course, selectedIso);
-  // 完整地址只取前两段（"7800 Vivian Dr, Vancouver"）；
-  // 城市段单独包 .tt-addr-city，手机宽度下由 CSS 藏掉。
+  // 完整地址只取前两段（"7800 Vivian Dr, Vancouver"）。
+  // 城市段单独包在 .tt-addr-city 里，手机宽度下由 CSS 隐藏。
   const [street = "", city = ""] = String(course.address ?? "").split(",");
 
   return (
@@ -52,13 +54,13 @@ export function CourseCard({ card, selectedIso, selectedChip, onChip, onBookFall
       <div className="tt-card-row">
         <div className="tt-photo">
           {course.imageUrl && (
-            // 图片加载失败就把 <img> 摘掉，露出条纹底，不显示裂图
+            // 图片加载失败时删除 <img>，露出条纹底，不显示裂图
             <img src={course.imageUrl} alt="" loading="lazy" onError={(event) => event.currentTarget.remove()} />
           )}
         </div>
         <div className="tt-card-info">
           <strong className="tt-card-name" title={course.name}>{shortCourseName(course.name)}</strong>
-          {/* 评分/地址可能为 null：有就显示，没有整块不渲染，绝不显示 "⭐ 0" */}
+          {/* 评分和地址可能为 null。有值时显示，没有值时整块不渲染。不要显示 "⭐ 0" */}
           {course.rating != null && (
             <span className="tt-card-rating">
               ⭐ {course.rating}

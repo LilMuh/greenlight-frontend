@@ -19,7 +19,7 @@ describe("normalizeCourses / maintenanceCourseIds", () => {
   });
 });
 
-// 边界都取开区间下界（price > 70 才算 high），和档位文案 "$41–70"/"$71–120" 对得上
+// 每档的下界都是开区间（price > 70 才算 high）。这样与档位文案 "$41–70"/"$71–120" 一致
 describe("priceMatch", () => {
   it.each([
     [40, "low", true], [41, "low", false],
@@ -123,7 +123,7 @@ describe("computeCards", () => {
     expect(cards.map((card) => card.course.id)).toEqual(["langara"]);
   });
   it("价格筛后剩余时段保留，cheapest/earliest 取自筛后集合", () => {
-    // mid = $41–70：langara 只剩 08:00@63，riverway 保住 06:30@45
+    // mid 是 $41–70：langara 只剩 08:00@63，riverway 保留 06:30@45
     const cards = computeCards(day(), [], "mid", "time");
     const langara = cards.find((card) => card.course.id === "langara")!;
     expect(langara.teeTimes).toEqual([{ time: "08:00", price: 63, availableSeats: 2 }]);
@@ -131,7 +131,7 @@ describe("computeCards", () => {
     expect(langara.earliest).toBe("08:00");
   });
   it("价格筛掉全部时段的卡不出现", () => {
-    // top = >$120：两家都没有
+    // top 是 >$120：两个球场都没有这档的时段
     expect(computeCards(day(), [], "top", "time")).toEqual([]);
   });
   it("sort=time 按最早时段升序", () => {

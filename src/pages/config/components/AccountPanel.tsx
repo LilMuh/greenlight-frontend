@@ -10,7 +10,10 @@ interface Props {
   onError: (error: unknown) => void;
 }
 
-// 账号面板：登录邮箱、提醒发往哪个地址（改地址要先验证）、提醒总开关（退订后在这里开回来）。
+// 账号面板，包括三项：
+// - 登录邮箱。
+// - 提醒的收件地址。修改地址前要先验证。
+// - 提醒总开关。用户退订后，可以在这里重新打开。
 export function AccountPanel({ user, onUserUpdated, onError }: Props) {
   const [editing, setEditing] = useState(false);
   const [newEmail, setNewEmail] = useState("");

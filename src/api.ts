@@ -1,5 +1,5 @@
-// 所有后端调用都集中在这个文件，UI 代码不直接碰 fetch。
-// VITE_API_BASE 部署时由 deploy.yml 在构建期注入；本地不设就退回 localhost:8080。
+// 所有后端调用都集中在这个文件。UI 代码不直接调用 fetch。
+// 部署时，deploy.yml 在构建期注入 VITE_API_BASE。本地不设置时，默认用 localhost:8080。
 import { clearToken, getToken } from "./auth";
 
 const API_BASE: string = import.meta.env.VITE_API_BASE ?? "http://localhost:8080";
@@ -9,11 +9,11 @@ const API_BASE: string = import.meta.env.VITE_API_BASE ?? "http://localhost:8080
 /** GET /api/courses 的一项。address/rating/ratingCount 来自 Google Maps 抓取，可能为 null。 */
 export interface CourseDto {
   id: number; // watch-config 引用的数字 id
-  slug: string; // tee-time 页当标识用；tee-time 的 courseId 也是 slug
+  slug: string; // tee-time 页用它做标识。tee-time 的 courseId 也是 slug
   name: string;
   imageUrl: string | null;
   source: string | null; // "cps" | "tei" | 未来新来源
-  site: string | null; // 拼预订链接用的子域
+  site: string | null; // 用于拼接预订链接的子域
   address: string | null;
   rating: number | null;
   ratingCount: number | null;
@@ -22,8 +22,10 @@ export interface CourseDto {
 
 /** GET /api/tee-times 的一项（扁平列表，前端再按球场分组）。 */
 export interface TeeTimeDto {
-  // 后端契约保证非空：tee_time.course_id NOT NULL（外键），course.slug NOT NULL UNIQUE，
-  // DTO 直接取 course.getSlug()/getName()，序列化不省略字段
+  // 后端契约保证下面两个字段非空。原因：
+  // - tee_time.course_id 是 NOT NULL 外键。
+  // - course.slug 是 NOT NULL UNIQUE。
+  // - DTO 直接取 course.getSlug()/getName()，序列化时不省略字段。
   courseId: string; // 球场 slug
   course: string; // 球场展示名
   time: string; // "HH:MM"
@@ -42,12 +44,13 @@ export interface WatchConfigDto {
   players: number;
   maxPrice: number;
   active: boolean;
-  // 这条 watch 的主人，只读（PUT 时不用带）。管理员看的是所有人的，靠它分组
+  // 这条 watch 的主人。只读，PUT 时不用带。
+  // 管理员能看到所有人的 watch，页面按它分组。
   ownerId?: number;
   ownerEmail?: string | null;
 }
 
-/** POST /api/watch-configs：一组球场 + 共享配置，后端逐球场建一条 watch。 */
+/** POST /api/watch-configs 的请求体：一组球场和一份共享配置。后端为每个球场建一条 watch。 */
 export interface CreateWatchBatchDto {
   courseIds: number[];
   weekdays: string[];
@@ -58,18 +61,18 @@ export interface CreateWatchBatchDto {
   active: boolean;
 }
 
-/** GET /api/me：当前账号。提醒发到 notifyEmail，它可以和登录邮箱不同。 */
+/** GET /api/me：当前账号。提醒发到 notifyEmail。它可以和登录邮箱不同。 */
 export interface UserDto {
   id: number;
   loginEmail: string;
   displayName: string | null;
   notifyEmail: string | null; // 管理员账号设置前为空
-  notificationsEnabled: boolean; // false = 在邮件里点了退订
+  notificationsEnabled: boolean; // false 表示用户在邮件里点了退订
   admin: boolean;
   googleLinked: boolean;
 }
 
-/** 两种登录方式成功后都回这个。token 只在这一次响应里出现。 */
+/** 两种登录方式成功后都返回这个结构。token 只在这一次响应里出现。 */
 export interface LoginResultDto {
   token: string;
   user: UserDto;
@@ -82,8 +85,9 @@ export interface MatchDto {
 }
 
 /**
- * 后端回的业务失败（网络层失败是 fetch 自己抛的 TypeError，那说明后端不可达）。
- * code 是后端 ApiErrorCode 的名字，页面按它挑文案；拿不到错误体时 code 为 null。
+ * 后端返回的业务失败。
+ * 网络层失败不走这里：fetch 自己抛 TypeError，表示后端不可达。
+ * code 是后端 ApiErrorCode 的名字，页面按它选文案。拿不到错误体时，code 为 null。
  */
 export class ApiError extends Error {
   readonly status: number;
@@ -97,16 +101,20 @@ export class ApiError extends Error {
   }
 }
 
-// 所有请求的共同通道：拼上后端地址、带上会话令牌，非 2xx 解析错误体并抛 ApiError。
+// 所有请求都经过这个函数：
+// - 拼接后端地址。
+// - 带上会话令牌。
+// - 非 2xx 时解析错误体，并抛 ApiError。
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = { ...(options.headers as Record<string, string>) };
   const token = getToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
   const response = await fetch(API_BASE + path, { ...options, headers });
   if (!response.ok) {
-    // 错误体是 {"code","message"}，但网关和未处理异常给的是 HTML，所以解析失败要吞掉
+    // 错误体通常是 {"code","message"}。但网关和未处理异常返回的是 HTML。
+    // 因此解析失败时忽略异常，body 记为 null。
     const body = await response.json().catch(() => null);
-    // 会话过期或被撤销：丢掉本地令牌，页面据此回到登录态
+    // 会话过期或被撤销时，删除本地令牌。页面据此回到登录界面。
     if (body?.code === "UNAUTHORIZED") clearToken();
     throw new ApiError(
       response.status,
@@ -130,10 +138,10 @@ export const getTeeTimes = (params: Record<string, string> = {}) => {
   const queryString = new URLSearchParams(params).toString();
   return request<TeeTimeDto[]>("/api/tee-times" + (queryString ? `?${queryString}` : ""));
 };
-// 匹配结果：每条启用中的 watch 当前命中的空位（只读展示，后端不发通知）。
+// 匹配结果：每条启用中的 watch 当前命中的空位。只用于展示，后端不会因此发通知。
 export const getMatches = () => request<MatchDto[]>("/api/matches");
 export const listWatchConfigs = () => request<WatchConfigDto[]>("/api/watch-configs");
-// 批量创建：一组 courseIds + 共享 config，后端逐个球场建一条 watch，返回创建的数组。
+// 批量创建：传一组 courseIds 和一份共享配置。后端为每个球场建一条 watch，并返回新建的数组。
 export const createWatchConfigs = (batch: CreateWatchBatchDto) =>
   request<WatchConfigDto[]>("/api/watch-configs", jsonBody(batch));
 // 更新单条：PUT /{id}，返回更新后的记录。
@@ -145,19 +153,19 @@ export const deleteWatchConfig = (id: number) =>
 // --- 登录与账号 -----------------------------------------------------------------
 export const loginWithGoogle = (idToken: string) =>
   request<LoginResultDto>("/api/auth/google", jsonBody({ idToken }));
-// 不管邮箱有没有注册都回 204
+// 无论邮箱是否已注册，后端都返回 204
 export const startEmailLogin = (email: string) =>
   request<null>("/api/auth/email/start", jsonBody({ email }));
 export const verifyEmailLogin = (email: string, code: string) =>
   request<LoginResultDto>("/api/auth/email/verify", jsonBody({ email, code }));
-// 管理员专用：账号密码登录。普通用户没有密码
+// 管理员专用：用户名和密码登录。普通用户没有密码
 export const loginAsAdmin = (username: string, password: string) =>
   request<LoginResultDto>("/api/auth/admin", jsonBody({ username, password }));
 export const logout = () => request<null>("/api/auth/logout", { method: "POST" });
 export const getMe = () => request<UserDto>("/api/me");
 export const setNotificationsEnabled = (notificationsEnabled: boolean) =>
   request<UserDto>("/api/me", { ...jsonBody({ notificationsEnabled }), method: "PATCH" });
-// 换通知邮箱：先给新地址发码，填对了才换
+// 更换通知邮箱：先给新地址发验证码。用户填对验证码后，才更换。
 export const startNotifyEmailChange = (email: string) =>
   request<null>("/api/me/notify-email/start", jsonBody({ email }));
 export const verifyNotifyEmailChange = (code: string) =>

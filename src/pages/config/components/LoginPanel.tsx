@@ -10,8 +10,8 @@ interface Props {
   onError: (error: unknown) => void;
 }
 
-// 未登录时的整块：Google 按钮，或者「填邮箱 → 收码 → 填码」两步。
-// 底部藏一个管理员入口，切过去是账号密码表单（普通用户没有密码）。
+// 未登录时显示的整块：Google 按钮，或者「填邮箱 → 收验证码 → 填验证码」两步。
+// 底部有一个不显眼的管理员入口。切换过去是用户名和密码表单（普通用户没有密码）。
 export function LoginPanel({ onSignedIn, onError }: Props) {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -21,7 +21,7 @@ export function LoginPanel({ onSignedIn, onError }: Props) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  // 同一时间只跑一个请求，防止连点重复发码
+  // 同一时间只运行一个请求。原因：防止连续点击时重复发验证码
   const run = async (action: () => Promise<void>) => {
     if (busy) return;
     setBusy(true);
