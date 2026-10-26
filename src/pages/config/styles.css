@@ -1,5 +1,5 @@
-      /* --- Watch Alerts page: self-contained styling from the imported design.
-         Kept separate from styles.css so the minimal tee-times page is untouched. --- */
+      /* --- Watch Alerts page: self-contained styles from the imported design.
+         It is kept separate from styles.css, so the minimal tee-times page does not change. --- */
       .wa {
         --green: oklch(58% 0.12 150);
         --green-d: oklch(50% 0.12 150);
@@ -143,8 +143,8 @@
         flex-direction: column;
         gap: 16px;
         align-self: flex-start;
-        /* 点 Edit 会把表单滚进视野（config.js 的 scrollToForm）。表头是 sticky 的，
-           留出它的高度，否则表单标题正好停在表头底下看不见。 */
+        /* 点击 Edit 会把表单滚动到视野内（config.js 的 scrollToForm）。
+           表头是 sticky 的，因此留出表头的高度。否则表单标题会停在表头下面，看不见。 */
         scroll-margin-top: 86px;
       }
       .wa-form-title {
@@ -202,25 +202,25 @@
       .wa-course.is-on .wa-course-name {
         color: var(--ink);
       }
-      /* 编辑一条 watch 时球场不能改（换球场就是换成另一条 watch）。
-         选中的那个照常高亮，只是整块不再像可点的东西。 */
+      /* 编辑一条 watch 时，球场不能改。原因：换球场等于换成另一条 watch。
+         选中的球场照常高亮，只是整块不再显示为可点击。 */
       .wa-course.is-locked {
         cursor: default;
         opacity: 0.55;
       }
-      /* 球场在维护：谁都关注不了（和 is-locked 的「这条 watch 不给换球场」不是一回事）。
-         压得比 is-locked 更淡一点，右边的徽章负责说明原因。 */
+      /* 球场在维护：任何人都不能关注它。这和 is-locked（这条 watch 不能换球场）是两回事。
+         它比 is-locked 更淡一点，右边的徽章说明原因。 */
       .wa-course.is-maintenance {
         cursor: not-allowed;
         opacity: 0.45;
-        /* 同 index.html：宽度不够时徽章换行，不去挤球场名 */
+        /* 与 index.html 相同：宽度不够时，徽章换行，不挤占球场名 */
         flex-wrap: wrap;
       }
       .wa-course.is-maintenance .wa-course-name {
         white-space: nowrap;
       }
-      /* 「Under maintenance」小标。同时用在球场清单和 watch 卡片上，
-         所以颜色不跟着任一处的选中态走，自己是一块中性的静态标记。 */
+      /* 「Under maintenance」小标。球场清单和 watch 卡片都用它。
+         因此它的颜色不随任一处的选中态变化，是一个中性的静态标记。 */
       .wa-course-badge {
         font-size: 11px;
         line-height: 15px;
@@ -232,19 +232,20 @@
         white-space: nowrap;
         flex: none;
       }
-      /* .wa-card-head 是纵向 flex，默认 align-items: stretch 会把徽章拉成一条通栏横杠，
-         看起来像个进度条而不是标记。只有这里需要压回内容宽度，球场清单那边是横向 flex。 */
+      /* .wa-card-head 是纵向 flex。默认的 align-items: stretch 会把徽章拉成一条通栏横杠，
+         看起来像进度条，不像标记。因此这里把徽章压回内容宽度。
+         只有这里需要这样做，球场清单那边是横向 flex。 */
       .wa-card-head .wa-course-badge {
         align-self: flex-start;
       }
-      /* 展开卡片里那句完整说明：解释这条 watch 为什么停着 */
+      /* 展开卡片里的完整说明：解释这条 watch 为什么暂停 */
       .wa-card-maintenance {
         font-size: 12px;
         line-height: 17px;
         color: var(--muted);
         padding: 2px 0 6px;
       }
-      /* 字段下面那行解释，比 .wa-label 更轻——它说明的是限制，不是标题 */
+      /* 字段下面的那行解释。它比 .wa-label 更轻。原因：它说明的是限制，不是标题 */
       .wa-hint {
         font-size: 12px;
         line-height: 16px;
@@ -252,8 +253,8 @@
         padding-top: 2px;
       }
 
-      /* Weekday toggles — seven in a row, so they share the width evenly
-         instead of taking .wa-pill's padding and wrapping onto three lines. */
+      /* Weekday toggles: seven in a row. They share the width equally.
+         They do not use the .wa-pill padding, because that padding makes them wrap onto three lines. */
       .wa-days {
         display: flex;
         gap: 4px;
@@ -278,8 +279,8 @@
         font-weight: 700;
       }
 
-      /* Time window. Start and end stack vertically so both fit a phone without
-         the selects being squeezed down to unreadable. */
+      /* Time window. Start and end are stacked vertically.
+         Thus both fit on a phone, and the selects stay wide enough to read. */
       .wa-timerow {
         display: flex;
         flex-direction: column;
@@ -424,7 +425,7 @@
         flex-direction: column;
         gap: 14px;
       }
-      /* 管理员视图：一个主人一组，组头是邮箱 */
+      /* 管理员视图：每个主人一组，组头显示邮箱 */
       .wa-group {
         display: flex;
         flex-direction: column;
@@ -450,7 +451,7 @@
         flex-direction: column;
         gap: 10px;
       }
-      /* 折叠时卡片里只剩标题行，收紧内边距，一屏能扫过更多条 */
+      /* 折叠时，卡片里只剩标题行。因此收紧内边距，一屏能显示更多条 */
       .wa-card:not(.is-open) {
         padding: 13px 20px;
       }
@@ -463,7 +464,7 @@
       }
       .wa-caret {
         flex: none;
-        margin-top: 3px; /* 对齐球场名那一行，而不是两行的正中 */
+        margin-top: 3px; /* 与球场名那一行对齐，不对齐两行的正中 */
         color: var(--muted2);
         transition: transform 0.15s ease;
       }

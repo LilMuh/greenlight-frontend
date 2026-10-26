@@ -1,6 +1,8 @@
-// Watch Alerts 页。要登录：没登录只显示登录面板；登录后只看得到、改得了自己的 watch。
-// 管理员例外：看得到、改得了所有人的，列表按主人分组。
-// 一条 watch 对应一个球场：勾多个球场新建时发一次批量请求，后端逐球场各建一条。
+// Watch Alerts 页。这个页面要求登录：
+// - 未登录时，只显示登录面板。
+// - 登录后，用户只能查看和修改自己的 watch。
+// - 管理员例外：能查看和修改所有人的 watch，列表按主人分组。
+// 一条 watch 对应一个球场。勾选多个球场新建时，前端发一次批量请求，后端为每个球场各建一条。
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import {
   createWatchConfigs, deleteWatchConfig, getCourses, getMatches, getMe,
@@ -25,14 +27,14 @@ export function App() {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const formRef = useRef<HTMLDivElement | null>(null);
 
-  // 弹一条会自动消失的提示；连续弹时新消息顶掉旧的、重新计时
+  // 弹出一条会自动消失的提示。连续弹出时，新消息替换旧消息，并重新计时
   const showToast = useCallback((message: string, durationMs = 2000) => {
     setToast(message);
     clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(""), durationMs);
   }, []);
 
-  // 把请求失败弹成 toast；连不上后端时标成离线，会话过期时回到登录态
+  // 把请求失败显示为 toast。连不上后端时标成离线，会话过期时回到登录界面
   const reportError = useCallback((error: unknown) => {
     const { offline, signedOut, message } = classifyError(error);
     if (offline) dispatch({ type: "offline" });
@@ -40,7 +42,7 @@ export function App() {
     showToast(message, offline ? 2200 : 2600);
   }, [showToast]);
 
-  // 拉一遍匹配结果，按 watchId 存命中数供卡片展示。只读——失败就当作 0，不打断页面。
+  // 取一次匹配结果，按 watchId 存命中数，供卡片展示。它只读：失败时命中数当作 0，不打断页面。
   const loadMatches = useCallback(async () => {
     try {
       const matches = await getMatches();
@@ -52,7 +54,7 @@ export function App() {
     }
   }, []);
 
-  // 登录态确定之后：进入登录态，再拉这个人的 watch 和命中数
+  // 确认已登录后：进入登录后的界面，再取这个用户的 watch 和命中数
   const enter = useCallback(async (user: UserDto) => {
     dispatch({ type: "signedIn", user });
     try {
@@ -64,7 +66,7 @@ export function App() {
     await loadMatches();
   }, [loadMatches, reportError]);
 
-  // 页面打开时：球场清单（公开）和登录态并行确认。本地有令牌就问后端它还有没有效。
+  // 页面打开时，并行取球场清单（公开）和确认登录状态。本地有令牌时，向后端确认它是否仍然有效。
   useEffect(() => {
     getCourses()
       .then((courses) => {
@@ -86,7 +88,7 @@ export function App() {
           showToast(STRINGS.offline, 2600);
         }
       });
-    // 只在挂载时跑一遍
+    // 只在挂载时运行一次
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -95,7 +97,7 @@ export function App() {
     void enter(result.user);
   };
 
-  // 登出：后端撤销失败也照样清本地，别让人卡在「退不出去」
+  // 登出：后端撤销失败时，也照样清除本地令牌。原因：用户不能卡在「退不出去」的状态
   const handleSignOut = async () => {
     try {
       await logout();
@@ -112,14 +114,15 @@ export function App() {
     if (message) showToast(message, 2200);
   };
 
-  // 勾选球场（新建态多选）。编辑态不给改球场：换球场等于换成另一条 watch，
-  // 后端会拒（WATCH_COURSE_IMMUTABLE），这里直接点不动并说明原因。
+  // 勾选球场（新建时可多选）。编辑时不能改球场。
+  // 原因：换球场等于换成另一条 watch，后端会拒绝（WATCH_COURSE_IMMUTABLE）。
+  // 因此这里直接不响应点击，并提示原因。
   const handleToggleCourse = (course: CourseRef) => {
     if (state.editingId != null) {
       showToast(STRINGS.courseLocked, 2600);
       return;
     }
-    // 同理，维护中的球场也别等后端 COURSE_IN_MAINTENANCE 才说
+    // 同理，维护中的球场也在这里提示，不等后端返回 COURSE_IN_MAINTENANCE
     if (course.maintenance) {
       showToast(STRINGS.maintenanceToast, 2600);
       return;
@@ -127,7 +130,10 @@ export function App() {
     dispatch({ type: "course", id: course.id });
   };
 
-  // 提交表单：先过本地校验，再按「编辑单条 / 批量新建」调后端，成功后刷新命中数
+  // 提交表单：
+  // 1. 做本地校验。
+  // 2. 按「编辑单条 / 批量新建」调用后端。
+  // 3. 成功后刷新命中数。
   const submitForm = async () => {
     if (state.formCourses.length === 0) {
       showToast(STRINGS.needCourse, 2200);
@@ -137,7 +143,8 @@ export function App() {
       showToast(STRINGS.needWeekday, 2200);
       return;
     }
-    // 零填充的 "HH:MM" 字符串比较就是时间先后；结束不晚于开始的窗口永远不命中，挡在这里
+    // 零填充的 "HH:MM" 字符串可以直接比较时间先后。
+    // 结束不晚于开始的时间窗永远不会命中，因此在这里拦截
     if (state.formTimeEnd <= state.formTimeStart) {
       showToast(STRINGS.needTimeOrder, 2400);
       return;
@@ -166,13 +173,13 @@ export function App() {
     }
   };
 
-  // 点 Edit 后平滑滚到表单：列表长了表单多半在屏幕外，不滚过去看着像没反应。
+  // 点击 Edit 后，平滑滚动到表单。原因：列表长时，表单多半在屏幕外。不滚动的话，看起来像没有反应。
   const startEdit = (watchId: number) => {
     dispatch({ type: "edit", id: watchId });
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  // 删除一条 watch：后端确认成功才从列表移除
+  // 删除一条 watch：后端确认成功后，才从列表移除
   const deleteWatch = async (watchId: number) => {
     try {
       await deleteWatchConfig(watchId);
@@ -184,11 +191,11 @@ export function App() {
     showToast(STRINGS.deleted, 1800);
   };
 
-  // 启停开关：界面先翻（乐观更新），后端失败再翻回来
+  // 启停开关：界面先切换（乐观更新）。后端失败时，再切换回来
   const toggleActive = async (watchId: number) => {
     const watch = state.watches.find((candidate) => candidate.id === watchId);
     if (!watch) return;
-    // 维护中的球场开不回来（后端会 409），先拦一道；关掉照常放行
+    // 维护中球场的 watch 不能重新启用（后端会返回 409），因此先在这里拦截。停用照常允许
     if (!watch.active && isCourseInMaintenance(state.courses, watch.courseId)) {
       showToast(STRINGS.maintenanceToast, 2600);
       return;
@@ -198,14 +205,14 @@ export function App() {
     try {
       await updateWatchConfig(watchId, toDto(updated));
     } catch (error) {
-      // 失败就把开关翻回去，别停在一个库里没有的状态
+      // 失败时把开关切换回去。原因：界面不能停在一个数据库里没有的状态
       dispatch({ type: "setWatchActive", id: watchId, active: watch.active });
       reportError(error);
     }
   };
 
   const { user } = state;
-  // 管理员才分组；普通用户的列表只有自己的，和以前一样平铺
+  // 只有管理员的列表分组。普通用户的列表只有自己的 watch，和以前一样平铺
   const groups = user?.admin ? groupByOwner(state.watches, user) : null;
 
   const renderCard = (watch: WatchView) => (
@@ -248,7 +255,7 @@ export function App() {
         </div>
       </div>
 
-      {/* user === undefined：还在确认登录态，先不渲染，免得登录面板一闪而过 */}
+      {/* user === undefined 表示还在确认登录状态。这时先不渲染，以免登录面板一闪而过 */}
       {user === null && (
         <div className="wa-body wa-body-center">
           <LoginPanel onSignedIn={handleSignedIn} onError={reportError} />

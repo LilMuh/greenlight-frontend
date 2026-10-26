@@ -12,8 +12,8 @@ interface Props {
   onDelete: (id: number) => void;
 }
 
-// 一条 watch 的卡片：折叠时只有「球场 + 邮箱 + 启停开关」一行，
-// 展开后是命中数、条件 chips 和 Edit / Delete。
+// 一条 watch 的卡片。折叠时只有一行：球场、邮箱和启停开关。
+// 展开后显示命中数、条件 chips 和 Edit / Delete。
 export function WatchCard({ watch, isOpen, hitCount, inMaintenance, ...actions }: Props) {
   const chips = [
     weekdaysText(watch.weekdays),
@@ -24,8 +24,8 @@ export function WatchCard({ watch, isOpen, hitCount, inMaintenance, ...actions }
 
   return (
     <div className={`wa-card${isOpen ? " is-open" : ""}`}>
-      {/* 整行都是展开热区；开关在行内，stopPropagation 防止点开关顺带展开卡片。
-          <div role="button"> 的 Enter/空格激活要自己补，不然键盘用户打不开折叠里的 Edit/Delete。 */}
+      {/* 整行都是展开热区。开关也在这一行，因此用 stopPropagation 防止点开关时展开卡片。
+          <div role="button"> 要自己处理 Enter 和空格键。否则键盘用户打不开折叠区里的 Edit/Delete。 */}
       <div
         className="wa-card-top"
         role="button"
@@ -34,7 +34,7 @@ export function WatchCard({ watch, isOpen, hitCount, inMaintenance, ...actions }
         onClick={() => actions.onExpand(watch.id)}
         onKeyDown={(event) => {
           if (event.key !== "Enter" && event.key !== " ") return;
-          event.preventDefault(); // 空格在 <div> 上的默认行为是往下滚一屏
+          event.preventDefault(); // 空格在 <div> 上的默认行为是向下滚动一屏
           actions.onExpand(watch.id);
         }}
       >
@@ -56,8 +56,8 @@ export function WatchCard({ watch, isOpen, hitCount, inMaintenance, ...actions }
           <span className="wa-status-text">{watch.active ? STRINGS.active : STRINGS.paused}</span>
         </div>
       </div>
-      {/* 折叠时详情整块不渲染（不是 display:none）。维护中的球场展开后给整句说明，
-          不然用户只看到 Paused 会以为是自己关的。 */}
+      {/* 折叠时，详情整块不渲染（不是 display:none）。
+          维护中的球场展开后，显示完整说明。否则用户只看到 Paused，会以为是自己关的。 */}
       {isOpen && (
         <>
           {inMaintenance && <div className="wa-card-maintenance">{STRINGS.maintenanceCardNote}</div>}

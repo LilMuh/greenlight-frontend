@@ -1,23 +1,23 @@
 // --- Static reference data --------------------------------------------------
 
-// 价格滑块范围（CAD）。上限要盖住最贵球场的时段（Nicklaus North 到 $285），
-// 钉低了那些场次永远匹配不上。
+// 价格滑块范围（CAD）。上限必须覆盖最贵球场的时段（Nicklaus North 到 $285）。
+// 否则上限设低后，那些时段永远匹配不上。
 export const PRICE_MIN = 20;
 export const PRICE_MAX = 300;
-// 默认拉满：不过滤价格，先把所有场次都收进来。
+// 默认设为最大值：不按价格过滤，所有时段都包括在内。
 export const PRICE_DEFAULT = PRICE_MAX;
 
 // 默认时间窗：全天可打的时段。
 export const TIME_START_DEFAULT = "06:00";
 export const TIME_END_DEFAULT = "20:00";
 
-// 分钟档位：watch 的时间窗是粗筛，整点和半点够用。
+// 分钟档位：watch 的时间窗只做粗筛，因此整点和半点就够用。
 export const MINUTE_CHOICES = [0, 30];
 
 // 默认人数：一组打满 4 人。
 export const PLAYERS_DEFAULT = 4;
 
-// watch 按星期定，不按日期：「每周六早上」下个月还成立。code 和后端存的一致。
+// watch 按星期设定，不按日期。原因：「每周六早上」到下个月仍然有效。code 与后端存的一致。
 export const WEEKDAYS = [
   { code: "MON", label: "Mon" },
   { code: "TUE", label: "Tue" },
@@ -56,7 +56,7 @@ export const STRINGS = {
   noWatches: "No watches yet — create one on the left.",
   active: "Active", paused: "Paused",
   newTitle: "New Watch", editTitle: "Edit Watch",
-  // 管理员改别人的 watch 时写明是谁的
+  // 管理员改别人的 watch 时，标题写明主人
   editOthersTitle: (ownerEmail: string) => `Edit ${ownerEmail}'s Watch`,
   createBtn: "Create Watch", saveBtn: "Save",
   needCourse: "Pick at least one course.",
@@ -64,13 +64,15 @@ export const STRINGS = {
   needTimeOrder: "End time must be later than start time.",
   saved: "Watch saved.", deleted: "Watch deleted.",
   offline: "Backend offline — please try again once it's up.",
-  // 后端好好的、只是这次请求不合法时的兜底。和 offline 分开：那句会让人跑去看服务
+  // 后端正常、只是这次请求不合法时的兜底文案。
+  // 它与 offline 分开。原因：offline 文案会让用户去检查服务。
   genericError: "That didn't go through — please try again.",
   courseLocked: "A watch's course can't be changed — create a new one instead.",
   maintenanceBadge: "Under maintenance",
-  // 点到维护中的球场时说一句，否则那一行只是点不动，看不出是坏了还是没点中
+  // 点到维护中的球场时，弹出这句提示。
+  // 否则那一行只是点不动，用户分不清是坏了还是没点中
   maintenanceToast: "That course is under maintenance — it can't be watched right now.",
-  // 存量 watch 的卡片上说明它为什么不发邮件了
+  // 已有 watch 的卡片上，说明它为什么不再发邮件
   maintenanceCardNote: "This course is under maintenance — this watch is paused.",
   playerUnit: " players",
   everyDay: "Every day",
@@ -83,10 +85,10 @@ export const STRINGS = {
 } as const;
 
 // --- Error reporting --------------------------------------------------------
-// 后端错误按 code 挑文案（后端的 message 是调试串，不进界面）。
-// 认不出的 code 落到 genericError：不崩、也不谎称后端离线。
+// 后端错误按 code 选文案。后端的 message 是调试用的字符串，不显示在界面上。
+// 认不出的 code 用 genericError：页面不崩溃，也不错误地提示后端离线。
 export const ERROR_MESSAGES: Record<string, string> = {
-  // 业务规则：人能自己改好的，就说清楚该怎么改
+  // 业务规则错误：用户能自己改正，因此文案说清楚怎么改
   WATCH_DUPLICATE: "You already have an alert for that course — edit that one instead.",
   WATCH_COURSE_IMMUTABLE: "A watch's course can't be changed — create a new one instead.",
   WATCH_WEEKDAYS_REQUIRED: "Pick at least one weekday.",
@@ -96,7 +98,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   COURSE_NOT_FOUND: "That course is gone — reload the page.",
   COURSE_IN_MAINTENANCE: "That course is under maintenance — it can't be watched right now.",
   MAIL_SEND_FAILED: "The email couldn't be sent — check the mail settings and your alert address.",
-  // 请求本身不合法。人改不了这些，但话得说得不一样：让人知道该找谁
+  // 请求本身不合法。用户改正不了这些错误，但文案要不同，让用户知道该找谁
   UNAUTHORIZED: "Your session has ended — please sign in again.",
   FORBIDDEN: "Only admins can do that.",
   AUTH_GOOGLE_INVALID: "Google sign-in didn't go through — try again or use an email code.",
@@ -109,6 +111,6 @@ export const ERROR_MESSAGES: Record<string, string> = {
   INVALID_PARAMETER: "The page sent an unusable value — reload and try again.",
   METHOD_NOT_ALLOWED: "The page called the backend the wrong way — reload and try again.",
   ENDPOINT_NOT_FOUND: "This page is talking to a backend that doesn't have that feature.",
-  // 后端自己出 bug 了。明确说不是你的问题，免得人回去反复改表单
+  // 后端自身的 bug。文案明确说不是用户的问题。否则用户会反复修改表单
   INTERNAL_ERROR: "Something broke on the server — not your fault. Try again in a moment.",
 };

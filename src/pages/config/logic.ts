@@ -1,11 +1,11 @@
-// config 页的纯逻辑层：不碰 DOM、不发请求，全部可以单测。
+// config 页的纯逻辑层。这里的函数不操作 DOM，也不发请求，因此全部可以单测。
 import { ApiError, type CourseDto, type WatchConfigDto } from "../../api";
 import {
   ERROR_MESSAGES, MINUTE_CHOICES, PLAYERS_DEFAULT, PRICE_DEFAULT, STRINGS,
   TIME_END_DEFAULT, TIME_START_DEFAULT, WEEKDAYS,
 } from "./strings";
 
-/** /api/courses 归一化后的引用（config 页用数字 id：watch-config 按它关联）。 */
+/** /api/courses 归一化后的引用。config 页用数字 id，因为 watch-config 按数字 id 关联球场。 */
 export interface CourseRef {
   id: number;
   slug: string;
@@ -13,7 +13,7 @@ export interface CourseRef {
   maintenance: boolean;
 }
 
-/** 一条 watch 在 UI 里的形状。One watch = one course。 */
+/** 一条 watch 在 UI 里的形状。一条 watch 只对应一个球场。 */
 export interface WatchView {
   id: number;
   courseId: number;
@@ -24,7 +24,7 @@ export interface WatchView {
   players: number;
   maxPrice: number;
   active: boolean;
-  ownerId: number | null; // 旧后端不带主人时为 null
+  ownerId: number | null; // 旧后端不返回主人，这时为 null
   ownerEmail: string | null;
 }
 
@@ -36,7 +36,11 @@ export interface WatchGroup {
   watches: WatchView[];
 }
 
-// maintenance 必须带上：默认全选、能不能点、徽章、卡片上那句说明全靠它
+// 必须带上 maintenance。下面几处都依赖它：
+// - 默认全选。
+// - 球场能不能点。
+// - 维护徽章。
+// - 卡片上的维护说明。
 export function normalizeCourses(courseDtos: CourseDto[]): CourseRef[] {
   return courseDtos.map((course) => ({
     id: course.id,
@@ -46,19 +50,19 @@ export function normalizeCourses(courseDtos: CourseDto[]): CourseRef[] {
   }));
 }
 
-// 按数字 id 查球场名；清单里没有就把 id 当名字用
+// 按数字 id 查球场名。清单里没有时，用 id 作为名字
 export function courseName(courses: CourseRef[], courseId: number): string {
   const match = courses.find((course) => course.id === courseId);
   return match ? match.name : String(courseId);
 }
 
-// 球场是否在维护。认不出的 courseId 当作正常，别因为清单没加载完把界面锁死。
+// 球场是否在维护。认不出的 courseId 当作正常。原因：清单没加载完时，界面不能被锁死。
 export function isCourseInMaintenance(courses: CourseRef[], courseId: number): boolean {
   const match = courses.find((course) => course.id === courseId);
   return match ? match.maintenance === true : false;
 }
 
-// 把后端的 watch 记录整理成 UI 用的形状（缺字段落默认值）。一条 watch 只对应一个球场。
+// 把后端的 watch 记录整理成 UI 用的形状。缺少的字段用默认值。一条 watch 只对应一个球场。
 export function normalizeWatch(record: WatchConfigDto, courses: CourseRef[]): WatchView {
   return {
     id: record.id,
@@ -89,8 +93,10 @@ export function toDto(watch: WatchView): WatchConfigDto {
   };
 }
 
-// 管理员视图：按主人分组，自己一组排最前，其余按邮箱排；组内保持后端给的顺序（新的在前）。
-// 没带主人的（旧后端）算自己的。
+// 管理员视图：按主人分组。
+// - 自己的组排最前，其余按邮箱排序。
+// - 组内保持后端给的顺序（新的在前）。
+// - 没有主人的 watch（旧后端）算作自己的。
 export function groupByOwner(watches: WatchView[], me: { id: number; loginEmail: string }): WatchGroup[] {
   const groups = new Map<number, WatchGroup>();
   for (const watch of watches) {
@@ -108,19 +114,21 @@ export function groupByOwner(watches: WatchView[], me: { id: number; loginEmail:
   );
 }
 
-// 管理员正在改的是不是别人的 watch：是就返回主人邮箱，表单标题要写明，免得以为改的是自己的。
+// 判断管理员正在改的是不是别人的 watch。是时，返回主人邮箱。
+// 表单标题要写明主人。否则管理员会以为改的是自己的 watch。
 export function foreignOwnerEmail(watch: WatchView | undefined, meId: number): string | null {
   if (!watch || watch.ownerId == null || watch.ownerId === meId) return null;
   return watch.ownerEmail;
 }
 
-// 后端按 ISO 序（周一在前）存和返回，前端跟着排：卡片上的顺序和邮件里的一致。
+// 后端按 ISO 顺序（周一在前）存储和返回星期，前端也按这个顺序排。
+// 这样卡片上的顺序与邮件里的一致。
 export function sortWeekdays(codes: string[]): string[] {
   const order = WEEKDAYS.map((weekday) => weekday.code as string);
   return [...codes].sort((left, right) => order.indexOf(left) - order.indexOf(right));
 }
 
-// ["SAT","SUN"] → "Sat, Sun"；七天全勾说明没做筛选，直接写 "Every day"。
+// ["SAT","SUN"] → "Sat, Sun"。七天全选表示不按星期筛选，这时直接写 "Every day"。
 export function weekdaysText(codes: string[]): string {
   if (!codes.length) return "";
   if (codes.length === WEEKDAYS.length) return STRINGS.everyDay;
@@ -129,9 +137,9 @@ export function weekdaysText(codes: string[]): string {
     .join(", ");
 }
 
-// 时间统一用 24 小时制 "HH:MM"，和后端存的一致，字符串可以直接比大小。
-// 刻意不用 <input type="time">：12 小时制设备上容易漏拨 AM/PM，
-// 下午 4:45 存成 04:45 就是一条永远不命中的 watch。
+// 时间统一用 24 小时制 "HH:MM"。这与后端存的格式一致，字符串可以直接比较大小。
+// 不要用 <input type="time">。原因：在 12 小时制设备上，用户容易漏选 AM/PM。
+// 下午 4:45 存成 04:45 后，这条 watch 永远不会命中。
 export function parseClock(value: unknown): { hour: number; minute: number } {
   const match = /^(\d{1,2}):(\d{2})$/.exec(String(value ?? "").trim());
   if (!match) return { hour: 0, minute: 0 };
@@ -142,27 +150,29 @@ export function formatClock(hour: number, minute: number): string {
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
-// 库里存着不在档位上的分钟（早先用原生控件存的，例如 16:45 / 16:57）。把当前值
-// 补进选项里，编辑一条老 watch 才不会顺手把分钟改掉。
+// 库里有不在档位上的分钟值（早先用原生控件存的，例如 16:45 / 16:57）。
+// 因此把当前值补进选项里。这样编辑一条老 watch 时，分钟值不会被意外改掉。
 export function minuteOptions(current: number): number[] {
   if (MINUTE_CHOICES.includes(current)) return MINUTE_CHOICES;
   return [...MINUTE_CHOICES, current].sort((left, right) => left - right);
 }
 
-// 新建表单的默认球场：全选但排除维护中的——不然一提交就被后端 409 拒掉。
+// 新建表单的默认球场：全选，但排除维护中的球场。原因：否则一提交，后端就返回 409 拒绝。
 export function defaultFormCourses(courses: CourseRef[]): number[] {
   return courses.filter((course) => !course.maintenance).map((course) => course.id);
 }
 
-// 把一次失败翻译成给人看的一句话，并决定要不要把页面标成离线：
-// 没连上 → offline 文案；后端拒了 → 按 code 挑文案；认不出的 code → 笼统兜底。
+// 把一次失败翻译成给用户看的一句话，并决定是否把页面标成离线：
+// - 没连上：用 offline 文案。
+// - 后端拒绝：按 code 选文案。
+// - 认不出的 code：用通用的兜底文案。
 export function classifyError(error: unknown): { offline: boolean; signedOut: boolean; message: string } {
   if (!(error instanceof ApiError)) {
     return { offline: true, signedOut: false, message: STRINGS.offline };
   }
   return {
     offline: false,
-    // 会话过期：api.ts 已经丢掉了令牌，页面要跟着回到登录态
+    // 会话过期：api.ts 已经删除令牌，页面要随之回到登录界面
     signedOut: error.code === "UNAUTHORIZED",
     message: ERROR_MESSAGES[error.code ?? ""] ?? STRINGS.genericError,
   };
