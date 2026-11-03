@@ -1,8 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
-  addDays, defaultPlayDate, defaultRunAt, northlandsCourseId, occupiedBy, siteToday, toRunAtLocal,
+  accountLabel, addDays, canCreate, canSeeBooking, defaultPlayDate, defaultRunAt, describeResult,
+  northlandsCourseId, occupiedBy, siteToday, toRunAtLocal,
 } from "./logic";
-import type { BookingTaskDto } from "../../api";
+import { STRINGS } from "./strings";
+import { ERROR_MESSAGES } from "../config/strings";
+import type { BookingTaskDto, UserDto } from "../../api";
 
 // 测试数据只用 example.test 这类假域名，公开仓库里不放任何真实地址。
 const task = (over: Partial<BookingTaskDto> = {}): BookingTaskDto => ({
@@ -68,5 +71,112 @@ describe("northlandsCourseId", () => {
   it("没有 northlands 时为 null", () => {
     expect(northlandsCourseId([{ id: 1, slug: "langara" }])).toBeNull();
     expect(northlandsCourseId([])).toBeNull();
+  });
+});
+
+const user = (over: Partial<UserDto> = {}): UserDto => ({
+  id: 1, loginEmail: "a@example.test", displayName: null, notifyEmail: "a@example.test",
+  notificationsEnabled: true, admin: false, googleLinked: false, enableAutoBooking: false,
+  ...over,
+});
+
+describe("入口可见性（D-15 / D-16）", () => {
+  it("canSeeBooking：未登录 false；管理员 true；开启订场的用户 true；其余 false", () => {
+    expect(canSeeBooking(null)).toBe(false);
+    expect(canSeeBooking(undefined)).toBe(false);
+    expect(canSeeBooking(user({ admin: true }))).toBe(true);
+    expect(canSeeBooking(user({ enableAutoBooking: true }))).toBe(true);
+    expect(canSeeBooking(user())).toBe(false);
+  });
+  it("canCreate：管理员不能建（即便开了订场）；开启订场的普通用户能；其余不能", () => {
+    expect(canCreate(null)).toBe(false);
+    expect(canCreate(user({ admin: true, enableAutoBooking: true }))).toBe(false);
+    expect(canCreate(user({ admin: true }))).toBe(false);
+    expect(canCreate(user({ enableAutoBooking: true }))).toBe(true);
+    expect(canCreate(user())).toBe(false);
+  });
+});
+
+describe("订场账号邮箱显示（D-16）", () => {
+  it("后端给 null 时显示 Unknown，不猜", () => {
+    expect(accountLabel(task({ bookingAccountEmail: null }))).toBe(STRINGS.unknown);
+    expect(STRINGS.unknown).toBe("Unknown");
+  });
+  it("后端给了就原样显示", () => {
+    expect(accountLabel(task({ bookingAccountEmail: "acct@example.test" }))).toBe("acct@example.test");
+  });
+});
+
+describe("describeResult 结果说明", () => {
+  const slot = { date: "2026-11-08", time: "08:10", players: 2, pricePerPlayer: 85, teeSheetId: 1 };
+  const pricing = { subTotal: 170, totalTax: 8.5, total: 178.5 };
+
+  it("DRY_RUN_OK：含时段、算价、是否已解锁与 dry run", () => {
+    const text = describeResult(task({ status: "DRY_RUN_OK", resultDetail: { mode: "dry-run", result: "DRY_RUN_OK", slot, pricing, unlocked: true } }));
+    expect(text.toLowerCase()).toContain("dry run");
+    expect(text).toContain("08:10");
+    expect(text).toContain("2026-11-08");
+    expect(text).toContain("178.50");
+    expect(text.toLowerCase()).toContain("released");
+    const notUnlocked = describeResult(task({ status: "DRY_RUN_OK", resultDetail: { slot, pricing, unlocked: false } }));
+    expect(notUnlocked.toLowerCase()).toContain("not confirmed");
+  });
+  it("BOOKED：含时段、总价、确认号", () => {
+    const text = describeResult(task({ status: "BOOKED", resultDetail: { result: "BOOKED", slot, pricing, reservationId: 4242 } }));
+    expect(text).toContain("08:10");
+    expect(text).toContain("178.50");
+    expect(text).toContain("4242");
+  });
+  it("NOT_BOOKED：按 reason 说明，含 MISSED_WINDOW，认不出的 reason 也给一句", () => {
+    const reason = (value: string) => describeResult(task({ status: "NOT_BOOKED", resultDetail: { reason: value } }));
+    expect(reason("NOT_RELEASED")).toMatch(/released/i);
+    expect(reason("NO_MATCHING_SLOT")).toMatch(/no slot/i);
+    expect(reason("ALL_CANDIDATES_FAILED")).toMatch(/none could/i);
+    expect(reason("NO_TRUSTED_DATA")).toMatch(/usable data/i);
+    expect(reason("STARTED_AFTER_DEADLINE")).toMatch(/deadline/i);
+    expect(reason("MISSED_WINDOW")).toMatch(/missed/i);
+    expect(reason("SOMETHING_NEW")).toMatch(/not booked/i);
+    const withStep = describeResult(task({ status: "NOT_BOOKED", resultDetail: { reason: "ALL_CANDIDATES_FAILED", failedStep: "CheckBookingLimit" } }));
+    expect(withStep).toContain("CheckBookingLimit");
+  });
+  it("FAILED：按 code / cause 说明，并说明没下单", () => {
+    const failed = (detail: Record<string, unknown>) => describeResult(task({ status: "FAILED", resultDetail: detail }));
+    expect(failed({ cause: "SCRAPER_UNREACHABLE" })).toMatch(/couldn't be reached/i);
+    expect(failed({ cause: "REQUEST_REJECTED" })).toMatch(/rejected/i);
+    expect(failed({ cause: "SCRAPER_ERROR", code: "LOGIN_FAILED" })).toContain("LOGIN_FAILED");
+    expect(failed({})).toMatch(/nothing was ordered/i);
+  });
+  it("UNKNOWN：到 Northlands 网站确认，系统不会重试（D-06）", () => {
+    const text = describeResult(task({ status: "UNKNOWN", resultDetail: { reason: "RESERVE_TIMEOUT" } }));
+    expect(text).toMatch(/check the northlands site/i);
+    expect(text).toMatch(/will not retry/i);
+    expect(describeResult(task({ status: "UNKNOWN", resultDetail: { cause: "RESTARTED_WHILE_RUNNING" } }))).toMatch(/restart/i);
+  });
+  it("PENDING / RUNNING / CANCELLED 各一句", () => {
+    expect(describeResult(task({ status: "PENDING" }))).toMatch(/waiting/i);
+    expect(describeResult(task({ status: "RUNNING" }))).toMatch(/running/i);
+    expect(describeResult(task({ status: "CANCELLED" }))).toMatch(/cancelled/i);
+  });
+  it("resultDetail 缺字段或类型不对时不抛错", () => {
+    for (const status of ["DRY_RUN_OK", "BOOKED", "NOT_BOOKED", "FAILED", "UNKNOWN"] as const) {
+      expect(() => describeResult(task({ status, resultDetail: null }))).not.toThrow();
+      expect(() => describeResult(task({ status, resultDetail: {} }))).not.toThrow();
+      expect(() => describeResult(task({ status, resultDetail: { slot: "x", pricing: 5, reservationId: {}, reason: 3, unlocked: "yes" } }))).not.toThrow();
+      expect(describeResult(task({ status, resultDetail: null })).length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("12 个 BOOKING_* 错误码文案", () => {
+  const codes = [
+    "BOOKING_NOT_ENABLED", "BOOKING_ADMIN_CANNOT_CREATE", "BOOKING_RUN_AT_TAKEN", "BOOKING_COURSE_UNSUPPORTED",
+    "BOOKING_DATE_OUT_OF_WINDOW", "BOOKING_RUN_AT_INVALID", "BOOKING_TIME_INVALID", "BOOKING_PLAYERS_INVALID",
+    "BOOKING_PRICE_INVALID", "BOOKING_SORT_INVALID", "BOOKING_TASK_NOT_FOUND", "BOOKING_TASK_NOT_PENDING",
+  ];
+  it("每个码都有非空英文文案", () => {
+    for (const code of codes) {
+      expect(ERROR_MESSAGES[code], code).toBeTruthy();
+      expect(ERROR_MESSAGES[code]).toMatch(/^[\x20-\x7E—’]+$/);
+    }
   });
 });

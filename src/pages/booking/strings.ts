@@ -21,13 +21,29 @@ export const STRINGS = {
   // D-09 / D-16：谁占了这个运行时间（创建者的完整登录邮箱 + 任务号）
   occupied: (email: string, id: number) =>
     `That run time is already taken by ${email} (task #${id}).`,
+  // 登录与可见性（D-15 / D-16）
+  signInPrompt: "Sign in on the Watch Alerts page first, then come back here.",
+  signInLink: "Go to Watch Alerts to sign in",
+  notEnabled: "Auto booking is not enabled for your account.",
+  adminNote: "Admins can see every task and cancel pending ones, but can't create tasks.",
   // 列表
-  scheduledTitle: "Scheduled", scheduledEmpty: "Nothing scheduled.",
-  noPending: "—",
+  scheduledTitle: "Scheduled", scheduledEmpty: "Nothing is scheduled right now.",
+  scheduledHint: "Pending and running tasks from everyone. One task per run time.",
+  myTitle: "My tasks", myTitleAdmin: "All tasks", myEmpty: "No tasks yet.",
+  countText: (count: number) => `${count} task${count === 1 ? "" : "s"}`,
   loadingTasks: "Loading…",
   offline: "Backend offline — please try again once it's up.",
+  runsAt: "Runs", plays: "Plays",
+  sortText: (sort: "EARLIEST" | "CHEAPEST") => (sort === "EARLIEST" ? "Earliest" : "Cheapest"),
+  maxPriceText: (price: number) => `≤ $${price} / player`,
   // D-16：订场账号邮箱 scraper 读不到时显示 Unknown，不猜
   unknown: "Unknown",
   createdBy: "Created by", bookingAccount: "Booking account",
   playerUnit: " players",
+  statusText: {
+    PENDING: "Pending", RUNNING: "Running", BOOKED: "Booked", DRY_RUN_OK: "Dry run OK",
+    NOT_BOOKED: "Not booked", FAILED: "Failed", UNKNOWN: "Unknown result", CANCELLED: "Cancelled",
+  },
+  cancelBtn: "Cancel task",
+  cancelConfirm: "Cancel this booking task?",
 } as const;

@@ -13,6 +13,7 @@ import {
   type CourseRef, type WatchView,
 } from "./logic";
 import { createInitialState, reducer } from "./reducer";
+import { canSeeBooking } from "../booking/logic";
 import { WatchForm } from "./components/WatchForm";
 import { WatchCard } from "./components/WatchCard";
 import { LoginPanel } from "./components/LoginPanel";
@@ -244,6 +245,8 @@ export function App() {
           <div className="wa-nav">
             <a href="index.html">{STRINGS.navQuery}</a>
             <a href="config.html" className="is-active">{STRINGS.navWatch}</a>
+            {/* D-15 / D-16：只有管理员或开启了订场的用户才看到入口；查询页不加载登录态，所以不放 */}
+            {user && canSeeBooking(user) && <a href="booking.html">{STRINGS.navBooking}</a>}
           </div>
         </div>
       </div>
