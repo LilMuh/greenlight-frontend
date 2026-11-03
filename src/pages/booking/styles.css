@@ -1,0 +1,16 @@
+/* Auto Booking 页：wa-* 类名与配色来自 ../config/styles.css（main.tsx 里先引入了它），这里只补本页独有的。 */
+.wa-bk-occupied {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--danger-line);
+  background: #fff;
+  color: var(--danger);
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.wa-bk-meta {
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}

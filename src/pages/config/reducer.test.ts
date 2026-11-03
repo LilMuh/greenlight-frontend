@@ -111,5 +111,5 @@ describe("config reducer", () => {
 
 const user: UserDto = {
   id: 1, loginEmail: "a@b.c", displayName: null, notifyEmail: "a@b.c",
-  notificationsEnabled: true, admin: false, googleLinked: false,
+  notificationsEnabled: true, admin: false, googleLinked: false, enableAutoBooking: false,
 };
