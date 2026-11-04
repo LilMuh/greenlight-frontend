@@ -1,6 +1,6 @@
 import type { BookingSort, BookingTaskDto, CourseDto, UserDto } from "../../api";
 import { PLAYERS_DEFAULT, TIME_END_DEFAULT, TIME_START_DEFAULT } from "../config/strings";
-import { canSeeBooking, defaultPlayDate, defaultRunAt } from "./logic";
+import { canSeeBooking, defaultPlayDate, defaultRunAt, runParts } from "./logic";
 import { STRINGS } from "./strings";
 
 /** 建任务表单的字段。运行时间拆成「日期 + 时刻」两个控件，提交时才拼成 runAtLocal。 */
@@ -29,13 +29,29 @@ export interface BookingState {
   loading: boolean; // 列表还没拿到
   toast: string; // 空串 = 不显示
   form: BookingForm;
+  editingId: number | null; // null = 新建态；不为 null = 正在编辑这条任务
 }
 
 // 单人价缺省值：没有可参考的行情数据，取一个中间值让人自己改，不是推荐价
 export const PRICE_DEFAULT = 100;
 
-export function createInitialState(now: Date): BookingState {
+/** 表单缺省值：新建态的起点，退出编辑态时也回到它。 */
+export function defaultForm(now: Date): BookingForm {
   const run = defaultRunAt(now);
+  return {
+    runDate: run.date,
+    runTime: run.time,
+    playDate: defaultPlayDate(run.date),
+    playDateTouched: false,
+    timeStart: TIME_START_DEFAULT,
+    timeEnd: TIME_END_DEFAULT,
+    players: PLAYERS_DEFAULT,
+    maxPrice: PRICE_DEFAULT,
+    sort: "EARLIEST",
+  };
+}
+
+export function createInitialState(now: Date): BookingState {
   return {
     offline: false,
     user: undefined,
@@ -44,17 +60,8 @@ export function createInitialState(now: Date): BookingState {
     mine: [],
     loading: true,
     toast: "",
-    form: {
-      runDate: run.date,
-      runTime: run.time,
-      playDate: defaultPlayDate(run.date),
-      playDateTouched: false,
-      timeStart: TIME_START_DEFAULT,
-      timeEnd: TIME_END_DEFAULT,
-      players: PLAYERS_DEFAULT,
-      maxPrice: PRICE_DEFAULT,
-      sort: "EARLIEST",
-    },
+    form: defaultForm(now),
+    editingId: null,
   };
 }
 
@@ -67,6 +74,9 @@ export type BookingAction =
   | { type: "loadFailed" } // 列表没拿到：只结束「加载中」，已有的列表原样保留
   | { type: "taskCreated"; task: BookingTaskDto }
   | { type: "taskCancelled"; task: BookingTaskDto }
+  | { type: "editStarted"; task: BookingTaskDto }
+  | { type: "editCancelled"; now: Date } // now 由 App 传入，reducer 保持纯函数
+  | { type: "taskUpdated"; task: BookingTaskDto; now: Date }
   | { type: "formChanged"; patch: BookingFormPatch }
   | { type: "toast"; message: string }
   | { type: "offline" };
@@ -92,7 +102,7 @@ export function reducer(state: BookingState, action: BookingAction): BookingStat
       return { ...state, user: action.user, loading: canSeeBooking(action.user) };
     case "signedOut":
       // 上一个人的任务不留：同一台电脑换人登录不能看到前一个人的东西
-      return { ...state, user: null, scheduled: [], mine: [], loading: false };
+      return { ...state, user: null, scheduled: [], mine: [], loading: false, editingId: null };
     case "tasksLoaded":
       return { ...state, scheduled: action.scheduled, mine: action.mine, loading: false };
     case "loadFailed":
@@ -100,6 +110,31 @@ export function reducer(state: BookingState, action: BookingAction): BookingStat
     case "taskCreated":
     case "taskCancelled":
       return { ...state, ...upsert(state, action.task) };
+    case "editStarted": {
+      const parts = runParts(action.task.runAtLocal);
+      // 站点没有放号规则时没有本地时间，没法回填运行时间，不能编辑
+      if (!parts) return state;
+      const { task } = action;
+      return {
+        ...state,
+        editingId: task.id,
+        form: {
+          runDate: parts.date,
+          runTime: parts.time,
+          playDate: task.playDate,
+          playDateTouched: true, // 打球日是任务自己的值，改运行日时不能被覆盖
+          timeStart: task.timeStart,
+          timeEnd: task.timeEnd,
+          players: task.players,
+          maxPrice: task.maxPrice,
+          sort: task.sort,
+        },
+      };
+    }
+    case "editCancelled":
+      return { ...state, editingId: null, form: defaultForm(action.now) };
+    case "taskUpdated":
+      return { ...state, ...upsert(state, action.task), editingId: null, form: defaultForm(action.now) };
     case "formChanged": {
       const form = { ...state.form, ...action.patch };
       if (action.patch.playDate !== undefined) form.playDateTouched = true;

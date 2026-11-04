@@ -1,9 +1,9 @@
 // Auto Booking 页。要登录：没登录只提示去 config 页登录（登录面板在那边）。
 // 可见性（D-15 / D-16）：管理员和开启了订场的用户看得到列表；只有开启了订场的普通用户看得到建任务表单。
-// 前端只决定显示，建 / 查 / 取消的权限全在后端判定。
+// 前端只决定显示，建 / 查 / 改 / 取消的权限全在后端判定。
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import {
-  ApiError, cancelBookingTask, createBookingTask, getCourses, getMe, listBookingTasks,
+  ApiError, cancelBookingTask, createBookingTask, getCourses, getMe, listBookingTasks, updateBookingTask,
   type BookingTaskDto,
 } from "../../api";
 import { getToken } from "../../auth";
@@ -34,8 +34,15 @@ function TimePicker(props: { value: string; onChange: (value: string) => void })
 
 // 一条任务的卡片：Scheduled 与 My tasks 共用；My tasks 才带结果说明与取消按钮。
 // 标题是「球场 #任务号」；运行时间（蓝）与打球日（绿，带星期与时段）各占一行，一眼分清「什么时候跑」和「订哪天」
-function TaskCard(props: { task: BookingTaskDto; withResult: boolean; onCancel?: (task: BookingTaskDto) => void }) {
+function TaskCard(props: {
+  task: BookingTaskDto;
+  withResult: boolean;
+  onCancel?: (task: BookingTaskDto) => void;
+  onEdit?: (task: BookingTaskDto) => void;
+}) {
   const { task } = props;
+  const canEdit = task.editable && !!props.onEdit;
+  const canCancel = props.withResult && task.cancellable && !!props.onCancel;
   return (
     <div className="wa-card">
       <div className="wa-bk-head">
@@ -58,9 +65,10 @@ function TaskCard(props: { task: BookingTaskDto; withResult: boolean; onCancel?:
       <div className="wa-bk-meta">{STRINGS.createdBy} {task.creatorLoginEmail}</div>
       <div className="wa-bk-meta">{STRINGS.bookingAccount}: {accountLabel(task)}</div>
       {props.withResult && <div className="wa-bk-result">{describeResult(task)}</div>}
-      {props.withResult && task.cancellable && props.onCancel && (
+      {(canEdit || canCancel) && (
         <div className="wa-card-actions">
-          <button className="wa-delete" onClick={() => props.onCancel?.(task)}>{STRINGS.cancelBtn}</button>
+          {canEdit && <button className="wa-edit" onClick={() => props.onEdit?.(task)}>{STRINGS.editBtn}</button>}
+          {canCancel && <button className="wa-delete" onClick={() => props.onCancel?.(task)}>{STRINGS.cancelBtn}</button>}
         </div>
       )}
     </div>
@@ -70,6 +78,7 @@ function TaskCard(props: { task: BookingTaskDto; withResult: boolean; onCancel?:
 export function App() {
   const [state, dispatch] = useReducer(reducer, undefined, () => createInitialState(new Date()));
   const { user, form, scheduled, mine } = state;
+  const formRef = useRef<HTMLDivElement>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // toast 在 reducer 里，这里只管计时清掉；连续弹时新消息顶掉旧的、重新计时
@@ -126,7 +135,7 @@ export function App() {
 
   const runAtLocal = toRunAtLocal(form.runDate, form.runTime);
   // D-09：这个运行时间已有活动任务就提示是谁占的，并拦住提交（数据来自 scheduled 列表）
-  const occupant = occupiedBy(scheduled, runAtLocal);
+  const occupant = occupiedBy(scheduled, runAtLocal, state.editingId);
   const courseId = northlandsCourseId(state.courses);
 
   const toast = (message: string) => dispatch({ type: "toast", message });
@@ -137,22 +146,39 @@ export function App() {
     if (!form.playDate) return toast(STRINGS.needPlayDate);
     if (form.timeEnd <= form.timeStart) return toast(STRINGS.needTimeOrder);
     if (!Number.isInteger(form.maxPrice) || form.maxPrice < 1 || form.maxPrice > 1000) return toast(STRINGS.needPrice);
+    const dto = {
+      courseId,
+      playDate: form.playDate,
+      runAtLocal,
+      timeStart: form.timeStart,
+      timeEnd: form.timeEnd,
+      players: form.players,
+      maxPrice: form.maxPrice,
+      sort: form.sort,
+    };
     try {
-      const created = await createBookingTask({
-        courseId,
-        playDate: form.playDate,
-        runAtLocal,
-        timeStart: form.timeStart,
-        timeEnd: form.timeEnd,
-        players: form.players,
-        maxPrice: form.maxPrice,
-        sort: form.sort,
-      });
-      dispatch({ type: "taskCreated", task: created });
-      toast(STRINGS.created);
+      if (state.editingId != null) {
+        const updated = await updateBookingTask(state.editingId, dto);
+        dispatch({ type: "taskUpdated", task: updated, now: new Date() });
+        toast(STRINGS.updated);
+      } else {
+        const created = await createBookingTask(dto);
+        dispatch({ type: "taskCreated", task: created });
+        toast(STRINGS.created);
+      }
       await refresh();
     } catch (error) {
       reportError(error);
+      // 任务已不能改（被领取 / 已结束 / 不存在 / 即将运行）：表单不能停在一条改不了的记录上，退出编辑态并刷新
+      if (
+        state.editingId != null && error instanceof ApiError &&
+        (error.code === "BOOKING_TASK_NOT_PENDING" || error.code === "BOOKING_TASK_NOT_FOUND" ||
+          error.code === "BOOKING_TASK_ABOUT_TO_RUN")
+      ) {
+        dispatch({ type: "editCancelled", now: new Date() });
+        await refresh();
+        return;
+      }
       // 列表加载之后别人抢先建了同一运行时间：重新拉列表，占用提示就能显示出占用者（D-09）。
       // 后端 409 的 message 只带任务号、不带邮箱，占用者一律从 scheduled 列表取（05-06）。
       if (error instanceof ApiError && error.code === "BOOKING_RUN_AT_TAKEN") await refresh();
@@ -164,14 +190,28 @@ export function App() {
     try {
       const cancelled = await cancelBookingTask(task.id);
       dispatch({ type: "taskCancelled", task: cancelled });
+      if (state.editingId === task.id) dispatch({ type: "editCancelled", now: new Date() });
       toast(STRINGS.cancelled);
       await refresh();
     } catch (error) {
       reportError(error);
       // 已被领取 / 已结束（BOOKING_TASK_NOT_PENDING）或已不存在：列表是旧的，重新拉
-      if (error instanceof ApiError && error.code?.startsWith("BOOKING_TASK_")) await refresh();
+      if (error instanceof ApiError && error.code?.startsWith("BOOKING_TASK_")) {
+        if (state.editingId === task.id) dispatch({ type: "editCancelled", now: new Date() });
+        await refresh();
+      }
     }
   };
+
+  // 手机上表单在列表上方或屏幕外：载入后滚到表单（与 config 页的 startEdit 同写法）
+  const startEdit = (task: BookingTaskDto) => {
+    dispatch({ type: "editStarted", task });
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  const cancelEdit = () => dispatch({ type: "editCancelled", now: new Date() });
+
+  // 管理员没有表单，不给 Edit（后端同样拒绝）
+  const onEdit = canCreate(user) ? startEdit : undefined;
 
   const change = (patch: BookingFormPatch) => dispatch({ type: "formChanged", patch });
 
@@ -214,9 +254,11 @@ export function App() {
         <div className="wa-body">
           {/* D-15：管理员看不到建任务表单 */}
           {canCreate(user) && (
-            <div className="wa-side">
+            <div className="wa-side" ref={formRef}>
               <div className="wa-form">
-                <div className="wa-form-title">{STRINGS.newTitle}</div>
+                <div className="wa-form-title">
+                  {state.editingId != null ? STRINGS.editTitle(state.editingId) : STRINGS.newTitle}
+                </div>
 
                 <div className="wa-field">
                   <div className="wa-label">{STRINGS.runDateLabel}</div>
@@ -306,8 +348,11 @@ export function App() {
 
                 <div className="wa-actions">
                   <button className="wa-submit" disabled={occupant != null} onClick={() => void submit()}>
-                    {STRINGS.createBtn}
+                    {state.editingId != null ? STRINGS.saveBtn : STRINGS.createBtn}
                   </button>
+                  {state.editingId != null && (
+                    <button className="wa-cancel" onClick={cancelEdit}>{STRINGS.cancelEditBtn}</button>
+                  )}
                 </div>
               </div>
             </div>
@@ -323,7 +368,9 @@ export function App() {
                 <div className="wa-empty">{STRINGS.loadingTasks}</div>
               ) : scheduled.length ? (
                 <div className="wa-cards">
-                  {scheduled.map((task) => <TaskCard key={task.id} task={task} withResult={false} />)}
+                  {scheduled.map((task) => (
+                    <TaskCard key={task.id} task={task} withResult={false} onEdit={onEdit} />
+                  ))}
                 </div>
               ) : (
                 <div className="wa-empty">{STRINGS.scheduledEmpty}</div>
@@ -338,7 +385,13 @@ export function App() {
               ) : mine.length ? (
                 <div className="wa-cards">
                   {mine.map((task) => (
-                    <TaskCard key={task.id} task={task} withResult onCancel={(target) => void cancel(target)} />
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      withResult
+                      onCancel={(target) => void cancel(target)}
+                      onEdit={onEdit}
+                    />
                   ))}
                 </div>
               ) : (

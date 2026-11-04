@@ -13,7 +13,7 @@ const task = (over: Partial<BookingTaskDto> = {}): BookingTaskDto => ({
   playDate: "2026-11-08", runAt: "2026-11-03T14:00:00Z", runAtLocal: "2026-11-03T07:00",
   timeStart: "08:00", timeEnd: "10:00", players: 2, maxPrice: 100, sort: "EARLIEST",
   status: "PENDING", resultDetail: null, createdAt: "2026-11-02T20:00:00Z", finishedAt: null,
-  creatorLoginEmail: "a@example.test", mine: false, cancellable: false, bookingAccountEmail: null,
+  creatorLoginEmail: "a@example.test", mine: false, cancellable: false, bookingAccountEmail: null, editable: false,
   ...over,
 });
 
@@ -202,11 +202,12 @@ describe("describeResult 结果说明", () => {
   });
 });
 
-describe("12 个 BOOKING_* 错误码文案", () => {
+describe("13 个 BOOKING_* 错误码文案", () => {
   const codes = [
     "BOOKING_NOT_ENABLED", "BOOKING_ADMIN_CANNOT_CREATE", "BOOKING_RUN_AT_TAKEN", "BOOKING_COURSE_UNSUPPORTED",
     "BOOKING_DATE_OUT_OF_WINDOW", "BOOKING_RUN_AT_INVALID", "BOOKING_TIME_INVALID", "BOOKING_PLAYERS_INVALID",
     "BOOKING_PRICE_INVALID", "BOOKING_SORT_INVALID", "BOOKING_TASK_NOT_FOUND", "BOOKING_TASK_NOT_PENDING",
+    "BOOKING_TASK_ABOUT_TO_RUN",
   ];
   it("每个码都有非空英文文案", () => {
     for (const code of codes) {

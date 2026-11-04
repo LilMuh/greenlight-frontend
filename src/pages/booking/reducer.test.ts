@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createInitialState, reducer, type BookingState } from "./reducer";
+import { createInitialState, defaultForm, reducer, type BookingState } from "./reducer";
 import type { BookingTaskDto, CourseDto, UserDto } from "../../api";
 
 // 测试数据只用 example.test 这类假域名，公开仓库里不放任何真实地址。
@@ -8,7 +8,7 @@ const task = (over: Partial<BookingTaskDto> = {}): BookingTaskDto => ({
   playDate: "2026-11-08", runAt: "2026-11-03T14:00:00Z", runAtLocal: "2026-11-03T07:00",
   timeStart: "08:00", timeEnd: "10:00", players: 2, maxPrice: 100, sort: "EARLIEST",
   status: "PENDING", resultDetail: null, createdAt: "2026-11-02T20:00:00Z", finishedAt: null,
-  creatorLoginEmail: "a@example.test", mine: true, cancellable: true, bookingAccountEmail: null,
+  creatorLoginEmail: "a@example.test", mine: true, cancellable: true, bookingAccountEmail: null, editable: true,
   ...over,
 });
 
@@ -132,5 +132,62 @@ describe("booking reducer", () => {
   it("formChanged：其它字段各自更新，不影响列表", () => {
     const state = reducer(fresh(), { type: "formChanged", patch: { players: 3, maxPrice: 120, sort: "CHEAPEST", timeStart: "09:00" } });
     expect(state.form).toMatchObject({ players: 3, maxPrice: 120, sort: "CHEAPEST", timeStart: "09:00" });
+  });
+  describe("编辑待执行任务", () => {
+    it("初始态 editingId 为 null", () => {
+      expect(fresh().editingId).toBeNull();
+    });
+
+    it("editStarted：载入任务到表单，打球日标记为手动选过", () => {
+      const target = task({
+        id: 7, runAtLocal: "2026-11-04T09:30", playDate: "2026-11-06", timeStart: "09:00", timeEnd: "11:00",
+        players: 3, maxPrice: 150, sort: "CHEAPEST",
+      });
+      const state = reducer(fresh(), { type: "editStarted", task: target });
+      expect(state.editingId).toBe(7);
+      expect(state.form).toEqual({
+        runDate: "2026-11-04", runTime: "09:30", playDate: "2026-11-06", playDateTouched: true,
+        timeStart: "09:00", timeEnd: "11:00", players: 3, maxPrice: 150, sort: "CHEAPEST",
+      });
+    });
+
+    it("editStarted 之后再改运行日，不会覆盖打球日", () => {
+      let state = reducer(fresh(), { type: "editStarted", task: task({ playDate: "2026-11-06" }) });
+      state = reducer(state, { type: "formChanged", patch: { runDate: "2026-11-20" } });
+      expect(state.form.playDate).toBe("2026-11-06");
+    });
+
+    it("runAtLocal 为 null 的任务不能编辑，状态原样不变", () => {
+      const before = fresh();
+      expect(reducer(before, { type: "editStarted", task: task({ runAtLocal: null }) })).toBe(before);
+    });
+
+    it("editCancelled：退出编辑态，表单回到缺省值", () => {
+      let state = reducer(fresh(), { type: "editStarted", task: task({ id: 7 }) });
+      state = reducer(state, { type: "editCancelled", now: NOW });
+      expect(state.editingId).toBeNull();
+      expect(state.form).toEqual(defaultForm(NOW));
+    });
+
+    it("taskUpdated：按 id 替换 mine 与 scheduled 的旧条目并重新排序，退出编辑态、表单复位", () => {
+      const early = task({ id: 1, runAt: "2026-11-04T14:00:00Z" });
+      const late = task({ id: 2, runAt: "2026-11-05T14:00:00Z" });
+      let state = reducer(fresh(), { type: "tasksLoaded", scheduled: [early, late], mine: [late, early] });
+      state = reducer(state, { type: "editStarted", task: early });
+      const moved = task({ id: 1, runAt: "2026-11-06T14:00:00Z", maxPrice: 90 });
+      state = reducer(state, { type: "taskUpdated", task: moved, now: NOW });
+      expect(state.scheduled.map((item) => item.id)).toEqual([2, 1]);
+      expect(state.scheduled[1].maxPrice).toBe(90);
+      expect(state.mine.map((item) => item.id)).toEqual([2, 1]);
+      expect(state.mine[1].maxPrice).toBe(90);
+      expect(state.editingId).toBeNull();
+      expect(state.form).toEqual(defaultForm(NOW));
+    });
+
+    it("signedOut 也清掉 editingId", () => {
+      let state = reducer(fresh(), { type: "editStarted", task: task({ id: 7 }) });
+      state = reducer(state, { type: "signedOut" });
+      expect(state.editingId).toBeNull();
+    });
   });
 });

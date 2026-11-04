@@ -125,6 +125,7 @@ export interface BookingTaskDto {
   mine: boolean;
   cancellable: boolean;
   bookingAccountEmail: string | null; // null = scraper 读不到，显示 Unknown，不猜
+  editable: boolean; // 后端算：PENDING、自己的、不是管理员、原定运行时间在锁定窗口外
 }
 
 /** GET /api/booking-tasks：scheduled = 所有人的 PENDING / RUNNING；mine = 自己的全部（管理员是所有人的）。 */
@@ -220,5 +221,8 @@ export const listBookingTasks = () => request<BookingTasksDto>("/api/booking-tas
 export const createBookingTask = (dto: BookingTaskCreateDto) =>
   request<BookingTaskDto>("/api/booking-tasks", jsonBody(dto));
 // 取消：任务记录保留、状态改 CANCELLED（不是 DELETE）
+// 修改待执行任务：请求体与新建相同，规则全在后端；返回修改后的记录。
+export const updateBookingTask = (id: number, dto: BookingTaskCreateDto) =>
+  request<BookingTaskDto>(`/api/booking-tasks/${id}`, { ...jsonBody(dto), method: "PUT" });
 export const cancelBookingTask = (id: number) =>
   request<BookingTaskDto>(`/api/booking-tasks/${id}/cancel`, { method: "POST" });

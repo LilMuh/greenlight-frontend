@@ -98,7 +98,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   MAIL_SEND_FAILED: "The email couldn't be sent — check the mail settings and your alert address.",
   // 自动订场（跨仓库契约：与后端 ApiErrorCode 的 BOOKING_* 同名，后端只追加不改名，05-06）
   BOOKING_NOT_ENABLED: "Auto booking isn't enabled for your account.",
-  BOOKING_ADMIN_CANNOT_CREATE: "Admins can view and cancel booking tasks but can't create them.",
+  BOOKING_ADMIN_CANNOT_CREATE: "Admins can view and cancel booking tasks but can't create or edit them.",
   BOOKING_RUN_AT_TAKEN: "That run time is already taken — see Scheduled for who has it.",
   BOOKING_COURSE_UNSUPPORTED: "Auto booking isn't available for that course.",
   BOOKING_DATE_OUT_OF_WINDOW: "That play date can't be booked at that run time — a day opens at 07:00, five days ahead.",
@@ -108,7 +108,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
   BOOKING_PRICE_INVALID: "Max price must be a whole number from 1 to 1000.",
   BOOKING_SORT_INVALID: "Pick either Earliest or Cheapest.",
   BOOKING_TASK_NOT_FOUND: "That booking task is gone — reload the page.",
-  BOOKING_TASK_NOT_PENDING: "That task has already started or finished, so it can't be cancelled.",
+  BOOKING_TASK_NOT_PENDING: "That task has already started or finished, so it can't be changed or cancelled.",
+  BOOKING_TASK_ABOUT_TO_RUN: "That task is about to run, so it can no longer be edited.",
   // 请求本身不合法。人改不了这些，但话得说得不一样：让人知道该找谁
   UNAUTHORIZED: "Your session has ended — please sign in again.",
   FORBIDDEN: "Only admins can do that.",

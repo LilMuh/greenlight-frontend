@@ -13,11 +13,13 @@ export const STRINGS = {
   sortLabel: "Pick the", sortEarliest: "Earliest", sortCheapest: "Cheapest",
   siteZoneNote: "Times are Northlands local time (Vancouver).",
   createBtn: "Schedule Booking",
+  editBtn: "Edit", editTitle: (id: number) => `Edit task #${id}`,
+  saveBtn: "Save changes", cancelEditBtn: "Cancel edit",
   needPlayDate: "Pick a play date.", needRunDate: "Pick a run date.",
   needTimeOrder: "End time must be later than start time.",
   needPrice: "Max price must be a whole number from 1 to 1000.",
   needCourse: "Northlands isn't available right now — reload the page.",
-  created: "Booking task scheduled.", cancelled: "Booking task cancelled.",
+  created: "Booking task scheduled.", updated: "Booking task updated.", cancelled: "Booking task cancelled.",
   // D-09 / D-16：谁占了这个运行时间（创建者的完整登录邮箱 + 任务号）
   occupied: (email: string, id: number) =>
     `That run time is already taken by ${email} (task #${id}).`,
