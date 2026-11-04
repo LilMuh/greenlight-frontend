@@ -3,8 +3,9 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
 
-// 三个页面 = 三个构建入口（MPA），页间跳转保持整页 <a href>。
-// base 用相对路径：GitHub Pages 挂在 /greenlight-frontend/ 子路径下，不硬编码仓库名。
+// 三个页面对应三个构建入口（MPA）。页面之间用整页 <a href> 跳转。
+// base 用相对路径，不硬编码仓库名。
+// 原因：GitHub Pages 把站点挂在 /greenlight-frontend/ 子路径下。
 export default defineConfig({
   base: "./",
   plugins: [react()],

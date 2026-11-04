@@ -28,13 +28,15 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      # 后端地址和 Google OAuth Client ID 都不进源码，构建期由 Vite 内联进产物。
-      # Client ID 本来就是公开的（会出现在登录页里），所以放 vars 不放 secrets；不设则只能用邮箱验证码登录。
+      # 后端地址和 Google OAuth Client ID 都不写进源码。Vite 在构建期把它们内联进产物。
+      # Client ID 本来就是公开的（会出现在登录页里），因此放 vars，不放 secrets。
+      # 不设置 Client ID 时，只能用邮箱验证码登录。
       - run: npm run build
         env:
           VITE_API_BASE: ${{ vars.API_BASE }}
           VITE_GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
-      # 环境变量没注入时产物里会带着 localhost 兜底值——部署前抓出来，别让它上线
+      # 环境变量没注入时，产物里会带着 localhost 默认值。
+      # 本步骤在部署前查出这种产物，并让部署失败。
       - name: Fail if API_BASE was not injected
         run: |
           if grep -r "localhost:8080" dist; then

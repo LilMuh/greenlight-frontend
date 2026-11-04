@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-// Google Identity Services 只用到这么一点，不值得装类型包
+// 这里只用到 Google Identity Services 的一小部分，因此不安装类型包
 interface GoogleIdentity {
   accounts: {
     id: {
@@ -20,7 +20,7 @@ const SCRIPT_URL = "https://accounts.google.com/gsi/client";
 
 let scriptPromise: Promise<GoogleIdentity> | null = null;
 
-// 脚本全页只加载一次；加载失败允许下次重试
+// 脚本在整个页面只加载一次。加载失败时，允许下次重试
 function loadGoogle(): Promise<GoogleIdentity> {
   if (window.google) return Promise.resolve(window.google);
   scriptPromise ??= new Promise((resolve, reject) => {
@@ -39,10 +39,10 @@ function loadGoogle(): Promise<GoogleIdentity> {
 
 export const googleSignInEnabled = CLIENT_ID !== "";
 
-// Google 官方渲染的登录按钮。拿到的 credential 就是要交给后端校验的 ID Token。
+// Google 官方渲染的登录按钮。按钮返回的 credential 就是交给后端校验的 ID Token。
 export function GoogleButton({ onCredential }: { onCredential: (idToken: string) => void }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  // callback 在 initialize 时就固定了，用 ref 拿最新的处理函数
+  // callback 在 initialize 时就固定了，因此用 ref 取最新的处理函数
   const handlerRef = useRef(onCredential);
   handlerRef.current = onCredential;
 
@@ -61,7 +61,7 @@ export function GoogleButton({ onCredential }: { onCredential: (idToken: string)
         });
       })
       .catch(() => {
-        // 脚本被拦（广告拦截、网络）就只剩验证码登录，不打断页面
+        // 脚本被拦截（广告拦截、网络问题）时，只能用验证码登录。不打断页面
       });
     return () => {
       cancelled = true;

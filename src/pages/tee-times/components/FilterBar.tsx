@@ -15,15 +15,17 @@ interface Props {
   onSort: (sort: SortBy) => void;
 }
 
-// 筛选区：一行「Filters 按钮 + 生效筛选摘要 + 结果计数」，展开后是球场勾选/价格档/排序面板。
+// 筛选区。收起时是一行：Filters 按钮、生效筛选摘要和结果计数。
+// 展开后是面板：球场勾选、价格档和排序。
 export function FilterBar(props: Props) {
   const { courses, excludedCourseIds, priceBucket, sortBy, filterOpen, countText } = props;
 
-  // 面板收起时用户看不到自己选了什么，所以把生效的筛选摘成 chips 放在按钮旁边，
-  // 数量同时当作按钮上的角标。默认值（Any / Earliest time / 球场全选）不算生效。
+  // 面板收起时，用户看不到自己选了什么。因此把生效的筛选做成 chips，放在按钮旁边。
+  // chips 的数量同时作为按钮上的角标。默认值（Any / Earliest time / 球场全选）不算生效。
   const summaryChips: string[] = [];
   if (priceBucket !== "all") summaryChips.push(STRINGS.prices[priceBucket]);
-  // 维护中的球场不算分母：不然页面一打开就挂着「8 of 10 courses」，像用户自己筛过
+  // 维护中的球场不计入分母。
+  // 原因：否则页面一打开就显示「8 of 10 courses」，看起来像用户自己筛过
   const selectableCourses = courses.filter((course) => !course.maintenance);
   const includedCourseCount = selectableCourses.filter(
     (course) => !excludedCourseIds.includes(course.id),

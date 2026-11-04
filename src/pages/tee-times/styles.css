@@ -1,5 +1,5 @@
-      /* --- Tee-time search page: self-contained styling from the imported design.
-         Mirrors config.html's approach so both pages share a look without a build step. --- */
+      /* --- Tee-time search page: self-contained styles from the imported design.
+         This file uses the same approach as config.html, so both pages look the same without a build step. --- */
       .tt {
         --green: oklch(58% 0.12 150);
         --green-d: oklch(50% 0.12 150);
@@ -280,7 +280,7 @@
         align-items: flex-start;
         gap: 6px;
       }
-      /* Sort reuses the price chip, squared off and full-width in its column */
+      /* The sort options use the price chip style, with square corners and the full width of the column */
       .tt-sorts .tt-chip-btn {
         width: 100%;
         text-align: left;
@@ -316,7 +316,7 @@
         border: 1px solid var(--green);
       }
 
-      /* Body layout: results run full width now that filters live in the toolbar */
+      /* Body layout: results use the full width, because the filters are in the toolbar */
       .tt-body {
         flex: 1;
         display: flex;
@@ -366,13 +366,13 @@
       .tt-course.is-on .tt-course-name {
         color: var(--ink);
       }
-      /* 维护中：上游抓不动，时段已经停更。默认就被排除，点也点不开，
-         所以整行压淡 + 一个说明用的小标，而不是留个看起来能勾的复选框。 */
+      /* 维护中的球场默认排除，也不能点开。原因：上游抓取不了，时段已经停止更新。
+         因此整行调淡，并加一个说明用的小标。不要显示一个看起来能勾选的复选框。 */
       .tt-course.is-maintenance {
         cursor: not-allowed;
         opacity: 0.45;
-        /* 徽章和球场名抢这一列的宽度时，让徽章换到下一行，别把名字挤成
-           「Burnaby / Mountain / Golf / Course」四行 */
+        /* 徽章和球场名争用这一列的宽度时，让徽章换到下一行。
+           这样球场名不会被挤成「Burnaby / Mountain / Golf / Course」四行 */
         flex-wrap: wrap;
       }
       .tt-course.is-maintenance .tt-course-name {
@@ -417,8 +417,9 @@
         flex-direction: column;
         gap: 16px;
       }
-      /* 切日期时新数据还没到，列表留在原地调淡。pointer-events 关掉是因为这批卡片
-         已经是上一天的了，此刻 Book 链接拼的却是新日期，点进去两边对不上。 */
+      /* 切换日期后、新数据到达前，列表留在原地并调淡。
+         同时关闭 pointer-events。原因：这批卡片属于上一天，
+         但 Book 链接已经按新日期拼接。点进去后，日期对不上。 */
       .tt-cards.is-loading {
         opacity: 0.55;
         pointer-events: none;
@@ -438,7 +439,7 @@
         align-items: center;
         gap: 16px;
       }
-      /* 照片跟着视口缩，窄屏不再占掉半行 */
+      /* 照片随视口缩小。窄屏上照片不再占半行 */
       .tt-photo {
         width: clamp(52px, 14vw, 96px);
         height: clamp(52px, 14vw, 96px);
@@ -474,14 +475,14 @@
         font-size: 16px;
         font-weight: 700;
       }
-      /* 球场名下面的两行副信息（Google Maps 数据）。任一为空时 JS 不渲染，
-         .tt-card-info 的 gap 自动收拢，不会留下空隙 */
+      /* 球场名下面的两行副信息（Google Maps 数据）。任一项为空时，JS 不渲染它。
+         .tt-card-info 的 gap 随之收拢，不会留下空隙 */
       .tt-card-rating {
         font-size: 12px;
         color: oklch(52% 0.012 95);
       }
-      /* 地址已经在 JS 里截成「街道 + 城市」两段，仍可能超宽（长街名），再兜一层
-         省略号。能生效是因为 .tt-card-info 上有 min-width: 0 */
+      /* JS 已经把地址截成「街道 + 城市」两段。长街名仍可能超宽，因此这里再加一层省略号。
+         它能生效，是因为 .tt-card-info 上有 min-width: 0 */
       .tt-card-address {
         font-size: 12px;
         color: oklch(52% 0.012 95);
@@ -503,7 +504,7 @@
         cursor: pointer;
         font-family: inherit;
       }
-      /* 能拼出预订链接时 Book 渲染成 <a>，得盖掉上面 .tt a / .tt a:hover 的绿色文字 */
+      /* 能拼出预订链接时，Book 渲染成 <a>。这里要覆盖上面 .tt a / .tt a:hover 的绿色文字 */
       .tt a.tt-book,
       .tt a.tt-book:hover {
         color: #fff;
@@ -584,23 +585,23 @@
           padding-left: 16px;
           padding-right: 16px;
         }
-        /* 数量文字在窄屏会被 chips 挤到下一行，靠右贴边不好看 */
+        /* 窄屏上，chips 会把数量文字挤到下一行。这时取消靠右对齐。原因：换行后靠右贴边不好看 */
         .tt-count {
           margin-left: 0;
         }
       }
 
-      /* 手机宽度：地址只留街道那段，城市名让位给球场名 */
+      /* 手机宽度：地址只保留街道段，把空间留给球场名 */
       @media (max-width: 560px) {
         .tt-addr-city {
           display: none;
         }
       }
 
-/* --- 以下为迁移后追加的样式；上面的整块是从旧 index.html 原样搬运的，保持不动 --- */
+/* --- 以下是迁移后追加的样式。上面整块从旧 index.html 原样搬来，不要改动 --- */
 
-/* 时段行翻页箭头：横向滚动条在电脑上难用（滚轮不管横向、内容不能拖），
-   翻页入口换成 ‹ ›，那根细滚动条藏掉。手机的触摸横滑不受影响。 */
+/* 时段行翻页箭头：翻页入口改成 ‹ ›，并隐藏那根细滚动条。手机的触摸横滑不受影响。
+   原因：横向滚动条在电脑上不好用（滚轮不能横向滚动，内容也不能拖动）。 */
       .tt-tees-wrap {
         position: relative;
       }
@@ -641,8 +642,10 @@
         right: -8px;
       }
 
-/* 手机端紧凑化：header 藏 tagline 争取一行放下、日期胶囊/时段 chip/照片各收一点。
-   箭头顺带放大到 34px——触摸目标本来就该比鼠标目标大。 */
+/* 手机端紧凑化：
+   - header 隐藏 tagline，尽量放进一行。
+   - 日期胶囊、时段 chip 和照片各缩小一点。
+   - 箭头放大到 34px。原因：触摸目标本来就应该比鼠标目标大。 */
       @media (max-width: 560px) {
         .tt-header {
           padding: 10px 16px;

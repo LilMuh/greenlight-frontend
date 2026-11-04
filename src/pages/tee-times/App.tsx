@@ -1,5 +1,5 @@
-// 时段查询页。数据只来自后端：连不上就显示空态 + 离线提示，绝不编数据。
-// 所有筛选/排序都在浏览器端做。
+// 时段查询页。数据只来自后端。连不上时显示空态和离线提示，不要编造数据。
+// 所有筛选和排序都在浏览器端完成。
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { getCourses, getHealth, getTeeTimes } from "../../api";
 import { STRINGS } from "./strings";
@@ -15,14 +15,14 @@ export function App() {
   const [toast, setToast] = useState("");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  // 弹一条会自动消失的提示；连续弹时新消息顶掉旧的、重新计时
+  // 弹出一条会自动消失的提示。连续弹出时，新消息替换旧消息，并重新计时
   const showToast = useCallback((message: string, durationMs = 2200) => {
     setToast(message);
     clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(""), durationMs);
   }, []);
 
-  // 拉选中那天的时段并写进 state。成功返回 null，失败返回一句给人看的原因。
+  // 取选中那天的时段，并写进 state。成功时返回 null，失败时返回一句给用户看的原因。
   const loadDay = useCallback(async (iso: string): Promise<string | null> => {
     dispatch({ type: "loadStart" });
     try {
@@ -35,8 +35,12 @@ export function App() {
     }
   }, []);
 
-  // 页面打开时跑一次：健康检查（尽力而为）→ 球场清单 → 第一天的时段 → 失败则 toast。
-  // 只记第一个失败原因：后面几个请求多半是同一根因的连锁反应。
+  // 页面打开时运行一次，依次执行：
+  // 1. 健康检查（尽力而为）。
+  // 2. 取球场清单。
+  // 3. 取第一天的时段。
+  // 4. 有失败时弹出 toast。
+  // 只记录第一个失败原因。原因：后面几个请求的失败多半来自同一个根因。
   useEffect(() => {
     const firstIso = state.dates[0].iso;
     let firstReason: string | null = null;
@@ -45,7 +49,7 @@ export function App() {
     };
     (async () => {
       try {
-        await getHealth(); // 健康检查是尽力而为，失败只记一笔，不拦后面的请求
+        await getHealth(); // 健康检查是尽力而为。失败时只记录原因，不阻止后面的请求
       } catch (error) {
         dispatch({ type: "failure" });
         note(classifyFailure(error));
@@ -60,18 +64,18 @@ export function App() {
       note(await loadDay(firstIso));
       if (firstReason) showToast(firstReason, 2600);
     })();
-    // 只在挂载时跑一遍；dates 挂载后不再变化
+    // 只在挂载时运行一次。dates 挂载后不再变化
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 点日期条：切换选中日并拉那天的数据
+  // 点击日期条：切换选中日，并取那天的数据
   const handleSelectDate = (index: number) => {
     dispatch({ type: "date", index });
     void loadDay(state.dates[index].iso);
   };
 
   const handleToggleCourse = (course: CourseView) => {
-    // 维护中的球场点不动，并说明原因
+    // 维护中的球场不能切换，并提示原因
     if (course.maintenance) {
       showToast(STRINGS.maintenanceToast);
       return;
@@ -123,7 +127,8 @@ export function App() {
 
       <div className="tt-body">
         {cards.length > 0 ? (
-          // 加载中不清空列表、只把旧卡片调淡：避免切日期时闪白屏；只有首次加载才留空
+          // 加载中不清空列表，只把旧卡片调淡。原因：切换日期时不闪白屏。
+          // 只有首次加载时列表为空
           <div className={`tt-cards${state.loading ? " is-loading" : ""}`}>
             {cards.map((card) => (
               <CourseCard

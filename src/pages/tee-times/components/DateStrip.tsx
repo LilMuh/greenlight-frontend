@@ -1,6 +1,6 @@
 import { STRINGS } from "../strings";
 
-// 顶部日期条：今天 + 后 7 天，点一格切换查询日。
+// 顶部日期条：今天加后 7 天。点击一格切换查询日。
 interface Props {
   dates: { date: Date; iso: string }[];
   selectedIndex: number;

@@ -2,7 +2,7 @@ import { PRICE_MAX, PRICE_MIN, STRINGS, WEEKDAYS } from "../strings";
 import { foreignOwnerEmail, formatClock, minuteOptions, parseClock, type CourseRef } from "../logic";
 import type { State } from "../reducer";
 
-// 时间选择器：24 小时制的时 + 分两个下拉（不用 <input type="time"> 的原因见 logic.ts）。
+// 时间选择器：24 小时制，时和分各一个下拉框。不用 <input type="time"> 的原因见 logic.ts。
 function TimePicker({ value24, onChange }: { value24: string; onChange: (value: string) => void }) {
   const { hour, minute } = parseClock(value24);
   return (
@@ -31,9 +31,9 @@ function TimePicker({ value24, onChange }: { value24: string; onChange: (value: 
 }
 
 interface Props {
-  formRef?: React.Ref<HTMLDivElement>; // App 的「Edit 时滚动到表单」需要拿到 .wa-form 节点
+  formRef?: React.Ref<HTMLDivElement>; // App 在 Edit 时滚动到表单，需要 .wa-form 节点
   state: State;
-  onToggleCourse: (course: CourseRef) => void; // 编辑锁/维护拦截在 App 层统一弹 toast
+  onToggleCourse: (course: CourseRef) => void; // 编辑锁和维护拦截的 toast 统一在 App 层弹出
   onWeekday: (code: string) => void;
   onPlayers: (count: number) => void;
   onPrice: (value: number) => void;
@@ -42,12 +42,12 @@ interface Props {
   onCancel: () => void;
 }
 
-// 左栏整个表单：球场多选、星期、时间窗、人数、价格上限、邮箱，新建/编辑共用。
+// 左栏的整个表单，新建和编辑共用。字段：球场多选、星期、时间窗、人数、价格上限、邮箱。
 export function WatchForm(props: Props) {
   const { state } = props;
-  // 编辑态球场是锁死的（换球场等于换成另一条 watch），整块置灰，选中的那个照常高亮
+  // 编辑时球场被锁定（换球场等于换成另一条 watch）。整块置灰，选中的球场照常高亮
   const coursesLocked = state.editingId != null;
-  // 管理员改的是别人的 watch 时，标题写明是谁的
+  // 管理员改的是别人的 watch 时，标题写明主人
   const otherOwner = state.user
     ? foreignOwnerEmail(state.watches.find((watch) => watch.id === state.editingId), state.user.id)
     : null;
@@ -64,7 +64,7 @@ export function WatchForm(props: Props) {
         <div>
           {state.courses.map((course) => {
             const isSelected = state.formCourses.includes(course.id);
-            // 维护中的球场也置灰点不动；和编辑锁语义不同，class 分开
+            // 维护中的球场也置灰，不能点击。它和编辑锁的语义不同，因此用不同的 class
             const isMaintenance = course.maintenance === true;
             return (
               <div
@@ -124,7 +124,7 @@ export function WatchForm(props: Props) {
       <div className="wa-field">
         <div className="wa-price-head">
           <span>{STRINGS.maxPriceLabel}</span>
-          {/* 数字跟着滑块实时变：它和滑块读的是同一个 state，天然一致 */}
+          {/* 数字随滑块实时变化。原因：数字和滑块读同一个 state，因此始终一致 */}
           <span className="wa-price-val">${state.formMaxPrice}</span>
         </div>
         <input
@@ -138,8 +138,9 @@ export function WatchForm(props: Props) {
         />
       </div>
 
-      {/* 提醒发到账号的通知邮箱，在「Account」里改。
-          管理员改别人的 watch 时不显示：那条发到主人自己的通知邮箱，这里只知道他的登录邮箱，宁可不写也别写错 */}
+      {/* 提醒发到账号的通知邮箱，在「Account」里修改。
+          管理员改别人的 watch 时，不显示这一项。原因：那条 watch 的提醒发到主人自己的通知邮箱，
+          但这里只知道主人的登录邮箱。不写比写错好 */}
       {state.user && !otherOwner && (
         <div className="wa-field">
           <div className="wa-label">{STRINGS.emailLabel}</div>

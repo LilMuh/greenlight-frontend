@@ -1,5 +1,7 @@
-// 会话令牌的存取。存 localStorage：前后端不同站，第三方 Cookie 会被浏览器拦掉。
-// 隐私模式等场景 localStorage 可能直接抛错，所以每次读写都兜住，拿不到就当没登录。
+// 会话令牌的存取。令牌存在 localStorage。
+// 原因：前后端不在同一站点，浏览器会拦截第三方 Cookie。
+// 隐私模式等场景下，localStorage 可能直接抛错。
+// 因此每次读写都捕获异常。读不到令牌时，当作未登录。
 const TOKEN_KEY = "greenlight.session";
 
 export function getToken(): string | null {
@@ -14,7 +16,7 @@ export function setToken(token: string): void {
   try {
     localStorage.setItem(TOKEN_KEY, token);
   } catch {
-    // 存不下就只在本页有效，刷新后要重新登录
+    // 存不进去时，令牌只在当前页面有效。刷新后要重新登录
   }
 }
 

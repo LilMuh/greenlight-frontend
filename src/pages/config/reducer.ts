@@ -9,11 +9,11 @@ import {
 
 export interface State {
   offline: boolean;
-  user: UserDto | null | undefined; // undefined = 还在确认登录态；null = 没登录
+  user: UserDto | null | undefined; // undefined 表示还在确认是否已登录。null 表示未登录
   courses: CourseRef[];
   watches: WatchView[];
   hitsByWatchId: Record<number, number>; // 来自 /api/matches
-  // 展开的卡片 id（按 id 记而不是只记一个，允许同时展开多条对比）
+  // 展开的卡片 id 列表。按 id 记录多条，不只记一条。这样用户能同时展开多条来对比
   expandedWatchIds: number[];
   formCourses: number[]; // selected course ids (numbers)
   formWeekdays: string[]; // selected weekday codes, e.g. ["SAT","SUN"]
@@ -33,7 +33,7 @@ export function createInitialState(): State {
     hitsByWatchId: {},
     expandedWatchIds: [],
     formCourses: [],
-    formWeekdays: [], // 星期不给默认值：勾哪几天是这条 watch 最要紧的决定，替人预设只会被将错就错地提交
+    formWeekdays: [], // 星期不给默认值。原因：选哪几天是这条 watch 最重要的决定。预设值容易被用户不加检查地提交
     formTimeStart: TIME_START_DEFAULT,
     formTimeEnd: TIME_END_DEFAULT,
     formPlayers: PLAYERS_DEFAULT,
@@ -42,7 +42,7 @@ export function createInitialState(): State {
   };
 }
 
-// 表单回到「新建」的默认态（编辑锁一并解除）。
+// 表单回到「新建」的默认状态，同时解除编辑锁。
 function withFormReset(state: State): State {
   return {
     ...state,
@@ -56,8 +56,8 @@ function withFormReset(state: State): State {
   };
 }
 
-// 整页唯一的状态机：一个交互 = 一个 action，reducer 收到后算出下一份 state。
-// 副作用（请求、toast、滚动到表单）都在 App 层；这里只有纯状态变更。
+// 整页唯一的状态机：一个交互对应一个 action。reducer 收到 action 后算出下一份 state。
+// 副作用（请求、toast、滚动到表单）都在 App 层。这里只有纯状态变更。
 export type Action =
   | { type: "coursesLoaded"; courses: CourseDto[] }
   | { type: "watchesLoaded"; watches: WatchConfigDto[] }
@@ -66,7 +66,7 @@ export type Action =
   | { type: "signedIn"; user: UserDto }
   | { type: "signedOut" }
   | { type: "userUpdated"; user: UserDto }
-  | { type: "course"; id: number } // 编辑锁/维护拦截在组件层
+  | { type: "course"; id: number } // 编辑锁和维护拦截在组件层处理
   | { type: "weekday"; code: string }
   | { type: "players"; count: number }
   | { type: "price"; value: number }
@@ -95,7 +95,8 @@ export function reducer(state: State, action: Action): State {
     case "userUpdated":
       return { ...state, user: action.user };
     case "signedOut":
-      // 上一个人的 watch 和表单一样不留：同一台电脑换人登录不能看到前一个人的东西
+      // 清空上一个用户的 watch 和表单。
+      // 原因：同一台电脑换人登录时，新用户不能看到前一个用户的数据
       return withFormReset({ ...state, user: null, watches: [], hitsByWatchId: {}, expandedWatchIds: [] });
     case "course":
       return {
@@ -105,7 +106,7 @@ export function reducer(state: State, action: Action): State {
           : [...state.formCourses, action.id],
       };
     case "weekday":
-      // 星期是多选：勾中的再点一次取消
+      // 星期是多选：再点一次已选的星期，取消选择
       return {
         ...state,
         formWeekdays: state.formWeekdays.includes(action.code)
@@ -144,7 +145,7 @@ export function reducer(state: State, action: Action): State {
     case "cancel":
       return withFormReset(state);
     case "created":
-      // 批量创建：后端逐球场建一条，返回数组，前插到列表
+      // 批量创建：后端为每个球场建一条 watch 并返回数组。新记录插到列表前面
       return withFormReset({
         ...state,
         watches: [...action.watches.map((record) => normalizeWatch(record, state.courses)), ...state.watches],
@@ -158,11 +159,11 @@ export function reducer(state: State, action: Action): State {
       });
     case "deleted": {
       const next = { ...state, watches: state.watches.filter((watch) => watch.id !== action.id) };
-      // 正在编辑的那条被删了，表单不能停在一条不存在的记录上
+      // 正在编辑的 watch 被删除时，重置表单。表单不能停留在一条不存在的记录上
       return state.editingId === action.id ? withFormReset(next) : next;
     }
     case "setWatchActive":
-      // 乐观更新与失败回滚共用：都只是把某条的 active 写成指定值
+      // 乐观更新和失败回滚共用这个 action：两者都只是把某条 watch 的 active 设为指定值
       return {
         ...state,
         watches: state.watches.map((watch) =>
