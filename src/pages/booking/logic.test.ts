@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   accountLabel, addDays, canCreate, canSeeBooking, defaultPlayDate, defaultRunAt, describeResult,
-  northlandsCourseId, occupiedBy, siteToday, toRunAtLocal,
+  northlandsCourseId, occupiedBy, playLineText, runLineText, runParts, siteToday, toRunAtLocal, weekdayShort,
 } from "./logic";
 import { STRINGS } from "./strings";
 import { ERROR_MESSAGES } from "../config/strings";
@@ -44,6 +44,35 @@ describe("站点日期与缺省运行时间", () => {
   });
 });
 
+describe("星期与卡片两行时间", () => {
+  it("weekdayShort 按纯日历日算星期", () => {
+    expect(weekdayShort("2026-11-03")).toBe("Tue");
+    expect(weekdayShort("2026-11-05")).toBe("Thu");
+    expect(weekdayShort("2026-11-08")).toBe("Sun");
+    expect(weekdayShort("2026-03-01")).toBe("Sun");
+    expect(weekdayShort("2028-02-29")).toBe("Tue");
+  });
+  it("weekdayShort 输入不是 yyyy-MM-dd 时返回 null", () => {
+    expect(weekdayShort("bad")).toBeNull();
+    expect(weekdayShort("")).toBeNull();
+    expect(weekdayShort("2026-1-3")).toBeNull();
+  });
+  it("runParts 拆出日期和时刻，null 或格式不对返回 null", () => {
+    expect(runParts("2026-11-03T07:00")).toEqual({ date: "2026-11-03", time: "07:00" });
+    expect(runParts(null)).toBeNull();
+    expect(runParts("2026-11-03 07:00")).toBeNull();
+  });
+  it("runLineText 是「星期 日期 时刻」", () => {
+    expect(runLineText(task())).toBe("Tue 2026-11-03 07:00");
+  });
+  it("runAtLocal 为 null 时运行行原样显示 runAt，不猜星期", () => {
+    expect(runLineText(task({ runAtLocal: null }))).toBe("2026-11-03T14:00:00Z");
+  });
+  it("playLineText 是「星期 日期 · 起–止」", () => {
+    expect(playLineText(task())).toBe("Sun 2026-11-08 · 08:00–10:00");
+  });
+});
+
 describe("占用提示", () => {
   it("只认 PENDING / RUNNING 且 runAtLocal 逐字相等", () => {
     const list = [
@@ -58,6 +87,12 @@ describe("占用提示", () => {
     expect(occupiedBy(list, "2026-11-03T07:15")).toBeNull();
     expect(occupiedBy(list, "2026-11-03T07:01")).toBeNull(); // 差一分钟不算
     expect(occupiedBy([], "2026-11-03T07:00")).toBeNull();
+  });
+  it("excludeId 跳过正在编辑的那条，不传时行为不变", () => {
+    const list = [task({ id: 1, runAtLocal: "2026-11-03T07:00", status: "PENDING" })];
+    expect(occupiedBy(list, "2026-11-03T07:00", 1)).toBeNull();
+    expect(occupiedBy(list, "2026-11-03T07:00", 2)?.id).toBe(1);
+    expect(occupiedBy(list, "2026-11-03T07:00", null)?.id).toBe(1);
   });
   it("站点没有放号规则时 runAtLocal 为 null，不会误占", () => {
     expect(occupiedBy([task({ runAtLocal: null })], "2026-11-03T07:00")).toBeNull();

@@ -50,12 +50,56 @@ export function toRunAtLocal(date: string, time: string): string {
  * D-09：同一个运行时间只能有一个活动任务。返回占着 runAtLocal 的 PENDING / RUNNING 任务，没有则 null。
  * 占用者一律从 scheduled 列表里找——后端 409 的 message 只带任务号，不带邮箱（05-06）。
  */
-export function occupiedBy(scheduled: BookingTaskDto[], runAtLocal: string): BookingTaskDto | null {
+export function occupiedBy(
+  scheduled: BookingTaskDto[],
+  runAtLocal: string,
+  excludeId: number | null = null,
+): BookingTaskDto | null {
   return (
     scheduled.find(
-      (task) => (task.status === "PENDING" || task.status === "RUNNING") && task.runAtLocal === runAtLocal,
+      (task) =>
+        // 编辑中的任务自己不算占用，后端 requireRunAtFree 同样排除自己
+        task.id !== excludeId &&
+        (task.status === "PENDING" || task.status === "RUNNING") &&
+        task.runAtLocal === runAtLocal,
     ) ?? null
   );
+}
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+/**
+ * yyyy-MM-dd 的短星期（Sun..Sat），格式不对返回 null。
+ * 纯日历日：用 Date.UTC + getUTCDay，和浏览器时区无关，与 addDays 同理（研究 Pitfall 11）。
+ * 不用 Intl / toLocale*：结果会随语言环境变。
+ */
+export function weekdayShort(isoDate: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return null;
+  const [year, month, day] = isoDate.split("-").map(Number);
+  return WEEKDAYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
+}
+
+/** 拆开站点本地的 yyyy-MM-ddTHH:mm；null 或格式不对返回 null。 */
+export function runParts(runAtLocal: string | null): { date: string; time: string } | null {
+  const match = runAtLocal ? /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/.exec(runAtLocal) : null;
+  return match ? { date: match[1], time: match[2] } : null;
+}
+
+// 星期拿不到就省略，不猜
+const withWeekday = (date: string, rest: string): string => {
+  const weekday = weekdayShort(date);
+  return `${weekday ? `${weekday} ` : ""}${date}${rest}`;
+};
+
+/** 运行行：「Tue 2026-11-03 07:00」。没有站点本地时间就原样显示 runAt。 */
+export function runLineText(task: Pick<BookingTaskDto, "runAtLocal" | "runAt">): string {
+  const parts = runParts(task.runAtLocal);
+  return parts ? withWeekday(parts.date, ` ${parts.time}`) : task.runAt;
+}
+
+/** 打球行：「Thu 2026-11-05 · 07:00–10:00」。 */
+export function playLineText(task: Pick<BookingTaskDto, "playDate" | "timeStart" | "timeEnd">): string {
+  return withWeekday(task.playDate, ` · ${task.timeStart}–${task.timeEnd}`);
 }
 
 /** Northlands 的球场 id：按 slug 找，不写死数字 id（库里的 id 由序列分配）。 */

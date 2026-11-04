@@ -1,4 +1,5 @@
-/* Auto Booking 页：wa-* 类名与配色来自 ../config/styles.css（main.tsx 里先引入了它），这里只补本页独有的。 */
+/* Auto Booking 页：wa-* 类名与配色来自 ../config/styles.css（main.tsx 里先引入了它），这里只补本页独有的。
+   config 页样式没有暗色块（.wa 设了 color-scheme: light），所以这里不做暗色变体。 */
 .wa-bk-occupied {
   padding: 10px 12px;
   border-radius: 8px;
@@ -52,4 +53,36 @@
 }
 .wa-bk-section + .wa-bk-section {
   margin-top: 12px;
+}
+
+/* 卡片里的两行时间：运行行（蓝）与打球行（绿）分开，靠颜色区分；窄屏自动换行 */
+.wa-bk-when {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border-left: 3px solid var(--when-ink);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--when-ink);
+  background: color-mix(in oklch, var(--when-ink) 8%, #fff);
+}
+.wa-bk-when.is-run {
+  --when-ink: oklch(45% 0.12 255);
+}
+.wa-bk-when.is-play {
+  --when-ink: var(--green-ink);
+}
+.wa-bk-when-label {
+  min-width: 3.5em;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.wa-bk-when-value {
+  font-variant-numeric: tabular-nums;
 }

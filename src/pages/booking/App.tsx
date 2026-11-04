@@ -12,7 +12,7 @@ import { Toast } from "../config/components/Toast";
 import { STRINGS } from "./strings";
 import {
   accountLabel, canCreate, canSeeBooking, describeResult, northlandsCourseId, occupiedBy,
-  siteToday, toRunAtLocal,
+  playLineText, runLineText, siteToday, toRunAtLocal,
 } from "./logic";
 import { createInitialState, reducer, type BookingFormPatch } from "./reducer";
 
@@ -32,23 +32,30 @@ function TimePicker(props: { value: string; onChange: (value: string) => void })
   );
 }
 
-// 一条任务的卡片：Scheduled 与 My tasks 共用；My tasks 才带结果说明与取消按钮
+// 一条任务的卡片：Scheduled 与 My tasks 共用；My tasks 才带结果说明与取消按钮。
+// 标题是「球场 #任务号」；运行时间（蓝）与打球日（绿，带星期与时段）各占一行，一眼分清「什么时候跑」和「订哪天」
 function TaskCard(props: { task: BookingTaskDto; withResult: boolean; onCancel?: (task: BookingTaskDto) => void }) {
   const { task } = props;
   return (
     <div className="wa-card">
       <div className="wa-bk-head">
-        <strong>{STRINGS.runsAt} {task.runAtLocal ?? task.runAt}</strong>
+        <strong>{STRINGS.taskTitle(task.courseName, task.id)}</strong>
         <span className={`wa-bk-status is-${task.status.toLowerCase()}`}>{STRINGS.statusText[task.status]}</span>
       </div>
+      <div className="wa-bk-when is-run">
+        <span className="wa-bk-when-label">{STRINGS.runsAt}</span>
+        <span className="wa-bk-when-value">{runLineText(task)}</span>
+      </div>
+      <div className="wa-bk-when is-play">
+        <span className="wa-bk-when-label">{STRINGS.plays}</span>
+        <span className="wa-bk-when-value">{playLineText(task)}</span>
+      </div>
       <div className="wa-chips">
-        <span className="wa-chip">{STRINGS.plays} {task.playDate}</span>
-        <span className="wa-chip">{task.timeStart}–{task.timeEnd}</span>
         <span className="wa-chip">{task.players}{STRINGS.playerUnit}</span>
         <span className="wa-chip">{STRINGS.maxPriceText(task.maxPrice)}</span>
         <span className="wa-chip">{STRINGS.sortText(task.sort)}</span>
       </div>
-      <div className="wa-bk-meta">{STRINGS.createdBy} {task.creatorLoginEmail} · #{task.id}</div>
+      <div className="wa-bk-meta">{STRINGS.createdBy} {task.creatorLoginEmail}</div>
       <div className="wa-bk-meta">{STRINGS.bookingAccount}: {accountLabel(task)}</div>
       {props.withResult && <div className="wa-bk-result">{describeResult(task)}</div>}
       {props.withResult && task.cancellable && props.onCancel && (

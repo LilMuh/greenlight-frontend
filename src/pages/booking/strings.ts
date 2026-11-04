@@ -34,6 +34,8 @@ export const STRINGS = {
   loadingTasks: "Loading…",
   offline: "Backend offline — please try again once it's up.",
   runsAt: "Runs", plays: "Plays",
+  // 卡片标题：球场名 + 任务号
+  taskTitle: (courseName: string, id: number) => `${courseName} #${id}`,
   sortText: (sort: "EARLIEST" | "CHEAPEST") => (sort === "EARLIEST" ? "Earliest" : "Cheapest"),
   maxPriceText: (price: number) => `≤ $${price} / player`,
   // D-16：订场账号邮箱 scraper 读不到时显示 Unknown，不猜
