@@ -86,3 +86,14 @@
 .wa-bk-when-value {
   font-variant-numeric: tabular-nums;
 }
+
+/* 本页 Edit 时 scrollIntoView 的目标是 .wa-side（不是 .wa-form）。
+   不留出吸顶头部的高度，表单标题会停在头部下面；窄屏头部是两行，要留得更多。 */
+.wa-side {
+  scroll-margin-top: 86px;
+}
+@media (max-width: 960px) {
+  .wa-side {
+    scroll-margin-top: 124px;
+  }
+}

@@ -4,7 +4,7 @@ export { ERROR_MESSAGES } from "../config/strings";
 export const STRINGS = {
   appName: "GreenLight", tagline: "Book tee times automatically",
   navQuery: "Search", navWatch: "Watch Alerts", navBooking: "Auto Booking",
-  signOut: "Sign out",
+  signOut: "Sign out", signedOut: "Signed out.",
   // 表单
   newTitle: "New Booking Task",
   runDateLabel: "Run on", runTimeLabel: "Run time", playDateLabel: "Play date",

@@ -3,10 +3,11 @@
 // 前端只决定显示，建 / 查 / 改 / 取消的权限全在后端判定。
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import {
-  ApiError, cancelBookingTask, createBookingTask, getCourses, getMe, listBookingTasks, updateBookingTask,
+  ApiError, cancelBookingTask, createBookingTask, getCourses, getMe, listBookingTasks, logout, updateBookingTask,
   type BookingTaskDto,
 } from "../../api";
-import { getToken } from "../../auth";
+import { clearToken, getToken } from "../../auth";
+import { SiteHeader } from "../../components/SiteHeader";
 import { classifyError } from "../config/logic";
 import { Toast } from "../config/components/Toast";
 import { STRINGS } from "./strings";
@@ -140,6 +141,19 @@ export function App() {
 
   const toast = (message: string) => dispatch({ type: "toast", message });
 
+  // 登出：后端撤销失败时，也照样清除本地令牌（与 Watch Alerts 同一机制）。
+  // signedOut 会清掉上一个人的任务列表和 editingId，页面回到登录提示
+  const handleSignOut = async () => {
+    try {
+      await logout();
+    } catch {
+      // 忽略
+    }
+    clearToken();
+    dispatch({ type: "signedOut" });
+    toast(STRINGS.signedOut);
+  };
+
   const submit = async () => {
     if (courseId == null) return toast(STRINGS.needCourse);
     if (!form.runDate) return toast(STRINGS.needRunDate);
@@ -217,22 +231,7 @@ export function App() {
 
   return (
     <>
-      <div className="wa-header">
-        <div className="wa-brand">
-          <span className="wa-dot" />
-          <div className="wa-brand-text">
-            <strong>{STRINGS.appName}</strong>
-            <small>{STRINGS.tagline}</small>
-          </div>
-        </div>
-        <div className="wa-head-right">
-          <div className="wa-nav">
-            <a href="index.html">{STRINGS.navQuery}</a>
-            <a href="config.html">{STRINGS.navWatch}</a>
-            <a href="booking.html" className="is-active">{STRINGS.navBooking}</a>
-          </div>
-        </div>
-      </div>
+      <SiteHeader active="booking" user={user} tagline={STRINGS.tagline} onSignOut={() => void handleSignOut()} />
 
       {/* user === undefined：还在确认登录态，先不渲染，免得提示一闪而过 */}
       {user === null && (
