@@ -3,16 +3,17 @@
 // 前端只决定显示，建 / 查 / 改 / 取消的权限全在后端判定。
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import {
-  ApiError, cancelBookingTask, createBookingTask, getCourses, getMe, listBookingTasks, updateBookingTask,
+  ApiError, cancelBookingTask, createBookingTask, getCourses, getMe, listBookingTasks, logout, updateBookingTask,
   type BookingTaskDto,
 } from "../../api";
-import { getToken } from "../../auth";
+import { clearToken, getToken } from "../../auth";
+import { SiteHeader } from "../../components/SiteHeader";
 import { classifyError } from "../config/logic";
 import { Toast } from "../config/components/Toast";
 import { STRINGS } from "./strings";
 import {
-  accountLabel, canCreate, canSeeBooking, describeResult, northlandsCourseId, occupiedBy,
-  playLineText, runLineText, siteToday, toRunAtLocal,
+  accountLabel, bookedSlotView, canCreate, canSeeBooking, describeResult, northlandsCourseId, occupiedBy,
+  playLineText, runLineText, siteToday, toRunAtLocal, whenLabels,
 } from "./logic";
 import { createInitialState, reducer, type BookingFormPatch } from "./reducer";
 
@@ -43,18 +44,27 @@ function TaskCard(props: {
   const { task } = props;
   const canEdit = task.editable && !!props.onEdit;
   const canCancel = props.withResult && task.cancellable && !!props.onCancel;
+  const booked = bookedSlotView(task);
+  const labels = whenLabels(task.status);
   return (
-    <div className="wa-card">
+    <div className={`wa-card${task.status === "BOOKED" ? " is-booked" : ""}`}>
       <div className="wa-bk-head">
         <strong>{STRINGS.taskTitle(task.courseName, task.id)}</strong>
         <span className={`wa-bk-status is-${task.status.toLowerCase()}`}>{STRINGS.statusText[task.status]}</span>
       </div>
+      {booked && (
+        <div className="wa-bk-booked">
+          <span className="wa-bk-booked-label">{booked.label}</span>
+          <span className="wa-bk-booked-time">{booked.headline}</span>
+          {booked.players && <span className="wa-bk-booked-players">{booked.players}</span>}
+        </div>
+      )}
       <div className="wa-bk-when is-run">
-        <span className="wa-bk-when-label">{STRINGS.runsAt}</span>
+        <span className="wa-bk-when-label">{labels.run}</span>
         <span className="wa-bk-when-value">{runLineText(task)}</span>
       </div>
       <div className="wa-bk-when is-play">
-        <span className="wa-bk-when-label">{STRINGS.plays}</span>
+        <span className="wa-bk-when-label">{labels.play}</span>
         <span className="wa-bk-when-value">{playLineText(task)}</span>
       </div>
       <div className="wa-chips">
@@ -140,6 +150,19 @@ export function App() {
 
   const toast = (message: string) => dispatch({ type: "toast", message });
 
+  // 登出：后端撤销失败时，也照样清除本地令牌（与 Watch Alerts 同一机制）。
+  // signedOut 会清掉上一个人的任务列表和 editingId，页面回到登录提示
+  const handleSignOut = async () => {
+    try {
+      await logout();
+    } catch {
+      // 忽略
+    }
+    clearToken();
+    dispatch({ type: "signedOut" });
+    toast(STRINGS.signedOut);
+  };
+
   const submit = async () => {
     if (courseId == null) return toast(STRINGS.needCourse);
     if (!form.runDate) return toast(STRINGS.needRunDate);
@@ -217,22 +240,7 @@ export function App() {
 
   return (
     <>
-      <div className="wa-header">
-        <div className="wa-brand">
-          <span className="wa-dot" />
-          <div className="wa-brand-text">
-            <strong>{STRINGS.appName}</strong>
-            <small>{STRINGS.tagline}</small>
-          </div>
-        </div>
-        <div className="wa-head-right">
-          <div className="wa-nav">
-            <a href="index.html">{STRINGS.navQuery}</a>
-            <a href="config.html">{STRINGS.navWatch}</a>
-            <a href="booking.html" className="is-active">{STRINGS.navBooking}</a>
-          </div>
-        </div>
-      </div>
+      <SiteHeader active="booking" user={user} tagline={STRINGS.tagline} onSignOut={() => void handleSignOut()} />
 
       {/* user === undefined：还在确认登录态，先不渲染，免得提示一闪而过 */}
       {user === null && (

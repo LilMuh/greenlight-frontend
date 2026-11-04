@@ -46,70 +46,6 @@
         accent-color: var(--green);
       }
 
-      /* Header */
-      .wa-header {
-        position: sticky;
-        top: 0;
-        z-index: 20;
-        background: #fff;
-        border-bottom: 1px solid var(--line);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 14px 32px;
-        flex-wrap: wrap;
-        gap: 12px;
-      }
-      .wa-brand {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-      .wa-dot {
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        background: var(--green);
-        flex: none;
-      }
-      .wa-brand-text {
-        display: flex;
-        flex-direction: column;
-        line-height: 1.2;
-      }
-      .wa-brand-text strong {
-        font-size: 16px;
-        font-weight: 800;
-      }
-      .wa-brand-text small {
-        font-size: 11px;
-        color: var(--muted);
-      }
-      .wa-head-right {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-      }
-      .wa-nav {
-        display: flex;
-        gap: 6px;
-      }
-      .wa-nav a {
-        padding: 8px 16px;
-        border-radius: 8px;
-        font-size: 12.5px;
-        font-weight: 700;
-        text-decoration: none;
-        background: #fff;
-        color: var(--ink);
-        border: 1px solid var(--line);
-        white-space: nowrap;
-      }
-      .wa-nav a.is-active {
-        background: var(--ink);
-        color: #fff;
-        border-color: var(--ink);
-      }
       .wa-lang {
         padding: 8px 16px;
         border-radius: 999px;
@@ -672,13 +608,6 @@
       .wa-alerts.is-off {
         color: var(--danger);
       }
-      .wa-user {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-size: 12.5px;
-        color: var(--muted);
-      }
 
       @media (max-width: 860px) {
         .wa-body {
@@ -695,5 +624,12 @@
         .wa-list {
           order: 2;
           width: 100%;
+        }
+      }
+
+      /* 窄屏头部是两行（约 111px 高），原来的 86px 会让 Edit 滚动后表单标题停在吸顶头部下面 */
+      @media (max-width: 960px) {
+        .wa-form {
+          scroll-margin-top: 124px;
         }
       }

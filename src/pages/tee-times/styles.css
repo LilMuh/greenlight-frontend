@@ -47,70 +47,6 @@
         border-radius: 3px;
       }
 
-      /* Header */
-      .tt-header {
-        position: sticky;
-        top: 0;
-        z-index: 20;
-        background: #fff;
-        border-bottom: 1px solid var(--line);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 14px 32px;
-        flex-wrap: wrap;
-        gap: 12px;
-      }
-      .tt-brand {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-      .tt-dot {
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        background: var(--green);
-        flex: none;
-      }
-      .tt-brand-text {
-        display: flex;
-        flex-direction: column;
-        line-height: 1.2;
-      }
-      .tt-brand-text strong {
-        font-size: 16px;
-        font-weight: 800;
-      }
-      .tt-brand-text small {
-        font-size: 11px;
-        color: var(--muted);
-      }
-      .tt-head-right {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-      }
-      .tt-nav {
-        display: flex;
-        gap: 6px;
-      }
-      .tt-nav a {
-        padding: 8px 16px;
-        border-radius: 8px;
-        font-size: 12.5px;
-        font-weight: 700;
-        text-decoration: none;
-        background: #fff;
-        color: var(--ink);
-        border: 1px solid var(--line);
-        white-space: nowrap;
-      }
-      .tt-nav a.is-active {
-        background: var(--ink);
-        color: #fff;
-        border-color: var(--ink);
-      }
       .tt-lang {
         padding: 8px 16px;
         border-radius: 999px;
@@ -579,7 +515,6 @@
       }
 
       @media (max-width: 860px) {
-        .tt-header,
         .tt-toolbar,
         .tt-body {
           padding-left: 16px;
@@ -643,20 +578,9 @@
       }
 
 /* 手机端紧凑化：
-   - header 隐藏 tagline，尽量放进一行。
    - 日期胶囊、时段 chip 和照片各缩小一点。
    - 箭头放大到 34px。原因：触摸目标本来就应该比鼠标目标大。 */
       @media (max-width: 560px) {
-        .tt-header {
-          padding: 10px 16px;
-          gap: 8px;
-        }
-        .tt-brand-text small {
-          display: none;
-        }
-        .tt-nav a {
-          padding: 6px 12px;
-        }
         .tt-date {
           min-width: 46px;
           padding: 6px 5px;

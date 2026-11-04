@@ -77,7 +77,8 @@
   --when-ink: var(--green-ink);
 }
 .wa-bk-when-label {
-  min-width: 3.5em;
+  /* WANTED 比 PLAYS 宽，4.5em 才能让两行的值对齐（宽屏设计稿也是 4.5em） */
+  min-width: 4.5em;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -85,4 +86,46 @@
 }
 .wa-bk-when-value {
   font-variant-numeric: tabular-nums;
+}
+
+/* 本页 Edit 时 scrollIntoView 的目标是 .wa-side（不是 .wa-form）。
+   不留出吸顶头部的高度，表单标题会停在头部下面；窄屏头部是两行，要留得更多。 */
+.wa-side {
+  scroll-margin-top: 86px;
+}
+@media (max-width: 960px) {
+  .wa-side {
+    scroll-margin-top: 124px;
+  }
+}
+
+/* BOOKED 卡片：浅绿边框 + 标题下的深绿时段块。价格和确认号不放在块里，留在下面的结果句。 */
+.wa-card.is-booked {
+  border-color: oklch(80% 0.06 150);
+}
+.wa-bk-booked {
+  border-radius: 10px;
+  background: oklch(42% 0.12 150);
+  color: #fff;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+.wa-bk-booked-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
+}
+.wa-bk-booked-time {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.wa-bk-booked-players {
+  font-size: 13px;
+  font-weight: 600;
 }

@@ -1,7 +1,9 @@
 // 时段查询页。数据只来自后端。连不上时显示空态和离线提示，不要编造数据。
 // 所有筛选和排序都在浏览器端完成。
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
-import { getCourses, getHealth, getTeeTimes } from "../../api";
+import { getCourses, getHealth, getMe, getTeeTimes, logout, type UserDto } from "../../api";
+import { clearToken, getToken } from "../../auth";
+import { SiteHeader } from "../../components/SiteHeader";
 import { STRINGS } from "./strings";
 import { classifyFailure, computeCards, type CourseView } from "./logic";
 import { createInitialState, reducer } from "./reducer";
@@ -14,6 +16,8 @@ export function App() {
   const [state, dispatch] = useReducer(reducer, undefined, createInitialState);
   const [toast, setToast] = useState("");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // 登录态只给头部用：undefined = 还在确认，null = 未登录，UserDto = 已登录
+  const [user, setUser] = useState<UserDto | null | undefined>(undefined);
 
   // 弹出一条会自动消失的提示。连续弹出时，新消息替换旧消息，并重新计时
   const showToast = useCallback((message: string, durationMs = 2200) => {
@@ -68,6 +72,27 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 只为头部决定标签和账号区：查询页本身不要求登录。
+  // 无令牌不发请求；失败（含令牌过期）一律静默按未登录处理，不弹 toast、不清令牌，也不影响时段列表。
+  useEffect(() => {
+    if (!getToken()) {
+      setUser(null);
+      return;
+    }
+    getMe().then(setUser).catch(() => setUser(null));
+  }, []);
+
+  // 登出：后端撤销失败时，也照样清除本地令牌（与 Watch Alerts 同一机制），用户不能卡在「退不出去」
+  const handleSignOut = async () => {
+    try {
+      await logout();
+    } catch {
+      // 忽略
+    }
+    clearToken();
+    setUser(null);
+  };
+
   // 点击日期条：切换选中日，并取那天的数据
   const handleSelectDate = (index: number) => {
     dispatch({ type: "date", index });
@@ -90,21 +115,7 @@ export function App() {
 
   return (
     <>
-      <div className="tt-header">
-        <div className="tt-brand">
-          <span className="tt-dot" />
-          <div className="tt-brand-text">
-            <strong>{STRINGS.appName}</strong>
-            <small>{STRINGS.tagline}</small>
-          </div>
-        </div>
-        <div className="tt-head-right">
-          <div className="tt-nav">
-            <a href="index.html" className="is-active">{STRINGS.navQuery}</a>
-            <a href="config.html">{STRINGS.navWatch}</a>
-          </div>
-        </div>
-      </div>
+      <SiteHeader active="search" user={user} tagline={STRINGS.tagline} onSignOut={() => void handleSignOut()} />
 
       <div className="tt-toolbar">
         <div className="tt-toolbar-inner">
