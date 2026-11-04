@@ -1,0 +1,88 @@
+/* Auto Booking 页：wa-* 类名与配色来自 ../config/styles.css（main.tsx 里先引入了它），这里只补本页独有的。
+   config 页样式没有暗色块（.wa 设了 color-scheme: light），所以这里不做暗色变体。 */
+.wa-bk-occupied {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--danger-line);
+  background: #fff;
+  color: var(--danger);
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.wa-bk-meta {
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.wa-bk-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.wa-bk-status {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--muted);
+}
+.wa-bk-status.is-booked,
+.wa-bk-status.is-dry_run_ok {
+  background: color-mix(in oklch, var(--green-ink) 14%, transparent);
+  color: var(--green-ink);
+}
+.wa-bk-status.is-failed,
+.wa-bk-status.is-unknown {
+  background: #fff;
+  border: 1px solid var(--danger-line);
+  color: var(--danger);
+}
+.wa-bk-result {
+  font-size: 12.5px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.wa-bk-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.wa-bk-section + .wa-bk-section {
+  margin-top: 12px;
+}
+
+/* 卡片里的两行时间：运行行（蓝）与打球行（绿）分开，靠颜色区分；窄屏自动换行 */
+.wa-bk-when {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border-left: 3px solid var(--when-ink);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--when-ink);
+  background: color-mix(in oklch, var(--when-ink) 8%, #fff);
+}
+.wa-bk-when.is-run {
+  --when-ink: oklch(45% 0.12 255);
+}
+.wa-bk-when.is-play {
+  --when-ink: var(--green-ink);
+}
+.wa-bk-when-label {
+  min-width: 3.5em;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.wa-bk-when-value {
+  font-variant-numeric: tabular-nums;
+}

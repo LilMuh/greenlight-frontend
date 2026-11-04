@@ -30,7 +30,7 @@ export const WEEKDAYS = [
 
 export const STRINGS = {
   appName: "GreenLight", tagline: "Watch tee times, get notified",
-  navQuery: "Search", navWatch: "Watch Alerts",
+  navQuery: "Search", navWatch: "Watch Alerts", navBooking: "Auto Booking",
   coursesLabel: "Golf Courses", weekdaysLabel: "Weekdays", rangeTo: "to",
   timeRangeLabel: "Time Window", playersLabel: "Players", maxPriceLabel: "Max Price",
   emailLabel: "Alerts go to", emailPlaceholder: "you@example.com",
@@ -98,6 +98,20 @@ export const ERROR_MESSAGES: Record<string, string> = {
   COURSE_NOT_FOUND: "That course is gone — reload the page.",
   COURSE_IN_MAINTENANCE: "That course is under maintenance — it can't be watched right now.",
   MAIL_SEND_FAILED: "The email couldn't be sent — check the mail settings and your alert address.",
+  // 自动订场（跨仓库契约：与后端 ApiErrorCode 的 BOOKING_* 同名，后端只追加不改名，05-06）
+  BOOKING_NOT_ENABLED: "Auto booking isn't enabled for your account.",
+  BOOKING_ADMIN_CANNOT_CREATE: "Admins can view and cancel booking tasks but can't create or edit them.",
+  BOOKING_RUN_AT_TAKEN: "That run time is already taken — see Scheduled for who has it.",
+  BOOKING_COURSE_UNSUPPORTED: "Auto booking isn't available for that course.",
+  BOOKING_DATE_OUT_OF_WINDOW: "That play date can't be booked at that run time — a day opens at 07:00, five days ahead.",
+  BOOKING_RUN_AT_INVALID: "Run time looks wrong — pick a valid time in the future.",
+  BOOKING_TIME_INVALID: "Time window looks wrong — use 24h HH:MM with start no later than end.",
+  BOOKING_PLAYERS_INVALID: "Players must be between 1 and 4.",
+  BOOKING_PRICE_INVALID: "Max price must be a whole number from 1 to 1000.",
+  BOOKING_SORT_INVALID: "Pick either Earliest or Cheapest.",
+  BOOKING_TASK_NOT_FOUND: "That booking task is gone — reload the page.",
+  BOOKING_TASK_NOT_PENDING: "That task has already started or finished, so it can't be changed or cancelled.",
+  BOOKING_TASK_ABOUT_TO_RUN: "That task is about to run, so it can no longer be edited.",
   // 请求本身不合法。用户改正不了这些错误，但文案要不同，让用户知道该找谁
   UNAUTHORIZED: "Your session has ended — please sign in again.",
   FORBIDDEN: "Only admins can do that.",

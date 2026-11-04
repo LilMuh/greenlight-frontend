@@ -70,6 +70,7 @@ export interface UserDto {
   notificationsEnabled: boolean; // false 表示用户在邮件里点了退订
   admin: boolean;
   googleLinked: boolean;
+  enableAutoBooking: boolean; // false = 看不到订场入口（D-15 / D-16）；管理员另看 admin
 }
 
 /** 两种登录方式成功后都返回这个结构。token 只在这一次响应里出现。 */
@@ -82,6 +83,58 @@ export interface LoginResultDto {
 export interface MatchDto {
   watchId: number;
   hitCount: number;
+}
+
+// --- 自动订场（跨仓库契约：字段名逐字对齐后端 BookingTask*Dto record，05-06） -------
+
+/** 订场任务状态。PENDING / RUNNING 是活动态；其余是终态。UNKNOWN = 不知道订没订上，不重试。 */
+export type BookingTaskStatus =
+  | "PENDING" | "RUNNING" | "BOOKED" | "DRY_RUN_OK"
+  | "NOT_BOOKED" | "FAILED" | "UNKNOWN" | "CANCELLED";
+
+export type BookingSort = "EARLIEST" | "CHEAPEST";
+
+/** POST /api/booking-tasks 的请求体。runAtLocal 是站点本地时间 yyyy-MM-ddTHH:mm，不带时区。 */
+export interface BookingTaskCreateDto {
+  courseId: number;
+  playDate: string; // yyyy-MM-dd，球场当地
+  runAtLocal: string;
+  timeStart: string; // HH:mm
+  timeEnd: string;
+  players: number; // 1–4
+  maxPrice: number; // 单人价上限，加元整数
+  sort: BookingSort;
+}
+
+/** 一条订场任务。创建者与订场账号邮箱只在登录后的 API 里出现，页面和测试里不写任何真实地址。 */
+export interface BookingTaskDto {
+  id: number;
+  courseId: number;
+  courseSlug: string;
+  courseName: string;
+  playDate: string;
+  runAt: string; // ISO 瞬时
+  runAtLocal: string | null; // 站点没有放号规则时为 null
+  timeStart: string;
+  timeEnd: string;
+  players: number;
+  maxPrice: number;
+  sort: BookingSort;
+  status: BookingTaskStatus;
+  resultDetail: Record<string, unknown> | null;
+  createdAt: string;
+  finishedAt: string | null;
+  creatorLoginEmail: string;
+  mine: boolean;
+  cancellable: boolean;
+  bookingAccountEmail: string | null; // null = scraper 读不到，显示 Unknown，不猜
+  editable: boolean; // 后端算：PENDING、自己的、不是管理员、原定运行时间在锁定窗口外
+}
+
+/** GET /api/booking-tasks：scheduled = 所有人的 PENDING / RUNNING；mine = 自己的全部（管理员是所有人的）。 */
+export interface BookingTasksDto {
+  scheduled: BookingTaskDto[];
+  mine: BookingTaskDto[];
 }
 
 /**
@@ -170,3 +223,14 @@ export const startNotifyEmailChange = (email: string) =>
   request<null>("/api/me/notify-email/start", jsonBody({ email }));
 export const verifyNotifyEmailChange = (code: string) =>
   request<UserDto>("/api/me/notify-email/verify", jsonBody({ code }));
+
+// --- 自动订场 -------------------------------------------------------------------
+export const listBookingTasks = () => request<BookingTasksDto>("/api/booking-tasks");
+export const createBookingTask = (dto: BookingTaskCreateDto) =>
+  request<BookingTaskDto>("/api/booking-tasks", jsonBody(dto));
+// 取消：任务记录保留、状态改 CANCELLED（不是 DELETE）
+// 修改待执行任务：请求体与新建相同，规则全在后端；返回修改后的记录。
+export const updateBookingTask = (id: number, dto: BookingTaskCreateDto) =>
+  request<BookingTaskDto>(`/api/booking-tasks/${id}`, { ...jsonBody(dto), method: "PUT" });
+export const cancelBookingTask = (id: number) =>
+  request<BookingTaskDto>(`/api/booking-tasks/${id}/cancel`, { method: "POST" });
