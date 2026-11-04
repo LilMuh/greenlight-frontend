@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { accountEmail, headerTabs, tabGridColumns, type HeaderPage } from "./siteHeader";
+import { accountEmail, headerTabs, tabGridColumns, type HeaderPage } from "./headerLogic";
 import type { UserDto } from "../api";
 
 // 测试数据只用 example.test 假域名。

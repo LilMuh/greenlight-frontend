@@ -15,7 +15,7 @@ import {
   type CourseRef, type WatchView,
 } from "./logic";
 import { createInitialState, reducer } from "./reducer";
-import { canSeeBooking } from "../booking/logic";
+import { SiteHeader } from "../../components/SiteHeader";
 import { WatchForm } from "./components/WatchForm";
 import { WatchCard } from "./components/WatchCard";
 import { LoginPanel } from "./components/LoginPanel";
@@ -232,31 +232,7 @@ export function App() {
 
   return (
     <>
-      <div className="wa-header">
-        <div className="wa-brand">
-          <span className="wa-dot" />
-          <div className="wa-brand-text">
-            <strong>{STRINGS.appName}</strong>
-            <small>{STRINGS.tagline}</small>
-          </div>
-        </div>
-        <div className="wa-head-right">
-          {user && (
-            <div className="wa-user">
-              <span className="wa-user-email">{user.loginEmail}</span>
-              <button type="button" className="wa-linkbtn" onClick={() => void handleSignOut()}>
-                {STRINGS.signOut}
-              </button>
-            </div>
-          )}
-          <div className="wa-nav">
-            <a href="index.html">{STRINGS.navQuery}</a>
-            <a href="config.html" className="is-active">{STRINGS.navWatch}</a>
-            {/* D-15 / D-16：只有管理员或开启了订场的用户才看到入口；查询页不加载登录态，所以不放 */}
-            {user && canSeeBooking(user) && <a href="booking.html">{STRINGS.navBooking}</a>}
-          </div>
-        </div>
-      </div>
+      <SiteHeader active="watch" user={user} tagline={STRINGS.tagline} onSignOut={() => void handleSignOut()} />
 
       {/* user === undefined 表示还在确认登录状态。这时先不渲染，以免登录面板一闪而过 */}
       {user === null && (

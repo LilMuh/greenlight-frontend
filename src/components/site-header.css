@@ -1,0 +1,164 @@
+/* 三页共用头部（.tt 和 .wa 两种根下长得一样）。
+   所有选择器都以 .gl-hd 开头：标签是 a 元素，要压过页面的 .tt a / .wa a 链接绿色（0,1,1）
+   和它们的 :hover（0,2,1），否则标签文字会变绿。 */
+.gl-hd {
+  --gl-hd-ink: oklch(22% 0.01 95);
+  --gl-hd-muted: oklch(45% 0.012 95);
+  --gl-hd-line: oklch(90% 0.006 95);
+  --gl-hd-track: oklch(96% 0.006 95);
+  --gl-hd-dot: oklch(58% 0.12 150);
+  --gl-hd-link: oklch(40% 0.12 150);
+  --gl-hd-link-hover: oklch(32% 0.12 150);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: #fff;
+  border-bottom: 1px solid var(--gl-hd-line);
+  font-family: "Manrope", system-ui, sans-serif;
+  color: var(--gl-hd-ink);
+  /* 宽屏一行：品牌｜标签条｜账号区 */
+  display: grid;
+  grid-template-areas: "brand tabs account";
+  grid-template-columns: minmax(max-content, 1fr) minmax(0, 420px) minmax(0, 1fr);
+  align-items: center;
+  column-gap: 24px;
+  padding: 14px 32px;
+}
+.gl-hd,
+.gl-hd * {
+  box-sizing: border-box;
+}
+
+.gl-hd .gl-hd-brand {
+  grid-area: brand;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.gl-hd .gl-hd-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--gl-hd-dot);
+  flex: none;
+}
+.gl-hd .gl-hd-brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.gl-hd .gl-hd-brand-text strong {
+  font-size: 16px;
+  font-weight: 800;
+}
+.gl-hd .gl-hd-brand-text small {
+  font-size: 11px;
+  color: var(--gl-hd-muted);
+}
+
+.gl-hd .gl-hd-tabs {
+  grid-area: tabs;
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--gl-hd-track);
+}
+/* 不设 nowrap：320px 宽时标签文字允许折成两行，绝不溢出屏幕 */
+.gl-hd .gl-hd-tab {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  padding: 4px 6px;
+  text-align: center;
+  line-height: 1.15;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gl-hd-ink);
+  text-decoration: none;
+}
+.gl-hd .gl-hd-tab:hover {
+  background: #fff;
+  color: var(--gl-hd-ink);
+}
+.gl-hd .gl-hd-tab[aria-current="page"],
+.gl-hd .gl-hd-tab[aria-current="page"]:hover {
+  background: var(--gl-hd-ink);
+  color: #fff;
+}
+
+.gl-hd .gl-hd-account {
+  grid-area: account;
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+}
+.gl-hd .gl-hd-email {
+  font-size: 12.5px;
+  color: var(--gl-hd-muted);
+  min-width: 0;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Sign out 不压缩不换行：邮箱先被截断，按钮永远不被挤出屏幕 */
+.gl-hd .gl-hd-signout {
+  border: 0;
+  background: none;
+  padding: 6px 0;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--gl-hd-link);
+  text-decoration: underline;
+  cursor: pointer;
+  flex: none;
+  white-space: nowrap;
+}
+.gl-hd .gl-hd-signout:hover {
+  color: var(--gl-hd-link-hover);
+}
+
+/* 为什么断点是 960px 而不是 640px：一行布局需要「品牌含 tagline 约 190 + 标签 420 + 账号约 240
+   + 内边距和间隙约 112 ≈ 960px」。更窄时账号区会被挤没，所以窄于 960 就改两行。
+   窄屏：第一行品牌（不显示 tagline）+ 账号区，第二行是整条标签。 */
+@media (max-width: 960px) {
+  .gl-hd {
+    grid-template-areas:
+      "brand account"
+      "tabs tabs";
+    grid-template-columns: auto minmax(0, 1fr);
+    row-gap: 10px;
+    column-gap: 12px;
+    padding: 10px 16px;
+  }
+  .gl-hd .gl-hd-brand {
+    gap: 8px;
+    min-height: 32px;
+  }
+  .gl-hd .gl-hd-dot {
+    width: 12px;
+    height: 12px;
+  }
+  .gl-hd .gl-hd-brand-text small {
+    display: none;
+  }
+  .gl-hd .gl-hd-tab {
+    min-height: 40px;
+  }
+  .gl-hd .gl-hd-account {
+    gap: 10px;
+    min-height: 32px;
+  }
+  .gl-hd .gl-hd-email {
+    font-size: 12px;
+    max-width: 150px;
+  }
+}
