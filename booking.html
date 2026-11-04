@@ -4,14 +4,39 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GreenLight — Auto Booking</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap"
-      rel="stylesheet"
-    />
+    <!-- 页面底色在 HTML 里就有：CSS 包解析前也用页面底色，暗色系统下也不先刷一层深色画布 -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: oklch(98% 0.006 95);
+      }
+      html {
+        color-scheme: light;
+      }
+    </style>
+    <!-- 字体预加载：字体请求是 CORS 模式，没有 crossorigin 预加载会对不上 -->
+    <link rel="preload" href="/src/assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <!-- 预渲染头部里的其他标签（悬停时，moderate）。
+         三页加载期只发 GET：Search 是 health / courses / tee-times / me；
+         Watch 是 courses / me / watch-configs / matches；Booking 是 courses / me / booking-tasks。
+         Google 登录按钮只 renderButton，不弹 One Tap，所以用 prerender 而不是 prefetch。
+         激活时会话变化（中途登出或换账号）由 src/prerenderGuard.ts 处理。 -->
+    <script type="speculationrules">
+      {
+        "prerender": [
+          {
+            "where": { "selector_matches": ".gl-hd-tab:not([aria-current])" },
+            "eagerness": "moderate"
+          }
+        ]
+      }
+    </script>
+    <!-- 入口脚本放在 head：render-blocking 只对 body 出现之前的元素生效。
+         blocking="render" 由 vite.config.ts 的插件统一补，不写在源 HTML 里。 -->
+    <script type="module" src="/src/pages/booking/main.tsx"></script>
   </head>
   <body>
     <div class="wa" id="app"><!-- rendered by src/pages/booking/main.tsx --></div>
-    <script type="module" src="/src/pages/booking/main.tsx"></script>
   </body>
 </html>

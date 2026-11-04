@@ -1,3 +1,35 @@
+/* ===== 三页共用的页面外壳 =====
+   这份 CSS 三页都会加载，所以和页面切换有关的全局规则放在这里。 */
+
+/* 自托管 Manrope（latin 子集，许可证见 src/assets/fonts/OFL.txt）。
+   为什么自托管：Google 的 woff2 地址随版本变，HTML 里的 preload 写死会失效；
+   同源文件还能让 preload 和这里的 url() 共用同一个 Vite 产物。
+   为什么 font-display: optional + preload：预加载的 optional 字体在首帧前有一个很短的等待期，
+   之后绝不再替换字体，所以切页时不会出现字体跳变；
+   代价是首次访问网络很慢时那一页停在 system-ui，下一页命中缓存就正常。 */
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: optional;
+  src: url("../assets/fonts/manrope-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* 跨文档 View Transitions：新旧两页都要声明才会生效。
+   放在 no-preference 里：用户要求减少动效时不声明，就是普通整页跳转；
+   不支持的浏览器会忽略这条规则，同样是普通跳转。 */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+  }
+}
+/* 所有过渡组（根内容的交叉淡化、选中块的滑动）统一 220ms；old / new 继承 group 的时长 */
+::view-transition-group(*) {
+  animation-duration: 220ms;
+  animation-timing-function: ease;
+}
+
 /* 三页共用头部（.tt 和 .wa 两种根下长得一样）。
    所有选择器都以 .gl-hd 开头：标签是 a 元素，要压过页面的 .tt a / .wa a 链接绿色（0,1,1）
    和它们的 :hover（0,2,1），否则标签文字会变绿。 */
@@ -16,6 +48,8 @@
   border-bottom: 1px solid var(--gl-hd-line);
   font-family: "Manrope", system-ui, sans-serif;
   color: var(--gl-hd-ink);
+  /* 头部单独成一个过渡组，所以切页时它静止不动，只有下面的内容交叉淡化 */
+  view-transition-name: gl-header;
   /* 宽屏一行：品牌｜标签条｜账号区 */
   display: grid;
   grid-template-areas: "brand tabs account";
@@ -88,6 +122,9 @@
 .gl-hd .gl-hd-tab[aria-current="page"]:hover {
   background: var(--gl-hd-ink);
   color: #fff;
+  /* 选中块单独成组：组动画会把它从旧页标签的位置移到新页标签的位置（深色块滑过去）。
+     它画在头部组上面，盖住底下换掉的文字。每页只有一个 aria-current 标签，名字唯一。 */
+  view-transition-name: gl-active-tab;
 }
 
 .gl-hd .gl-hd-account {
