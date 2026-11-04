@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  accountLabel, addDays, canCreate, canSeeBooking, defaultPlayDate, defaultRunAt, describeResult,
+  accountLabel, addDays, canCreate, canSeeBooking, cardResultText, defaultPlayDate, defaultRunAt, describeResult,
   bookedSlotView, northlandsCourseId, occupiedBy, playLineText, runLineText, runParts, shortTime, siteToday,
   toRunAtLocal, weekdayShort, whenLabels,
 } from "./logic";
@@ -273,6 +273,41 @@ describe("BOOKED 时段块", () => {
     const text = describeResult(booked(slot));
     expect(text).toContain("280.00");
     expect(text).toContain("Confirmation #387292");
+  });
+});
+
+describe("卡片结果句", () => {
+  const slot = { date: "2026-11-14", time: "09:00", players: 4, pricePerPlayer: 70 };
+  const booked = (detail: Record<string, unknown> | null): BookingTaskDto =>
+    task({ status: "BOOKED", resultDetail: detail });
+
+  it("BOOKED 且时段块建得出来：不显示结果句（null）", () => {
+    expect(cardResultText(booked({ slot, pricing: { total: 280 }, reservationId: 387292 }))).toBeNull();
+  });
+
+  it("BOOKED 且没有 resultDetail：回退到 describeResult 的句子", () => {
+    const t = booked(null);
+    expect(cardResultText(t)).toBe(describeResult(t));
+    expect(cardResultText(t)).toBe("Booked.");
+  });
+
+  it("BOOKED 但 slot 缺 time：回退句不丢确认号", () => {
+    const t = booked({ slot: { ...slot, time: undefined }, pricing: { total: 280 }, reservationId: 387292 });
+    expect(cardResultText(t)).toBe(describeResult(t));
+    expect(cardResultText(t)).toContain("Confirmation #387292");
+  });
+
+  it("DRY_RUN_OK 带可读 slot：照旧显示结果句（dry run 不做色块）", () => {
+    const t = task({ status: "DRY_RUN_OK", resultDetail: { slot, pricing: { total: 280 }, unlocked: true } });
+    expect(cardResultText(t)).not.toBeNull();
+    expect(cardResultText(t)).toBe(describeResult(t));
+  });
+
+  it("其他状态的结果句不变", () => {
+    for (const status of ["PENDING", "RUNNING", "NOT_BOOKED", "FAILED", "UNKNOWN", "CANCELLED"] as BookingTaskStatus[]) {
+      const t = task({ status, resultDetail: { slot, reason: "X" } });
+      expect(cardResultText(t)).toBe(describeResult(t));
+    }
   });
 });
 
