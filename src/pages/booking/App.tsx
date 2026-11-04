@@ -12,8 +12,8 @@ import { classifyError } from "../config/logic";
 import { Toast } from "../config/components/Toast";
 import { STRINGS } from "./strings";
 import {
-  accountLabel, canCreate, canSeeBooking, describeResult, northlandsCourseId, occupiedBy,
-  playLineText, runLineText, siteToday, toRunAtLocal,
+  accountLabel, bookedSlotView, canCreate, canSeeBooking, describeResult, northlandsCourseId, occupiedBy,
+  playLineText, runLineText, siteToday, toRunAtLocal, whenLabels,
 } from "./logic";
 import { createInitialState, reducer, type BookingFormPatch } from "./reducer";
 
@@ -44,18 +44,27 @@ function TaskCard(props: {
   const { task } = props;
   const canEdit = task.editable && !!props.onEdit;
   const canCancel = props.withResult && task.cancellable && !!props.onCancel;
+  const booked = bookedSlotView(task);
+  const labels = whenLabels(task.status);
   return (
-    <div className="wa-card">
+    <div className={`wa-card${task.status === "BOOKED" ? " is-booked" : ""}`}>
       <div className="wa-bk-head">
         <strong>{STRINGS.taskTitle(task.courseName, task.id)}</strong>
         <span className={`wa-bk-status is-${task.status.toLowerCase()}`}>{STRINGS.statusText[task.status]}</span>
       </div>
+      {booked && (
+        <div className="wa-bk-booked">
+          <span className="wa-bk-booked-label">{booked.label}</span>
+          <span className="wa-bk-booked-time">{booked.headline}</span>
+          {booked.players && <span className="wa-bk-booked-players">{booked.players}</span>}
+        </div>
+      )}
       <div className="wa-bk-when is-run">
-        <span className="wa-bk-when-label">{STRINGS.runsAt}</span>
+        <span className="wa-bk-when-label">{labels.run}</span>
         <span className="wa-bk-when-value">{runLineText(task)}</span>
       </div>
       <div className="wa-bk-when is-play">
-        <span className="wa-bk-when-label">{STRINGS.plays}</span>
+        <span className="wa-bk-when-label">{labels.play}</span>
         <span className="wa-bk-when-value">{playLineText(task)}</span>
       </div>
       <div className="wa-chips">

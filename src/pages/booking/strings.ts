@@ -36,6 +36,11 @@ export const STRINGS = {
   loadingTasks: "Loading…",
   offline: "Backend offline — please try again once it's up.",
   runsAt: "Runs", plays: "Plays",
+  // 任务已结束（PENDING / RUNNING 以外）：两行时间改说「跑过」和「想要的」。CSS 已有 uppercase，显示为 RAN / WANTED
+  ranAt: "Ran", wanted: "Wanted",
+  // BOOKED 卡片的深绿时段块（用户 2026-11-04 指定格式）
+  bookedLabel: (date: string) => `BOOKED TEE TIME (${date})`,
+  playerCount: (count: number) => (count === 1 ? "1 player" : `${count} players`),
   // 卡片标题：球场名 + 任务号
   taskTitle: (courseName: string, id: number) => `${courseName} #${id}`,
   sortText: (sort: "EARLIEST" | "CHEAPEST") => (sort === "EARLIEST" ? "Earliest" : "Cheapest"),

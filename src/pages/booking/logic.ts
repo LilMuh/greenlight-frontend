@@ -1,5 +1,5 @@
 // 订场页的纯逻辑层：不碰 DOM、不发请求，全部可以单测。
-import type { BookingTaskDto, CourseDto, UserDto } from "../../api";
+import type { BookingTaskDto, BookingTaskStatus, CourseDto, UserDto } from "../../api";
 import { STRINGS } from "./strings";
 
 // 站点时区，与后端 SiteRule.zone 一致（America/Vancouver）。
@@ -90,6 +90,48 @@ const withWeekday = (date: string, rest: string): string => {
   const weekday = weekdayShort(date);
   return `${weekday ? `${weekday} ` : ""}${date}${rest}`;
 };
+
+/**
+ * 24 小时制的时刻只去掉小时的前导零：09:00 → 9:00，14:50 保持 14:50。
+ * 只匹配「0 + 一位数字 + 冒号 + 两位数字」，其余格式原样返回；不做 12 小时制换算。
+ */
+export function shortTime(time: string): string {
+  return /^0\d:\d{2}$/.test(time) ? time.slice(1) : time;
+}
+
+/**
+ * 两行时间的标签：PENDING / RUNNING 是 Runs / Plays（将要发生）；
+ * 其余任何状态都是 Ran / Wanted（已经跑完，打球那行是当时想要的时段，不是订到的）。
+ */
+export function whenLabels(status: BookingTaskStatus): { run: string; play: string } {
+  return status === "PENDING" || status === "RUNNING"
+    ? { run: STRINGS.runsAt, play: STRINGS.plays }
+    : { run: STRINGS.ranAt, play: STRINGS.wanted };
+}
+
+/**
+ * BOOKED 卡片的深绿时段块：三行「BOOKED TEE TIME (日期)」「SAT 9:00」「4 players」。
+ * - slot 读不出（date 不是 yyyy-MM-dd、time 缺失或为空、slot 不是对象）返回 null，卡片回退到原来的结果句。
+ * - 星期由 slot.date 算出，不照抄设计稿。players 读不出只省略那一行。
+ * - 绝不读 pricing 和 reservationId：价格和确认号留在 describeResult 的句子里。
+ * - DRY_RUN_OK 不做色块：dry run 什么也没订，深绿块会被误读成真订到了，用户也只指定了 BOOKED。
+ */
+export function bookedSlotView(
+  task: Pick<BookingTaskDto, "status" | "resultDetail">,
+): { label: string; headline: string; players: string | null } | null {
+  if (task.status !== "BOOKED") return null;
+  const slot = asRecord(asRecord(task.resultDetail)?.slot);
+  const date = asString(slot?.date);
+  const time = asString(slot?.time);
+  const weekday = date ? weekdayShort(date) : null;
+  if (!date || !time || !weekday) return null;
+  const players = asNumber(slot?.players);
+  return {
+    label: STRINGS.bookedLabel(date),
+    headline: `${weekday.toUpperCase()} ${shortTime(time)}`,
+    players: players != null ? STRINGS.playerCount(players) : null,
+  };
+}
 
 /** 运行行：「Tue 2026-11-03 07:00」。没有站点本地时间就原样显示 runAt。 */
 export function runLineText(task: Pick<BookingTaskDto, "runAtLocal" | "runAt">): string {
