@@ -118,13 +118,35 @@
   background: #fff;
   color: var(--gl-hd-ink);
 }
+.gl-hd .gl-hd-tab {
+  position: relative;
+}
 .gl-hd .gl-hd-tab[aria-current="page"],
 .gl-hd .gl-hd-tab[aria-current="page"]:hover {
-  background: var(--gl-hd-ink);
+  background: transparent;
   color: #fff;
-  /* 选中块单独成组：组动画会把它从旧页标签的位置移到新页标签的位置（深色块滑过去）。
-     它画在头部组上面，盖住底下换掉的文字。每页只有一个 aria-current 标签，名字唯一。 */
+}
+/* 深色选中块是一个单独的空元素，自成过渡组：组动画把它从旧页标签的位置移到新页标签的位置（滑过去）。
+   它不含文字，所以滑动时不会把文字拉伸；每页只有一个，名字唯一。 */
+.gl-hd .gl-hd-pill {
+  position: absolute;
+  inset: 0;
+  border-radius: 7px;
+  background: var(--gl-hd-ink);
   view-transition-name: gl-active-tab;
+}
+/* 文字在选中块上面；每个标签的文字各自成组（名字 gl-tab-<页面>，三页一致），
+   切页时留在原位，从深字淡到白字或反过来 */
+.gl-hd .gl-hd-tab-label {
+  position: relative;
+}
+::view-transition-group(gl-active-tab) {
+  z-index: 1;
+}
+::view-transition-group(gl-tab-search),
+::view-transition-group(gl-tab-watch),
+::view-transition-group(gl-tab-booking) {
+  z-index: 2;
 }
 
 .gl-hd .gl-hd-account {

@@ -36,7 +36,9 @@ export function SiteHeader({ active, user, tagline, onSignOut }: Props) {
             href={tab.href}
             {...(tab.active ? { "aria-current": "page" as const } : {})}
           >
-            {tab.label}
+            {/* 深色选中块和文字分成两层：切页时只有选中块滑动，文字留在原位交叉淡化，不会被拉伸 */}
+            {tab.active && <span className="gl-hd-pill" aria-hidden="true" />}
+            <span className="gl-hd-tab-label" style={{ viewTransitionName: `gl-tab-${tab.page}` }}>{tab.label}</span>
           </a>
         ))}
       </nav>
