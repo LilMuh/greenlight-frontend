@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { accountEmail, headerTabs, tabGridColumns, type HeaderPage } from "./headerLogic";
+import { accountEmail, headerTabs, resolveHeaderUser, tabGridColumns, type HeaderPage } from "./headerLogic";
+import type { HeaderUser } from "../headerUserCache";
 import type { UserDto } from "../api";
 
 // 测试数据只用 example.test 假域名。
@@ -63,5 +64,30 @@ describe("账号区邮箱", () => {
     expect(accountEmail(null)).toBeNull();
     expect(accountEmail(undefined)).toBeNull();
     expect(accountEmail(user({ loginEmail: "b@example.test" }))).toBe("b@example.test");
+  });
+});
+
+describe("头部用户的取值（页面确认值优先，缓存兜底）", () => {
+  const cached: HeaderUser = { loginEmail: "c@example.test", admin: false, enableAutoBooking: true };
+
+  it("页面还在确认（undefined）：有缓存用缓存，没缓存仍是 undefined", () => {
+    expect(resolveHeaderUser(undefined, cached)).toEqual(cached);
+    expect(resolveHeaderUser(undefined, null)).toBeUndefined();
+  });
+
+  it("页面确认未登录（null）：以页面为准，不用缓存", () => {
+    expect(resolveHeaderUser(null, cached)).toBeNull();
+  });
+
+  it("页面确认了用户：以页面为准，不用不同的缓存", () => {
+    const confirmed: HeaderUser = { loginEmail: "d@example.test", admin: true, enableAutoBooking: false };
+    expect(resolveHeaderUser(confirmed, cached)).toEqual(confirmed);
+  });
+
+  it("只有三个字段的 HeaderUser 也能算标签和邮箱", () => {
+    const tabs = headerTabs(cached, "search");
+    expect(pages(tabs)).toEqual(["search", "watch", "booking"]);
+    expect(tabs[2].label).toBe("Auto Booking");
+    expect(accountEmail(cached)).toBe("c@example.test");
   });
 });

@@ -1,18 +1,24 @@
 // 三页共用的头部：品牌 → 标签条 → 账号区。布局（窄屏两行 / 宽屏一行）全在 site-header.css 里。
 import "./site-header.css";
-import type { UserDto } from "../api";
-import { HEADER_STRINGS, accountEmail, headerTabs, tabGridColumns, type HeaderPage } from "./headerLogic";
+import { useState } from "react";
+import { getToken } from "../auth";
+import { readHeaderUser, type HeaderUser } from "../headerUserCache";
+import { HEADER_STRINGS, accountEmail, headerTabs, resolveHeaderUser, tabGridColumns, type HeaderPage } from "./headerLogic";
 
 type Props = {
   active: HeaderPage;
-  user: UserDto | null | undefined;
+  user: HeaderUser | null | undefined;
   tagline: string;
   onSignOut: () => void;
 };
 
 export function SiteHeader({ active, user, tagline, onSignOut }: Props) {
-  const tabs = headerTabs(user, active);
-  const email = accountEmail(user);
+  // 惰性初始化在首次渲染里同步执行（main.tsx 用 flushSync），所以首帧就有账号区；
+  // 页面的 user 一确认（含登出后的 null）就以页面为准，缓存只在「还在确认」期间兜底
+  const [cached] = useState(() => readHeaderUser(getToken() !== null));
+  const shown = resolveHeaderUser(user, cached);
+  const tabs = headerTabs(shown, active);
+  const email = accountEmail(shown);
   return (
     <header className="gl-hd">
       <div className="gl-hd-brand">
@@ -30,7 +36,9 @@ export function SiteHeader({ active, user, tagline, onSignOut }: Props) {
             href={tab.href}
             {...(tab.active ? { "aria-current": "page" as const } : {})}
           >
-            {tab.label}
+            {/* 深色选中块和文字分成两层：切页时只有选中块滑动，文字留在原位交叉淡化，不会被拉伸 */}
+            {tab.active && <span className="gl-hd-pill" aria-hidden="true" />}
+            <span className="gl-hd-tab-label" style={{ viewTransitionName: `gl-tab-${tab.page}` }}>{tab.label}</span>
           </a>
         ))}
       </nav>

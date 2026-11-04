@@ -47,7 +47,7 @@ export const STRINGS = {
   maxPriceText: (price: number) => `≤ $${price} / player`,
   // D-16：订场账号邮箱 scraper 读不到时显示 Unknown，不猜
   unknown: "Unknown",
-  createdBy: "Created by", bookingAccount: "Booking account",
+  bookingAccount: "Booking account",
   playerUnit: " players",
   statusText: {
     PENDING: "Pending", RUNNING: "Running", BOOKED: "Booked", DRY_RUN_OK: "Dry run OK",

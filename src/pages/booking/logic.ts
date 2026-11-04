@@ -113,7 +113,8 @@ export function whenLabels(status: BookingTaskStatus): { run: string; play: stri
  * BOOKED 卡片的深绿时段块：三行「BOOKED TEE TIME (日期)」「SAT 9:00」「4 players」。
  * - slot 读不出（date 不是 yyyy-MM-dd、time 缺失或为空、slot 不是对象）返回 null，卡片回退到原来的结果句。
  * - 星期由 slot.date 算出，不照抄设计稿。players 读不出只省略那一行。
- * - 绝不读 pricing 和 reservationId：价格和确认号留在 describeResult 的句子里。
+ * - 块里绝不读 pricing 和 reservationId。有块时卡片不再显示结果句（见 cardResultText），所以价格和确认号也不显示；
+ *   只有块建不出来时，它们才在回退句里出现。
  * - DRY_RUN_OK 不做色块：dry run 什么也没订，深绿块会被误读成真订到了，用户也只指定了 BOOKED。
  */
 export function bookedSlotView(
@@ -153,8 +154,17 @@ export function northlandsCourseId(courses: Pick<CourseDto, "id" | "slug">[]): n
 // 注意：这里只决定「显示什么」。建、查、取消的权限全由后端 BookingTaskService 判定（05-06），
 // 前端藏起来不是安全措施。
 
+/**
+ * 卡片上的结果句：BOOKED 且深绿时段块建得出来时返回 null（块已经说明了一切，不再重复），
+ * 否则是 describeResult 的句子。用户 2026-11-04 指定：BOOKED 卡片有深绿时段块就够了。
+ * 块建不出来（slot 读不出）时回退到原句，确认号等信息不丢。其他状态的结果句不变。
+ */
+export function cardResultText(task: BookingTaskDto): string | null {
+  return bookedSlotView(task) !== null ? null : describeResult(task);
+}
+
 /** D-15 / D-16：管理员和开启了订场的用户能看到订场页的列表；未登录、未开启的看不到。 */
-export function canSeeBooking(user: UserDto | null | undefined): boolean {
+export function canSeeBooking(user: Pick<UserDto, "admin" | "enableAutoBooking"> | null | undefined): boolean {
   return !!user && (user.admin || user.enableAutoBooking);
 }
 

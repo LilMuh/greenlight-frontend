@@ -1,5 +1,5 @@
 // 三个页面共用的头部：纯逻辑（标签列表、账号区），不引 CSS，不碰 DOM，便于在 node 环境下单测。
-import type { UserDto } from "../api";
+import type { HeaderUser } from "../headerUserCache";
 import { canSeeBooking } from "../pages/booking/logic";
 
 // 头部自带文案，不读各页的 STRINGS，这样三页的头部永远一致
@@ -28,7 +28,7 @@ export type HeaderTab = {
  *    canSeeBooking 是 D-15 / D-16 的唯一判定，从订场页的 logic 引入，不复制一份。
  * 2. 当前页的标签永远显示成选中态：active 为 booking 时，即使登录态还没确认也显示 Auto Booking 标签。
  */
-export function headerTabs(user: UserDto | null | undefined, active: HeaderPage): HeaderTab[] {
+export function headerTabs(user: HeaderUser | null | undefined, active: HeaderPage): HeaderTab[] {
   const tabs: HeaderTab[] = [
     { page: "search", label: HEADER_STRINGS.navSearch, href: "index.html", active: active === "search" },
     { page: "watch", label: HEADER_STRINGS.navWatch, href: "config.html", active: active === "watch" },
@@ -45,6 +45,20 @@ export function tabGridColumns(count: number): string {
 }
 
 /** 账号区显示的邮箱：已登录是登录邮箱，未登录（含还在确认）是 null，此时不渲染账号区。 */
-export function accountEmail(user: UserDto | null | undefined): string | null {
+export function accountEmail(user: HeaderUser | null | undefined): string | null {
   return user ? user.loginEmail : null;
+}
+
+/**
+ * 头部实际显示的用户。三种取值：
+ * - confirmed 不是 undefined：页面已经确认（已登录的用户，或确认未登录的 null），以页面为准；
+ * - confirmed 是 undefined（还在等 /api/me）且有缓存：先按缓存画，首帧就有账号区和 Auto Booking 标签；
+ * - 还在确认且没有缓存：返回 undefined，保持原来「还在确认」的显示。
+ */
+export function resolveHeaderUser(
+  confirmed: HeaderUser | null | undefined,
+  cached: HeaderUser | null,
+): HeaderUser | null | undefined {
+  if (confirmed !== undefined) return confirmed;
+  return cached ?? undefined;
 }
