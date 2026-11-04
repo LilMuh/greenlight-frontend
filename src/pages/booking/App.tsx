@@ -12,7 +12,7 @@ import { classifyError } from "../config/logic";
 import { Toast } from "../config/components/Toast";
 import { STRINGS } from "./strings";
 import {
-  accountLabel, bookedSlotView, canCreate, canSeeBooking, describeResult, northlandsCourseId, occupiedBy,
+  accountLabel, bookedSlotView, canCreate, canSeeBooking, cardResultText, northlandsCourseId, occupiedBy,
   playLineText, runLineText, siteToday, toRunAtLocal, whenLabels,
 } from "./logic";
 import { createInitialState, reducer, type BookingFormPatch } from "./reducer";
@@ -34,6 +34,7 @@ function TimePicker(props: { value: string; onChange: (value: string) => void })
 }
 
 // 一条任务的卡片：Scheduled 与 My tasks 共用；My tasks 才带结果说明与取消按钮。
+// 卡片不显示创建者；BOOKED 且有深绿时段块时不再显示结果句（块建不出来才回退显示）。
 // 标题是「球场 #任务号」；运行时间（蓝）与打球日（绿，带星期与时段）各占一行，一眼分清「什么时候跑」和「订哪天」
 function TaskCard(props: {
   task: BookingTaskDto;
@@ -45,6 +46,8 @@ function TaskCard(props: {
   const canEdit = task.editable && !!props.onEdit;
   const canCancel = props.withResult && task.cancellable && !!props.onCancel;
   const booked = bookedSlotView(task);
+  // BOOKED 且有深绿时段块时 cardResultText 为 null，不重复显示结果句
+  const resultText = props.withResult ? cardResultText(task) : null;
   const labels = whenLabels(task.status);
   return (
     <div className={`wa-card${task.status === "BOOKED" ? " is-booked" : ""}`}>
@@ -72,9 +75,8 @@ function TaskCard(props: {
         <span className="wa-chip">{STRINGS.maxPriceText(task.maxPrice)}</span>
         <span className="wa-chip">{STRINGS.sortText(task.sort)}</span>
       </div>
-      <div className="wa-bk-meta">{STRINGS.createdBy} {task.creatorLoginEmail}</div>
       <div className="wa-bk-meta">{STRINGS.bookingAccount}: {accountLabel(task)}</div>
-      {props.withResult && <div className="wa-bk-result">{describeResult(task)}</div>}
+      {resultText !== null && <div className="wa-bk-result">{resultText}</div>}
       {(canEdit || canCancel) && (
         <div className="wa-card-actions">
           {canEdit && <button className="wa-edit" onClick={() => props.onEdit?.(task)}>{STRINGS.editBtn}</button>}
