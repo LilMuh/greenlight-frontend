@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
   accountLabel, addDays, canCreate, canSeeBooking, defaultPlayDate, defaultRunAt, describeResult,
-  northlandsCourseId, occupiedBy, playLineText, runLineText, runParts, siteToday, toRunAtLocal, weekdayShort,
+  bookedSlotView, northlandsCourseId, occupiedBy, playLineText, runLineText, runParts, shortTime, siteToday,
+  toRunAtLocal, weekdayShort, whenLabels,
 } from "./logic";
 import { STRINGS } from "./strings";
 import { ERROR_MESSAGES } from "../config/strings";
-import type { BookingTaskDto, UserDto } from "../../api";
+import type { BookingTaskDto, BookingTaskStatus, UserDto } from "../../api";
 
 // 测试数据只用 example.test 这类假域名，公开仓库里不放任何真实地址。
 const task = (over: Partial<BookingTaskDto> = {}): BookingTaskDto => ({
@@ -214,5 +215,82 @@ describe("13 个 BOOKING_* 错误码文案", () => {
       expect(ERROR_MESSAGES[code], code).toBeTruthy();
       expect(ERROR_MESSAGES[code]).toMatch(/^[\x20-\x7E—’]+$/);
     }
+  });
+});
+
+describe("BOOKED 时段块", () => {
+  const booked = (slot: unknown, over: Partial<BookingTaskDto> = {}): BookingTaskDto =>
+    task({
+      status: "BOOKED",
+      resultDetail: { slot, pricing: { total: 280 }, reservationId: 387292 },
+      ...over,
+    });
+  const slot = { date: "2026-11-14", time: "09:00", players: 4, pricePerPlayer: 70 };
+
+  it("shortTime 只去掉小时的前导零，其余原样", () => {
+    expect(shortTime("09:00")).toBe("9:00");
+    expect(shortTime("00:30")).toBe("0:30");
+    expect(shortTime("14:50")).toBe("14:50");
+    expect(shortTime("7:05")).toBe("7:05");
+    expect(shortTime("morning")).toBe("morning");
+  });
+
+  it("三行内容严格按用户指定的格式，不含价格和确认号", () => {
+    const view = bookedSlotView(booked(slot));
+    expect(view).toEqual({ label: "BOOKED TEE TIME (2026-11-14)", headline: "SAT 9:00", players: "4 players" });
+    const text = JSON.stringify(view);
+    expect(text).not.toContain("280");
+    expect(text).not.toContain("387292");
+    expect(text).not.toContain("$");
+  });
+
+  it("星期由日期算出：2026-11-08 是 SUN，不照抄设计稿", () => {
+    expect(bookedSlotView(booked({ ...slot, date: "2026-11-08" }))?.headline).toBe("SUN 9:00");
+  });
+
+  it("下午时间保持 24 小时制", () => {
+    expect(bookedSlotView(booked({ ...slot, time: "14:50" }))?.headline).toBe("SAT 14:50");
+  });
+
+  it("1 人是单数；players 读不出只省略那一行", () => {
+    expect(bookedSlotView(booked({ ...slot, players: 1 }))?.players).toBe("1 player");
+    expect(bookedSlotView(booked({ date: "2026-11-14", time: "09:00" }))?.players).toBeNull();
+    expect(bookedSlotView(booked({ ...slot, players: "4" }))?.players).toBeNull();
+  });
+
+  it("不是 BOOKED、或 slot 读不出时返回 null，回退到原来的结果句", () => {
+    expect(bookedSlotView(booked(slot, { status: "DRY_RUN_OK" }))).toBeNull();
+    expect(bookedSlotView(task({ status: "BOOKED", resultDetail: null }))).toBeNull();
+    expect(bookedSlotView(booked(undefined))).toBeNull();
+    expect(bookedSlotView(booked("slot"))).toBeNull();
+    expect(bookedSlotView(booked({ ...slot, date: undefined }))).toBeNull();
+    expect(bookedSlotView(booked({ ...slot, date: "2026-1-3" }))).toBeNull();
+    expect(bookedSlotView(booked({ ...slot, time: "" }))).toBeNull();
+    expect(bookedSlotView(booked({ ...slot, time: undefined }))).toBeNull();
+  });
+
+  it("describeResult 仍带 total 和确认号", () => {
+    const text = describeResult(booked(slot));
+    expect(text).toContain("280.00");
+    expect(text).toContain("Confirmation #387292");
+  });
+});
+
+describe("两行时间的标签", () => {
+  it("PENDING / RUNNING 仍是 Runs / Plays", () => {
+    for (const status of ["PENDING", "RUNNING"] as BookingTaskStatus[]) {
+      expect(whenLabels(status)).toEqual({ run: STRINGS.runsAt, play: STRINGS.plays });
+    }
+    expect(STRINGS.runsAt).toBe("Runs");
+    expect(STRINGS.plays).toBe("Plays");
+  });
+
+  it("已结束的任务是 Ran / Wanted", () => {
+    const finished: BookingTaskStatus[] = ["BOOKED", "DRY_RUN_OK", "NOT_BOOKED", "FAILED", "UNKNOWN", "CANCELLED"];
+    for (const status of finished) {
+      expect(whenLabels(status)).toEqual({ run: STRINGS.ranAt, play: STRINGS.wanted });
+    }
+    expect(STRINGS.ranAt).toBe("Ran");
+    expect(STRINGS.wanted).toBe("Wanted");
   });
 });
