@@ -154,7 +154,7 @@ export function northlandsCourseId(courses: Pick<CourseDto, "id" | "slug">[]): n
 // 前端藏起来不是安全措施。
 
 /** D-15 / D-16：管理员和开启了订场的用户能看到订场页的列表；未登录、未开启的看不到。 */
-export function canSeeBooking(user: UserDto | null | undefined): boolean {
+export function canSeeBooking(user: Pick<UserDto, "admin" | "enableAutoBooking"> | null | undefined): boolean {
   return !!user && (user.admin || user.enableAutoBooking);
 }
 

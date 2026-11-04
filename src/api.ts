@@ -1,6 +1,7 @@
 // 所有后端调用都集中在这个文件。UI 代码不直接调用 fetch。
 // 部署时，deploy.yml 在构建期注入 VITE_API_BASE。本地不设置时，默认用 localhost:8080。
 import { clearToken, getToken } from "./auth";
+import { writeHeaderUser } from "./headerUserCache";
 
 const API_BASE: string = import.meta.env.VITE_API_BASE ?? "http://localhost:8080";
 
@@ -204,18 +205,30 @@ export const deleteWatchConfig = (id: number) =>
   request<null>(`/api/watch-configs/${id}`, { method: "DELETE" });
 
 // --- 登录与账号 -----------------------------------------------------------------
+// 登录成功就写头部缓存（只含三个展示字段）。令牌由页面随后 setToken；
+// 读缓存要求有令牌，所以缓存先写、令牌后存没有问题。
+const cacheLoginUser = (result: LoginResultDto): LoginResultDto => {
+  writeHeaderUser(result.user);
+  return result;
+};
+
 export const loginWithGoogle = (idToken: string) =>
-  request<LoginResultDto>("/api/auth/google", jsonBody({ idToken }));
+  request<LoginResultDto>("/api/auth/google", jsonBody({ idToken })).then(cacheLoginUser);
 // 无论邮箱是否已注册，后端都返回 204
 export const startEmailLogin = (email: string) =>
   request<null>("/api/auth/email/start", jsonBody({ email }));
 export const verifyEmailLogin = (email: string, code: string) =>
-  request<LoginResultDto>("/api/auth/email/verify", jsonBody({ email, code }));
+  request<LoginResultDto>("/api/auth/email/verify", jsonBody({ email, code })).then(cacheLoginUser);
 // 管理员专用：用户名和密码登录。普通用户没有密码
 export const loginAsAdmin = (username: string, password: string) =>
-  request<LoginResultDto>("/api/auth/admin", jsonBody({ username, password }));
+  request<LoginResultDto>("/api/auth/admin", jsonBody({ username, password })).then(cacheLoginUser);
 export const logout = () => request<null>("/api/auth/logout", { method: "POST" });
-export const getMe = () => request<UserDto>("/api/me");
+// getMe 成功后用新值覆盖头部缓存（校正首帧按缓存画出的账号区）
+export const getMe = () =>
+  request<UserDto>("/api/me").then((user) => {
+    writeHeaderUser(user);
+    return user;
+  });
 export const setNotificationsEnabled = (notificationsEnabled: boolean) =>
   request<UserDto>("/api/me", { ...jsonBody({ notificationsEnabled }), method: "PATCH" });
 // 更换通知邮箱：先给新地址发验证码。用户填对验证码后，才更换。
