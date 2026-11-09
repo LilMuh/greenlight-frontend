@@ -129,3 +129,59 @@
   font-size: 13px;
   font-weight: 600;
 }
+
+/* 「我的订场账号」卡片（D-13）：在表单与列表之上，单独一行；沿用 wa-form 的白底圆角卡片，但不要它的 360px 固定宽 */
+.wa-bk-top {
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 32px 0;
+}
+.wa-bk-acct.wa-form {
+  width: 100%;
+  max-width: 520px;
+}
+.wa-bk-acct-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.wa-bk-acct-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.wa-bk-acct-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.wa-bk-acct-value {
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.wa-bk-acct-note {
+  font-size: 12.5px;
+  color: var(--danger);
+  overflow-wrap: anywhere;
+}
+.wa-bk-status.is-acct-valid {
+  background: color-mix(in oklch, var(--green-ink) 14%, transparent);
+  color: var(--green-ink);
+}
+.wa-bk-status.is-acct-needsaction {
+  background: #fff;
+  border: 1px solid var(--danger-line);
+  color: var(--danger);
+}
+.wa-bk-acct input {
+  min-width: 0;
+  width: 100%;
+}
+@media (max-width: 860px) {
+  .wa-bk-top {
+    padding: 16px 16px 0;
+  }
+}

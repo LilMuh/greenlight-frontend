@@ -1,4 +1,4 @@
-import type { BookingSort, BookingTaskDto, CourseDto, UserDto } from "../../api";
+import type { BookingAccountDto, BookingSort, BookingTaskDto, CourseDto, UserDto } from "../../api";
 import { PLAYERS_DEFAULT, TIME_END_DEFAULT, TIME_START_DEFAULT } from "../config/strings";
 import { canSeeBooking, defaultPlayDate, defaultRunAt, runParts } from "./logic";
 import { STRINGS } from "./strings";
@@ -27,6 +27,10 @@ export interface BookingState {
   scheduled: BookingTaskDto[]; // 所有人的 PENDING / RUNNING，运行时间升序
   mine: BookingTaskDto[]; // 自己的全部（管理员是所有人的），id 降序
   loading: boolean; // 列表还没拿到
+  // 我的订场账号（普通用户）：undefined = 还没拿到；null = 没绑定。管理员不用它，永远是 undefined。
+  // 只放服务端给的账号 DTO（没有任何秘密）；密码只活在 AccountCard 的组件 state 里，绝不进这里
+  account: BookingAccountDto | null | undefined;
+  accountFailed: boolean; // 账号状态没拿到（只用于提示，不当成「没绑定」）
   toast: string; // 空串 = 不显示
   form: BookingForm;
   editingId: number | null; // null = 新建态；不为 null = 正在编辑这条任务
@@ -59,6 +63,8 @@ export function createInitialState(now: Date): BookingState {
     scheduled: [],
     mine: [],
     loading: true,
+    account: undefined,
+    accountFailed: false,
     toast: "",
     form: defaultForm(now),
     editingId: null,
@@ -71,6 +77,8 @@ export type BookingAction =
   | { type: "userLoaded"; user: UserDto }
   | { type: "signedOut" }
   | { type: "tasksLoaded"; scheduled: BookingTaskDto[]; mine: BookingTaskDto[] }
+  | { type: "accountLoaded"; account: BookingAccountDto | null }
+  | { type: "accountFailed" }
   | { type: "loadFailed" } // 列表没拿到：只结束「加载中」，已有的列表原样保留
   | { type: "taskCreated"; task: BookingTaskDto }
   | { type: "taskCancelled"; task: BookingTaskDto }
@@ -102,9 +110,16 @@ export function reducer(state: BookingState, action: BookingAction): BookingStat
       return { ...state, user: action.user, loading: canSeeBooking(action.user) };
     case "signedOut":
       // 上一个人的任务不留：同一台电脑换人登录不能看到前一个人的东西
-      return { ...state, user: null, scheduled: [], mine: [], loading: false, editingId: null };
+      return {
+        ...state, user: null, scheduled: [], mine: [], loading: false, editingId: null,
+        account: undefined, accountFailed: false,
+      };
     case "tasksLoaded":
       return { ...state, scheduled: action.scheduled, mine: action.mine, loading: false };
+    case "accountLoaded":
+      return { ...state, account: action.account, accountFailed: false };
+    case "accountFailed":
+      return { ...state, accountFailed: true };
     case "loadFailed":
       return { ...state, loading: false };
     case "taskCreated":

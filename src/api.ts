@@ -132,10 +132,68 @@ export interface BookingTaskDto {
   editable: boolean; // 后端算：PENDING、自己的、不是管理员、原定运行时间在锁定窗口外
 }
 
-/** GET /api/booking-tasks：scheduled = 所有人的 PENDING / RUNNING；mine = 自己的全部（管理员是所有人的）。 */
+/**
+ * GET /api/booking-tasks：订场任务互相独立（D-14）。
+ * scheduled = 自己的 PENDING / RUNNING（管理员是所有人的）；mine = 自己的全部（管理员是所有人的）；
+ * occupiedRunAtLocal = 别人占用的站点本地运行分钟串（yyyy-MM-ddTHH:mm），不含任务号、邮箱或用户，只用来提前提示「已被占用」。
+ */
 export interface BookingTasksDto {
   scheduled: BookingTaskDto[];
   mine: BookingTaskDto[];
+  occupiedRunAtLocal: string[];
+}
+
+// --- 我的订场账号（跨仓库契约：字段名逐字对齐后端 BookingAccount*Dto / BookingKeyDto，06-06 / 06-07） ----------
+
+/** 持久状态只有两个（D-16）。「验证中」不是状态，由 verifying 标记给出。 */
+export type BookingAccountStatus = "VALID" | "NEEDS_ACTION";
+
+/** NEEDS_ACTION 的原因码，与后端 BookingAccountReason 枚举逐字一致（只追加不改名）。 */
+export type BookingAccountReason =
+  | "NOT_VERIFIED" | "VERIFY_FAILED" | "BAD_CREDENTIALS" | "CHALLENGE" | "OTP_REQUIRED"
+  | "UNEXPECTED_PAGE" | "LOGIN_TIMEOUT" | "TOKEN_REJECTED" | "NO_CREDENTIALS" | "NO_CARD_ON_FILE"
+  | "UNSUPPORTED_CLASS" | "KEY_MISMATCH" | "DECRYPT_FAILED" | "ACCOUNT_MISMATCH" | "PROFILE_ERROR";
+
+export type BookingAccountKind = "OWN" | "SHARED";
+
+/** GET /api/booking-account：自己的订场账号。没有密文、公钥指纹和浏览器 profile id。 */
+export interface BookingAccountDto {
+  id: number;
+  loginEmail: string;
+  kind: BookingAccountKind;
+  status: BookingAccountStatus;
+  reason: BookingAccountReason | null; // VALID 时为 null
+  classCode: string | null;
+  verifiedAt: string | null; // ISO 瞬时
+  verifying: boolean; // 后端内存里的在途标记
+}
+
+/** GET /api/booking-account/key：scraper 的公钥，后端原样转发。只有 keyId 等于写死的指纹才能用来加密（D-15）。 */
+export interface BookingKeyDto {
+  keyId: string; // 16 位小写十六进制
+  algorithm: string; // RSA-OAEP-256
+  spki: string; // SPKI DER 的标准 base64
+}
+
+/** PUT /api/booking-account 的请求体：后端永远看不到明文（D-05）。 */
+export interface BookingAccountBindDto {
+  keyId: string;
+  loginEmail: string;
+  ciphertext: string;
+}
+
+/** GET /api/booking-accounts（管理员只读总览）的一项：同样没有任何秘密字段。 */
+export interface BookingAccountAdminDto {
+  id: number;
+  userId: number;
+  userLoginEmail: string;
+  loginEmail: string;
+  kind: BookingAccountKind;
+  status: BookingAccountStatus;
+  reason: BookingAccountReason | null;
+  classCode: string | null;
+  verifiedAt: string | null;
+  verifying: boolean;
 }
 
 /**
@@ -247,3 +305,18 @@ export const updateBookingTask = (id: number, dto: BookingTaskCreateDto) =>
   request<BookingTaskDto>(`/api/booking-tasks/${id}`, { ...jsonBody(dto), method: "PUT" });
 export const cancelBookingTask = (id: number) =>
   request<BookingTaskDto>(`/api/booking-tasks/${id}/cancel`, { method: "POST" });
+
+// --- 我的订场账号 ---------------------------------------------------------------
+// 绑定：取公钥 → 浏览器加密（accountCrypto）→ PUT，返回 202（验证在后台进行，状态用 GET 轮询）。
+export const getBookingKey = () => request<BookingKeyDto>("/api/booking-account/key");
+// 没绑定返回 204（null）；管理员不调用这个，用 listBookingAccounts
+export const getMyBookingAccount = () => request<BookingAccountDto | null>("/api/booking-account");
+export const linkBookingAccount = (dto: BookingAccountBindDto) =>
+  request<BookingAccountDto>("/api/booking-account", { ...jsonBody(dto), method: "PUT" });
+// 重新验证：202，verifying=true；PUT 与它共用限频
+export const reverifyBookingAccount = () =>
+  request<BookingAccountDto>("/api/booking-account/verify", { method: "POST" });
+// 解绑：204。该账号全部待执行任务会失败，并给创建者发邮件
+export const unlinkBookingAccount = () => request<null>("/api/booking-account", { method: "DELETE" });
+// 管理员只读总览
+export const listBookingAccounts = () => request<BookingAccountAdminDto[]>("/api/booking-accounts");

@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "algorithm": "RSA-OAEP-256",
+  "webCrypto": {
+    "name": "RSA-OAEP",
+    "hash": "SHA-256"
+  },
+  "modulusLength": 3072,
+  "label": "greenlight-booking-v1",
+  "maxPlaintextBytes": 300,
+  "payload": {
+    "v": 1,
+    "fields": [
+      "email",
+      "password"
+    ]
+  },
+  "keyId": {
+    "hash": "SHA-256",
+    "over": "spki-der",
+    "hexChars": 16
+  },
+  "sample": {
+    "spki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAvCC08X9TwBHx6WkQyg8slp9ABm/9h9M0i2Bf7RuG6yFG7sTQ70m55p/Ytu23hJlJaGIVZumsm50vELEGKXcQnSmda1Vvibo3LocwEjf/8hs2HybdYDdg5dSt74NK1W8r7QlfgDYbs4LK1llKrq3bpvtvq/7AHhFvcyd0D5l5tUJ2728hKahrXu2q+zbD3XmBHyRZKDYzixh18DDe9vRX6pJsSCSzZ7AG2We310gUbn8PhsNBNQ6flo9MTG//m1WzLq//2iPC647kQiLPtWt2fsl/syrbvi1uU6umqcIGG5wzdrm89epycHipoPB/SPRqT5+rq035XEUk0i/ND1jiT2O8U9g+/fa3/+eke/VZGnJlWXJjSI801liA4f5luWFEiDg1Lg7DC8ek7Dxs/0OYjfFL8UmnArYGeoCy7W3W7l4oTjzRE1gT5IsIMjf9Ef9X+EljLVP8RlzhNqKpJ9gEHlIuxz1OsCaCWSQPiJKAvbmLtIwiJiqGbh8TwvTOz6F9AgMBAAE=",
+    "keyId": "c86bfd09485ae8ff"
+  }
+}

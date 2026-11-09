@@ -53,6 +53,22 @@ export const STRINGS = {
     PENDING: "Pending", RUNNING: "Running", BOOKED: "Booked", DRY_RUN_OK: "Dry run OK",
     NOT_BOOKED: "Not booked", FAILED: "Failed", UNKNOWN: "Unknown result", CANCELLED: "Cancelled",
   },
+  // 我的订场账号卡片（D-13）。页面文案保持英文；NEEDS_ACTION 的原因提示是 D-16 锁定的中文，在 accountCard.ts
+  accountTitle: "My booking account",
+  accountIntro: "Link your own Northlands account. Tasks you schedule are booked under it.",
+  accountEmailLabel: "Northlands login email", accountPasswordLabel: "Northlands password",
+  accountPasswordNote: "Your password is encrypted in this browser before it is sent; GreenLight's servers never see it.",
+  linkBtn: "Link account", linking: "Linking…",
+  accountLoading: "Loading…",
+  accountLoadFailed: "Couldn't load your booking account — reload the page.",
+  accountVerifying: "Verifying… this can take a minute.",
+  accountStillVerifying: "Still verifying — check back in a few minutes.",
+  statusValid: "Valid", statusNeedsAction: "Needs action", statusVerifying: "Verifying…",
+  accountStatusLabel: "Status",
+  // 加密前就被拒绝：什么都没发出去，不是网络错误
+  keyUntrusted: "This page can't verify the encryption key, so nothing was sent. Please contact the admin.",
+  credentialsTooLong: "The email and password are too long (300 bytes at most together) — nothing was sent.",
+  needEmailPassword: "Enter both the Northlands email and password.",
   cancelBtn: "Cancel task",
   cancelConfirm: "Cancel this booking task?",
 } as const;

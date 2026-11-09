@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createInitialState, defaultForm, reducer, type BookingState } from "./reducer";
-import type { BookingTaskDto, CourseDto, UserDto } from "../../api";
+import type { BookingAccountDto, BookingTaskDto, CourseDto, UserDto } from "../../api";
 
 // 测试数据只用 example.test 这类假域名，公开仓库里不放任何真实地址。
 const task = (over: Partial<BookingTaskDto> = {}): BookingTaskDto => ({
@@ -113,6 +113,26 @@ describe("booking reducer", () => {
     expect(state.scheduled).toEqual([]);
     expect(state.mine).toEqual([]);
     expect(state.loading).toBe(false);
+  });
+
+  it("accountLoaded / accountFailed：初始是还没拿到；没绑定（null）与没拿到（undefined）分得清；signedOut 清掉", () => {
+    const acct: BookingAccountDto = {
+      id: 1, loginEmail: "acct@example.invalid", kind: "OWN", status: "VALID", reason: null,
+      classCode: "PUB", verifiedAt: "2026-11-09T20:00:00Z", verifying: false,
+    };
+    let state = fresh();
+    expect(state.account).toBeUndefined();
+    expect(state.accountFailed).toBe(false);
+    state = reducer(state, { type: "accountFailed" });
+    expect(state.accountFailed).toBe(true);
+    expect(state.account).toBeUndefined(); // 失败不当成「没绑定」
+    state = reducer(state, { type: "accountLoaded", account: null });
+    expect(state.account).toBeNull();
+    expect(state.accountFailed).toBe(false);
+    state = reducer(state, { type: "accountLoaded", account: acct });
+    expect(state.account).toEqual(acct);
+    state = reducer(state, { type: "signedOut" });
+    expect(state.account).toBeUndefined();
   });
 
   it("coursesLoaded 存下球场清单", () => {

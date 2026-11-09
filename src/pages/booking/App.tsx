@@ -3,13 +3,14 @@
 // 前端只决定显示，建 / 查 / 改 / 取消的权限全在后端判定。
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import {
-  ApiError, cancelBookingTask, createBookingTask, getCourses, getMe, listBookingTasks, logout, updateBookingTask,
-  type BookingTaskDto,
+  ApiError, cancelBookingTask, createBookingTask, getCourses, getMe, getMyBookingAccount, listBookingTasks, logout,
+  updateBookingTask, type BookingTaskDto,
 } from "../../api";
 import { clearToken, getToken } from "../../auth";
 import { SiteHeader } from "../../components/SiteHeader";
 import { classifyError } from "../config/logic";
 import { Toast } from "../config/components/Toast";
+import { AccountCard } from "./AccountCard";
 import { STRINGS } from "./strings";
 import {
   accountLabel, bookedSlotView, canCreate, canSeeBooking, cardResultText, northlandsCourseId, occupiedBy,
@@ -135,7 +136,18 @@ export function App() {
     getMe()
       .then(async (me) => {
         dispatch({ type: "userLoaded", user: me });
-        if (canSeeBooking(me)) await refresh();
+        if (canSeeBooking(me)) {
+          // 管理员没有自己的订场账号（GET 会是 204），不去拉
+          if (!me.admin) {
+            getMyBookingAccount()
+              .then((account) => dispatch({ type: "accountLoaded", account }))
+              .catch((error) => {
+                dispatch({ type: "accountFailed" });
+                reportError(error);
+              });
+          }
+          await refresh();
+        }
       })
       .catch((error) => {
         dispatch({ type: "signedOut" });
@@ -257,6 +269,19 @@ export function App() {
       {user && !canSeeBooking(user) && (
         <div className="wa-body wa-body-center">
           <div className="wa-empty">{STRINGS.notEnabled}</div>
+        </div>
+      )}
+
+      {/* D-13：「我的订场账号」在页面最上方，建任务表单之前。管理员没有自己的订场账号，不显示 */}
+      {user && canSeeBooking(user) && !user.admin && (
+        <div className="wa-bk-top">
+          <AccountCard
+            user={user}
+            account={state.account}
+            loadFailed={state.accountFailed}
+            onAccountChange={(account) => dispatch({ type: "accountLoaded", account })}
+            onSignedOut={() => dispatch({ type: "signedOut" })}
+          />
         </div>
       )}
 
