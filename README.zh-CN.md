@@ -106,6 +106,8 @@ VITE_API_BASE=http://localhost:8080 VITE_GOOGLE_CLIENT_ID=xxx.apps.googleusercon
 
 不设置 `VITE_API_BASE` 时，默认用 `http://localhost:8080`。没有 Client ID 时，页面隐藏 Google 按钮，只能用邮箱验证码登录。后端处于 dev 邮件模式时，验证码会写在后端日志里。
 
+Google 登录现在是整页跳转（OIDC implicit 流程，`response_type=id_token`），不再是弹窗。Google Cloud Console 里这个 OAuth Client 的 **Authorized redirect URIs** 必须包含 `https://lilmuh.github.io/greenlight-frontend/config.html` 和 `http://localhost:5500/config.html`。换了托管地址或本地端口，就要加对应的 `config.html` 地址。否则 Google 页面会显示 `redirect_uri_mismatch`。登录时浏览器需要能用 `sessionStorage`，否则页面会提示改用邮箱验证码。
+
 ### 登录
 
 时段查询页公开。Watch Alerts 页需要登录：用 Google，或用邮箱接收 6 位验证码。每个账号只能看到自己的 watch。

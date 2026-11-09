@@ -6,10 +6,11 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import {
   createWatchConfigs, deleteWatchConfig, getCourses, getMatches, getMe,
-  listWatchConfigs, logout, updateWatchConfig, type LoginResultDto, type UserDto,
+  listWatchConfigs, loginWithGoogle, logout, updateWatchConfig, type LoginResultDto, type UserDto,
 } from "../../api";
 import { clearToken, getToken, setToken } from "../../auth";
 import { STRINGS } from "./strings";
+import { googleReturnMessage, type GoogleReturn } from "./googleRedirect";
 import {
   classifyError, groupByOwner, isCourseInMaintenance, sortWeekdays, toDto,
   type CourseRef, type WatchView,
@@ -22,8 +23,11 @@ import { LoginPanel } from "./components/LoginPanel";
 import { AccountPanel } from "./components/AccountPanel";
 import { Toast } from "./components/Toast";
 
-export function App() {
+// googleReturn：main.tsx 在首次渲染前处理 Google 回跳的结果。null 表示这次加载不是回跳
+export function App({ googleReturn }: { googleReturn: GoogleReturn | null }) {
   const [state, dispatch] = useReducer(reducer, undefined, createInitialState);
+  // 回跳带着有效 id_token 时，从第一帧起就显示「登录中」，登录表单不闪现
+  const [googleSigningIn, setGoogleSigningIn] = useState(googleReturn?.kind === "token");
   const [toast, setToast] = useState("");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -74,6 +78,23 @@ export function App() {
         if (Array.isArray(courses) && courses.length) dispatch({ type: "coursesLoaded", courses });
       })
       .catch(() => dispatch({ type: "offline" }));
+
+    // Google 回跳：token 交给后端换会话，成功后和旧的回调走同一条路（handleSignedIn）
+    if (googleReturn?.kind === "token") {
+      loginWithGoogle(googleReturn.idToken)
+        .then(handleSignedIn)
+        .catch((error) => {
+          dispatch({ type: "signedOut" });
+          reportError(error);
+        })
+        .finally(() => setGoogleSigningIn(false));
+      return;
+    }
+    // 其他回跳结果（取消、校验失败、过期）只提示，页面停在登录面板
+    if (googleReturn) {
+      const message = googleReturnMessage(googleReturn);
+      if (message) showToast(message, 2600);
+    }
 
     if (!getToken()) {
       dispatch({ type: "signedOut" });
@@ -234,10 +255,23 @@ export function App() {
     <>
       <SiteHeader active="watch" user={user} tagline={STRINGS.tagline} onSignOut={() => void handleSignOut()} />
 
-      {/* user === undefined 表示还在确认登录状态。这时先不渲染，以免登录面板一闪而过 */}
+      {/* user === undefined 表示还在确认登录状态。这时先不渲染，以免登录面板一闪而过。
+          Google 回跳后等后端确认时，显示登录中状态 */}
+      {user === undefined && googleSigningIn && (
+        <div className="wa-body wa-body-center">
+          <div className="wa-form wa-login">
+            <div className="wa-form-title">{STRINGS.signInTitle}</div>
+            <div className="wa-hint" role="status" aria-live="polite">{STRINGS.googleSigningIn}</div>
+          </div>
+        </div>
+      )}
       {user === null && (
         <div className="wa-body wa-body-center">
-          <LoginPanel onSignedIn={handleSignedIn} onError={reportError} />
+          <LoginPanel
+            onSignedIn={handleSignedIn}
+            onError={reportError}
+            onNotice={(message) => showToast(message, 2600)}
+          />
         </div>
       )}
 
