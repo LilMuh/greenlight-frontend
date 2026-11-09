@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  loginAsAdmin, loginWithGoogle, startEmailLogin, verifyEmailLogin, type LoginResultDto,
+  loginAsAdmin, startEmailLogin, verifyEmailLogin, type LoginResultDto,
 } from "../../../api";
 import { STRINGS } from "../strings";
 import { GoogleButton, googleSignInEnabled } from "./GoogleButton";
@@ -8,11 +8,12 @@ import { GoogleButton, googleSignInEnabled } from "./GoogleButton";
 interface Props {
   onSignedIn: (result: LoginResultDto) => void;
   onError: (error: unknown) => void;
+  onNotice: (message: string) => void;
 }
 
-// 未登录时显示的整块：Google 按钮，或者「填邮箱 → 收验证码 → 填验证码」两步。
+// 未登录时显示的整块：Google 按钮（点击后整页跳到 Google，回跳由 main.tsx 在首次渲染前处理），或者「填邮箱 → 收验证码 → 填验证码」两步。
 // 底部有一个不显眼的管理员入口。切换过去是用户名和密码表单（普通用户没有密码）。
-export function LoginPanel({ onSignedIn, onError }: Props) {
+export function LoginPanel({ onSignedIn, onError, onNotice }: Props) {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [codeSentTo, setCodeSentTo] = useState<string | null>(null);
@@ -42,10 +43,6 @@ export function LoginPanel({ onSignedIn, onError }: Props) {
 
   const verify = () => run(async () => {
     onSignedIn(await verifyEmailLogin(codeSentTo!, code.trim()));
-  });
-
-  const google = (idToken: string) => run(async () => {
-    onSignedIn(await loginWithGoogle(idToken));
   });
 
   const adminSignIn = () => run(async () => {
@@ -91,7 +88,7 @@ export function LoginPanel({ onSignedIn, onError }: Props) {
       <div className="wa-form-title">{STRINGS.signInTitle}</div>
       <div className="wa-hint">{googleSignInEnabled ? STRINGS.signInHint : STRINGS.signInHintEmailOnly}</div>
 
-      <GoogleButton onCredential={google} />
+      <GoogleButton onNotice={onNotice} />
       {googleSignInEnabled && <div className="wa-divider">{STRINGS.orDivider}</div>}
 
       {codeSentTo == null ? (

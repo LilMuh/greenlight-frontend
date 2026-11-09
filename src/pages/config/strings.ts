@@ -39,6 +39,18 @@ export const STRINGS = {
   signInHint: "Use Google, or get a 6-digit code by email.",
   signInHintEmailOnly: "We'll email you a 6-digit code.",
   orDivider: "or",
+  // Google 按钮上的文字
+  continueWithGoogle: "Continue with Google",
+  // 从 Google 回跳后、等后端确认登录期间显示
+  googleSigningIn: "Signing you in with Google…",
+  // 用户在 Google 页面点了取消
+  googleCancelled: "Google sign-in was cancelled.",
+  // 点击到回跳超过 10 分钟，或时钟倒退
+  googleExpired: "That Google sign-in took too long — please try again.",
+  // 回跳的 state / nonce 对不上，或 Google 返回了其他错误
+  googleFailed: "Google sign-in didn't go through — try again or use an email code.",
+  // 浏览器存不了 sessionStorage，无法安全地跳转到 Google 再回来
+  googleStorageBlocked: "This browser is blocking the storage Google sign-in needs — use an email code instead.",
   sendCode: "Email me a code", signIn: "Sign in", useOtherEmail: "Use a different email",
   codeLabel: "6-digit code", codeSent: (email: string) => `We sent a code to ${email}. It expires in 10 minutes.`,
   signOut: "Sign out", signedOut: "Signed out.",

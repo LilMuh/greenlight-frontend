@@ -21,8 +21,8 @@ function makeStorage() {
   return {
     map,
     getItem: (key: string) => map.get(key) ?? null,
-    setItem: (key: string, value: string) => void map.set(key, value),
-    removeItem: (key: string) => void map.delete(key),
+    setItem: (key: string, value: string): void => { map.set(key, value); },
+    removeItem: (key: string): void => { map.delete(key); },
   };
 }
 
