@@ -108,6 +108,8 @@ VITE_API_BASE=http://localhost:8080 VITE_GOOGLE_CLIENT_ID=xxx.apps.googleusercon
 
 If you do not set `VITE_API_BASE`, the default is `http://localhost:8080`. If you do not set a Client ID, the page hides the Google button and offers only email-code sign-in. When the backend uses dev mail mode, it writes the code to the backend log.
 
+Google sign-in is a full-page redirect (OIDC implicit flow, `response_type=id_token`), not a popup. In Google Cloud Console, the OAuth Client's **Authorized redirect URIs** must include `https://lilmuh.github.io/greenlight-frontend/config.html` and `http://localhost:5500/config.html`. If you host the site elsewhere or use another local port, add the matching `config.html` address. Without it, Google's page shows `redirect_uri_mismatch`. The browser must be able to use `sessionStorage` while signing in. If it cannot, the page asks the user to use an email code instead.
+
 ### Sign-in
 
 The tee-time search page is public. The Watch Alerts page requires sign-in, with Google or with a 6-digit code that the backend sends by email. Each account sees only its own watches.

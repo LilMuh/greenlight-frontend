@@ -20,7 +20,7 @@
     <!-- 预渲染头部里的其他标签（悬停时，moderate）。
          三页加载期只发 GET：Search 是 health / courses / tee-times / me；
          Watch 是 courses / me / watch-configs / matches；Booking 是 courses / me / booking-tasks。
-         Google 登录按钮只 renderButton，不弹 One Tap，所以用 prerender 而不是 prefetch。
+         Watch 页的 Google 登录是点击后整页跳转，加载期不向 Google 发请求；回跳处理在预渲染期间跳过（src/pages/config/main.tsx），所以仍用 prerender 而不是 prefetch。
          激活时会话变化（中途登出或换账号）由 src/prerenderGuard.ts 处理。 -->
     <script type="speculationrules">
       {
