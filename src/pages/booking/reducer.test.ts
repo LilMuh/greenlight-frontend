@@ -49,10 +49,11 @@ describe("booking reducer", () => {
   });
 
   it("tasksLoaded：整体替换两个列表并结束加载", () => {
-    let state = reducer(fresh(), { type: "tasksLoaded", scheduled: [task({ id: 1 })], mine: [task({ id: 1 })] });
-    state = reducer(state, { type: "tasksLoaded", scheduled: [task({ id: 2 })], mine: [task({ id: 3 }), task({ id: 2 })] });
+    let state = reducer(fresh(), { type: "tasksLoaded", scheduled: [task({ id: 1 })], mine: [task({ id: 1 })], occupiedRunAtLocal: [] });
+    state = reducer(state, { type: "tasksLoaded", scheduled: [task({ id: 2 })], mine: [task({ id: 3 }), task({ id: 2 })], occupiedRunAtLocal: ["2026-11-04T07:00"] });
     expect(state.scheduled.map((item) => item.id)).toEqual([2]);
     expect(state.mine.map((item) => item.id)).toEqual([3, 2]);
+    expect(state.occupiedRunAtLocal).toEqual(["2026-11-04T07:00"]); // D-14：整体替换，不累加
     expect(state.loading).toBe(false);
   });
 
@@ -61,6 +62,7 @@ describe("booking reducer", () => {
       type: "tasksLoaded",
       scheduled: [task({ id: 5, runAt: "2026-11-04T14:00:00Z", runAtLocal: "2026-11-04T07:00", creatorLoginEmail: "b@example.test", mine: false })],
       mine: [task({ id: 4, status: "BOOKED", cancellable: false })],
+      occupiedRunAtLocal: [],
     });
     state = reducer(state, { type: "taskCreated", task: task({ id: 6, runAt: "2026-11-03T14:00:00Z" }) });
     expect(state.mine.map((item) => item.id)).toEqual([6, 4]);
@@ -80,6 +82,7 @@ describe("booking reducer", () => {
       type: "tasksLoaded",
       scheduled: [task({ id: 1 }), task({ id: 2, runAt: "2026-11-04T14:00:00Z" })],
       mine: [task({ id: 2 }), task({ id: 1 })],
+      occupiedRunAtLocal: [],
     });
     state = reducer(state, { type: "taskCancelled", task: task({ id: 1, status: "CANCELLED", cancellable: false }) });
     expect(state.scheduled.map((item) => item.id)).toEqual([2]);
@@ -88,7 +91,7 @@ describe("booking reducer", () => {
   });
 
   it("错误类 action 只设置 toast，不清空列表", () => {
-    const loaded = reducer(fresh(), { type: "tasksLoaded", scheduled: [task({ id: 1 })], mine: [task({ id: 1 })] });
+    const loaded = reducer(fresh(), { type: "tasksLoaded", scheduled: [task({ id: 1 })], mine: [task({ id: 1 })], occupiedRunAtLocal: [] });
     const toasted = reducer(loaded, { type: "toast", message: "nope" });
     expect(toasted.toast).toBe("nope");
     expect(toasted.scheduled).toHaveLength(1);
@@ -107,11 +110,12 @@ describe("booking reducer", () => {
 
   it("signedOut：清掉上一个人的任务与登录态", () => {
     let state = reducer(fresh(), { type: "userLoaded", user: user() });
-    state = reducer(state, { type: "tasksLoaded", scheduled: [task()], mine: [task()] });
+    state = reducer(state, { type: "tasksLoaded", scheduled: [task()], mine: [task()], occupiedRunAtLocal: ["2026-11-04T07:00"] });
     state = reducer(state, { type: "signedOut" });
     expect(state.user).toBeNull();
     expect(state.scheduled).toEqual([]);
     expect(state.mine).toEqual([]);
+    expect(state.occupiedRunAtLocal).toEqual([]); // 上一个人看到的占用分钟也不留
     expect(state.loading).toBe(false);
   });
 
@@ -192,7 +196,7 @@ describe("booking reducer", () => {
     it("taskUpdated：按 id 替换 mine 与 scheduled 的旧条目并重新排序，退出编辑态、表单复位", () => {
       const early = task({ id: 1, runAt: "2026-11-04T14:00:00Z" });
       const late = task({ id: 2, runAt: "2026-11-05T14:00:00Z" });
-      let state = reducer(fresh(), { type: "tasksLoaded", scheduled: [early, late], mine: [late, early] });
+      let state = reducer(fresh(), { type: "tasksLoaded", scheduled: [early, late], mine: [late, early], occupiedRunAtLocal: [] });
       state = reducer(state, { type: "editStarted", task: early });
       const moved = task({ id: 1, runAt: "2026-11-06T14:00:00Z", maxPrice: 90 });
       state = reducer(state, { type: "taskUpdated", task: moved, now: NOW });

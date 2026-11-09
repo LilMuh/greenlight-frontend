@@ -20,17 +20,22 @@ export const STRINGS = {
   needPrice: "Max price must be a whole number from 1 to 1000.",
   needCourse: "Northlands isn't available right now — reload the page.",
   created: "Booking task scheduled.", updated: "Booking task updated.", cancelled: "Booking task cancelled.",
-  // D-09 / D-16：谁占了这个运行时间（创建者的完整登录邮箱 + 任务号）
-  occupied: (email: string, id: number) =>
-    `That run time is already taken by ${email} (task #${id}).`,
+  // D-09 / D-10 / D-14：同一运行时间全局只能有一个任务；订场任务互相独立，只说被占用，不说是谁、哪个任务
+  occupied: "That run time is already taken.",
   // 登录与可见性（D-15 / D-16）
   signInPrompt: "Sign in on the Watch Alerts page first, then come back here.",
   signInLink: "Go to Watch Alerts to sign in",
   notEnabled: "Auto booking is not enabled for your account.",
   adminNote: "Admins can see every task and cancel pending ones, but can't create tasks.",
+  // D-07：建任务前提——账号 VALID。表单位置显示原因
+  createNeedsLink: "Link your Northlands account above to schedule bookings.",
+  createVerifying: "Your Northlands account is being verified — you can schedule bookings once it is valid.",
+  createNeedsAction: "Your Northlands account needs action — fix it above to schedule bookings.",
   // 列表
   scheduledTitle: "Scheduled", scheduledEmpty: "Nothing is scheduled right now.",
-  scheduledHint: "Pending and running tasks from everyone. One task per run time.",
+  // D-14：普通用户只有自己的任务；管理员看所有人的
+  scheduledHint: "Your pending and running tasks. One task per run time across GreenLight.",
+  scheduledHintAdmin: "Pending and running tasks from everyone.",
   myTitle: "My tasks", myTitleAdmin: "All tasks", myEmpty: "No tasks yet.",
   countText: (count: number) => `${count} task${count === 1 ? "" : "s"}`,
   loadingTasks: "Loading…",
@@ -65,6 +70,20 @@ export const STRINGS = {
   accountStillVerifying: "Still verifying — check back in a few minutes.",
   statusValid: "Valid", statusNeedsAction: "Needs action", statusVerifying: "Verifying…",
   accountStatusLabel: "Status",
+  accountClassLabel: "Class", accountVerifiedLabel: "Last verified",
+  accountSharedNote: "Shared GreenLight account — managed by the admin.",
+  accountSwitchNote: "To use a different Northlands account, unlink first.",
+  reverifyBtn: "Re-verify", changePasswordBtn: "Change password", unlinkBtn: "Unlink", closeFormBtn: "Close",
+  changePasswordSubmit: "Save new password",
+  unlinkConfirm:
+    "Unlink this Northlands account? All of its pending booking tasks will fail, their creators will be emailed, and its browser profile will be deleted.",
+  unlinked: "Booking account unlinked.", reverifyStarted: "Re-verifying…",
+  // 管理员总览（D-12）：只读，没有绑定表单
+  adminAccountsTitle: "Booking accounts",
+  adminAccountsHint: "Read-only overview of everyone's linked Northlands account. Admins can't link or change accounts.",
+  adminAccountsEmpty: "No booking accounts yet.", adminAccountsLoading: "Loading…",
+  adminAccountsFailed: "Couldn't load the booking accounts — reload the page.",
+  adminUserLabel: "GreenLight user", adminKindLabel: "Kind",
   // 加密前就被拒绝：什么都没发出去，不是网络错误
   keyUntrusted: "This page can't verify the encryption key, so nothing was sent. Please contact the admin.",
   credentialsTooLong: "The email and password are too long (300 bytes at most together) — nothing was sent.",

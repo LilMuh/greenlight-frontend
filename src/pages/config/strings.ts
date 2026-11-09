@@ -113,7 +113,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // 自动订场（跨仓库契约：与后端 ApiErrorCode 的 BOOKING_* 同名，后端只追加不改名，05-06）
   BOOKING_NOT_ENABLED: "Auto booking isn't enabled for your account.",
   BOOKING_ADMIN_CANNOT_CREATE: "Admins can view and cancel booking tasks but can't create or edit them.",
-  BOOKING_RUN_AT_TAKEN: "That run time is already taken — see Scheduled for who has it.",
+  BOOKING_RUN_AT_TAKEN: "That run time is already taken.",
   BOOKING_COURSE_UNSUPPORTED: "Auto booking isn't available for that course.",
   BOOKING_DATE_OUT_OF_WINDOW: "That play date can't be booked at that run time — a day opens at 07:00, five days ahead.",
   BOOKING_RUN_AT_INVALID: "Run time looks wrong — pick a valid time in the future.",

@@ -185,3 +185,28 @@
     padding: 16px 16px 0;
   }
 }
+.wa-bk-acct .wa-card-actions {
+  flex-wrap: wrap; /* 三个按钮在 320px 宽下换行，不横向溢出 */
+}
+.wa-bk-acct .wa-edit:disabled,
+.wa-bk-acct .wa-delete:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.wa-bk-acct.is-admin.wa-form {
+  max-width: none;
+}
+.wa-bk-admin-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 12px;
+}
+.wa-bk-admin-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--line2);
+  border-radius: 10px;
+  min-width: 0;
+}

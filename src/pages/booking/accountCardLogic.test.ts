@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { POLL_INTERVAL_MS, POLL_MAX_MS, cardState, shouldKeepPolling } from "./accountCardLogic";
-import type { BookingAccountDto } from "../../api";
+import {
+  POLL_INTERVAL_MS, POLL_MAX_MS, askForPassword, cardState, formatVerifiedAt, reasonHint, shouldKeepPolling,
+} from "./accountCardLogic";
+import type { BookingAccountDto, BookingAccountReason } from "../../api";
 
 // 测试数据只用 .invalid 这类假域名，公开仓库里不放任何真实地址。
 const account = (over: Partial<BookingAccountDto> = {}): BookingAccountDto => ({
@@ -48,5 +50,39 @@ describe("shouldKeepPolling", () => {
   });
   it("NOT_VERIFIED 也继续轮询", () => {
     expect(shouldKeepPolling(account({ status: "NEEDS_ACTION", reason: "NOT_VERIFIED" }), start, start + 1)).toBe(true);
+  });
+});
+
+describe("D-16 原因提示", () => {
+  // 与后端 BookingAccountReason 的 15 个值逐字一致
+  const reasons: BookingAccountReason[] = [
+    "NOT_VERIFIED", "VERIFY_FAILED", "BAD_CREDENTIALS", "CHALLENGE", "OTP_REQUIRED", "UNEXPECTED_PAGE",
+    "LOGIN_TIMEOUT", "TOKEN_REJECTED", "NO_CREDENTIALS", "NO_CARD_ON_FILE", "UNSUPPORTED_CLASS", "KEY_MISMATCH",
+    "DECRYPT_FAILED", "ACCOUNT_MISMATCH", "PROFILE_ERROR",
+  ];
+  it("BAD_CREDENTIALS 提示重新输入密码", () => {
+    expect(reasonHint("BAD_CREDENTIALS")).toBe("密码错误，请重新输入密码。");
+  });
+  it("其余 14 个原因都提示联系管理员并带上原因码", () => {
+    expect(reasons).toHaveLength(15);
+    for (const reason of reasons.filter((item) => item !== "BAD_CREDENTIALS")) {
+      expect(reasonHint(reason), reason).toBe(`请联系管理员（原因：${reason}）。`);
+    }
+  });
+  it("没有原因码（VALID）时没有提示", () => {
+    expect(reasonHint(null)).toBe("");
+  });
+  it("askForPassword 只对 BAD_CREDENTIALS 为真", () => {
+    for (const reason of reasons) expect(askForPassword(reason), reason).toBe(reason === "BAD_CREDENTIALS");
+    expect(askForPassword(null)).toBe(false);
+  });
+});
+
+describe("formatVerifiedAt", () => {
+  it("按站点时区显示到分钟，读不出返回空串", () => {
+    // 温哥华偏移取决于 tzdata（UTC-8 或 UTC-7），两种都是同一天的 12:00 或 13:00
+    expect(formatVerifiedAt("2026-11-09T20:00:00Z")).toMatch(/^2026-11-09 1[23]:00$/);
+    expect(formatVerifiedAt(null)).toBe("");
+    expect(formatVerifiedAt("not a date")).toBe("");
   });
 });

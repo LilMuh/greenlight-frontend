@@ -13,8 +13,8 @@ import { Toast } from "../config/components/Toast";
 import { AccountCard } from "./AccountCard";
 import { STRINGS } from "./strings";
 import {
-  accountLabel, bookedSlotView, canCreate, canSeeBooking, cardResultText, northlandsCourseId, occupiedBy,
-  playLineText, runLineText, siteToday, toRunAtLocal, whenLabels,
+  accountLabel, bookedSlotView, canCreate, canSeeBooking, cardResultText, createBlockedReason, isRunAtTaken,
+  northlandsCourseId, playLineText, runLineText, siteToday, toRunAtLocal, whenLabels,
 } from "./logic";
 import { createInitialState, reducer, type BookingFormPatch } from "./reducer";
 
@@ -116,7 +116,11 @@ export function App() {
   const refresh = useCallback(async (): Promise<boolean> => {
     try {
       const tasks = await listBookingTasks();
-      dispatch({ type: "tasksLoaded", scheduled: tasks.scheduled, mine: tasks.mine });
+      dispatch({
+        type: "tasksLoaded", scheduled: tasks.scheduled, mine: tasks.mine,
+        // 后端旧版本没有这个字段时当空，不让页面崩
+        occupiedRunAtLocal: tasks.occupiedRunAtLocal ?? [],
+      });
       return true;
     } catch (error) {
       reportError(error);
@@ -158,8 +162,9 @@ export function App() {
   }, []);
 
   const runAtLocal = toRunAtLocal(form.runDate, form.runTime);
-  // D-09：这个运行时间已有活动任务就提示是谁占的，并拦住提交（数据来自 scheduled 列表）
-  const occupant = occupiedBy(scheduled, runAtLocal, state.editingId);
+  // D-09 / D-14：这个运行时间已被占用就提前提示并拦住提交；只说「已被占用」，不说是谁（数据来自后端给的
+  // 不含身份的 occupiedRunAtLocal，以及自己的 scheduled）
+  const taken = isRunAtTaken(state.occupiedRunAtLocal, scheduled, runAtLocal, state.editingId);
   const courseId = northlandsCourseId(state.courses);
 
   const toast = (message: string) => dispatch({ type: "toast", message });
@@ -216,8 +221,8 @@ export function App() {
         await refresh();
         return;
       }
-      // 列表加载之后别人抢先建了同一运行时间：重新拉列表，占用提示就能显示出占用者（D-09）。
-      // 后端 409 的 message 只带任务号、不带邮箱，占用者一律从 scheduled 列表取（05-06）。
+      // 列表加载之后别人抢先建了同一运行时间：重新拉一次列表（刷新 occupiedRunAtLocal），提示还是同一句，
+      // 不显示占用者（D-14）。
       if (error instanceof ApiError && error.code === "BOOKING_RUN_AT_TAKEN") await refresh();
     }
   };
@@ -248,7 +253,10 @@ export function App() {
   const cancelEdit = () => dispatch({ type: "editCancelled", now: new Date() });
 
   // 管理员没有表单，不给 Edit（后端同样拒绝）
-  const onEdit = canCreate(user) ? startEdit : undefined;
+  // D-07：账号不是 VALID 时也不给 Edit（后端同样拒绝，BOOKING_ACCOUNT_REQUIRED）
+  const creatable = canCreate(user, state.account);
+  const blockedReason = createBlockedReason(user, state.account);
+  const onEdit = creatable ? startEdit : undefined;
 
   const change = (patch: BookingFormPatch) => dispatch({ type: "formChanged", patch });
 
@@ -272,8 +280,8 @@ export function App() {
         </div>
       )}
 
-      {/* D-13：「我的订场账号」在页面最上方，建任务表单之前。管理员没有自己的订场账号，不显示 */}
-      {user && canSeeBooking(user) && !user.admin && (
+      {/* D-13：「我的订场账号」在页面最上方，建任务表单之前。管理员看到的是所有人的绑定状态总览（只读） */}
+      {user && canSeeBooking(user) && (
         <div className="wa-bk-top">
           <AccountCard
             user={user}
@@ -281,14 +289,24 @@ export function App() {
             loadFailed={state.accountFailed}
             onAccountChange={(account) => dispatch({ type: "accountLoaded", account })}
             onSignedOut={() => dispatch({ type: "signedOut" })}
+            onUnlinked={() => void refresh()}
           />
         </div>
       )}
 
       {user && canSeeBooking(user) && (
         <div className="wa-body">
+          {/* D-07：账号不是 VALID 时表单位置只说原因（没绑定 / 验证中 / Needs action） */}
+          {blockedReason && (
+            <div className="wa-side">
+              <div className="wa-form">
+                <div className="wa-form-title">{STRINGS.newTitle}</div>
+                <div className="wa-hint" role="status">{blockedReason}</div>
+              </div>
+            </div>
+          )}
           {/* D-15：管理员看不到建任务表单 */}
-          {canCreate(user) && (
+          {creatable && (
             <div className="wa-side" ref={formRef}>
               <div className="wa-form">
                 <div className="wa-form-title">
@@ -310,9 +328,9 @@ export function App() {
                   <TimePicker value={form.runTime} onChange={(value) => change({ runTime: value })} />
                   <div className="wa-hint">{STRINGS.siteZoneNote}</div>
                 </div>
-                {occupant && (
+                {taken && (
                   <div className="wa-bk-occupied" role="alert">
-                    {STRINGS.occupied(occupant.creatorLoginEmail, occupant.id)}
+                    {STRINGS.occupied}
                   </div>
                 )}
 
@@ -382,7 +400,7 @@ export function App() {
                 </div>
 
                 <div className="wa-actions">
-                  <button className="wa-submit" disabled={occupant != null} onClick={() => void submit()}>
+                  <button className="wa-submit" disabled={taken} onClick={() => void submit()}>
                     {state.editingId != null ? STRINGS.saveBtn : STRINGS.createBtn}
                   </button>
                   {state.editingId != null && (
@@ -398,7 +416,7 @@ export function App() {
 
             <section className="wa-bk-section">
               <div className="wa-group-head">{STRINGS.scheduledTitle}</div>
-              <div className="wa-count">{STRINGS.scheduledHint}</div>
+              <div className="wa-count">{user.admin ? STRINGS.scheduledHintAdmin : STRINGS.scheduledHint}</div>
               {state.loading ? (
                 <div className="wa-empty">{STRINGS.loadingTasks}</div>
               ) : scheduled.length ? (

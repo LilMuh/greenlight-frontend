@@ -1,5 +1,5 @@
 // 订场页的纯逻辑层：不碰 DOM、不发请求，全部可以单测。
-import type { BookingTaskDto, BookingTaskStatus, CourseDto, UserDto } from "../../api";
+import type { BookingAccountDto, BookingTaskDto, BookingTaskStatus, CourseDto, UserDto } from "../../api";
 import { STRINGS } from "./strings";
 
 // 站点时区，与后端 SiteRule.zone 一致（America/Vancouver）。
@@ -47,22 +47,22 @@ export function toRunAtLocal(date: string, time: string): string {
 }
 
 /**
- * D-09：同一个运行时间只能有一个活动任务。返回占着 runAtLocal 的 PENDING / RUNNING 任务，没有则 null。
- * 占用者一律从 scheduled 列表里找——后端 409 的 message 只带任务号，不带邮箱（05-06）。
+ * D-09 / D-10 / D-14：同一个运行时间全局只能有一个活动任务，但订场任务互相独立，页面不能看出是谁占的。
+ * 占用来自两处：别人占用的分钟（后端给的 occupiedRunAtLocal，不含身份），或自己另一个活动任务（scheduled 里、
+ * id 不等于正在编辑的那个；普通用户的 scheduled 只有自己的任务）。正在编辑的任务自己不算占用，后端同样排除自己。
  */
-export function occupiedBy(
-  scheduled: BookingTaskDto[],
+export function isRunAtTaken(
+  occupiedRunAtLocal: string[],
+  ownActive: BookingTaskDto[],
   runAtLocal: string,
   excludeId: number | null = null,
-): BookingTaskDto | null {
-  return (
-    scheduled.find(
-      (task) =>
-        // 编辑中的任务自己不算占用，后端 requireRunAtFree 同样排除自己
-        task.id !== excludeId &&
-        (task.status === "PENDING" || task.status === "RUNNING") &&
-        task.runAtLocal === runAtLocal,
-    ) ?? null
+): boolean {
+  if (occupiedRunAtLocal.includes(runAtLocal)) return true;
+  return ownActive.some(
+    (task) =>
+      task.id !== excludeId &&
+      (task.status === "PENDING" || task.status === "RUNNING") &&
+      task.runAtLocal === runAtLocal,
   );
 }
 
@@ -168,12 +168,36 @@ export function canSeeBooking(user: Pick<UserDto, "admin" | "enableAutoBooking">
   return !!user && (user.admin || user.enableAutoBooking);
 }
 
-/** D-15：管理员能看能取消，但不能建任务；只有开启了订场的普通用户看得到建任务表单。 */
-export function canCreate(user: UserDto | null | undefined): boolean {
-  return !!user && !user.admin && user.enableAutoBooking;
+/** 开启了订场的普通用户（管理员不订场，D-15）。 */
+const isBookingUser = (user: UserDto | null | undefined): user is UserDto =>
+  !!user && !user.admin && user.enableAutoBooking;
+
+/**
+ * D-15 + D-07：只有开启了订场的普通用户、并且自己的订场账号是 VALID 才能建任务；
+ * 账号还没拿到、没绑定、验证中、Needs action 都不行（后端同样要求，缺则 BOOKING_ACCOUNT_REQUIRED）。
+ */
+export function canCreate(user: UserDto | null | undefined, account: BookingAccountDto | null | undefined): boolean {
+  return isBookingUser(user) && account?.status === "VALID";
 }
 
-/** D-02 / D-16：订场账号邮箱由后端动态给；scraper 读不到时是 null，显示 Unknown，不猜。 */
+/**
+ * D-07：建任务表单被挡住时，表单位置显示的英文说明。
+ * 不是订场用户（管理员、未开启）或账号还没拿到、已经 VALID 时返回 null（没有要说的）。
+ */
+export function createBlockedReason(
+  user: UserDto | null | undefined,
+  account: BookingAccountDto | null | undefined,
+): string | null {
+  if (!isBookingUser(user) || account === undefined) return null;
+  if (account === null) return STRINGS.createNeedsLink;
+  if (account.status === "VALID") return null;
+  return account.verifying || account.reason === "NOT_VERIFIED" ? STRINGS.createVerifying : STRINGS.createNeedsAction;
+}
+
+/**
+ * D-02 / D-16：订场账号邮箱由后端动态给；scraper 读不到时是 null，显示 Unknown，不猜。
+ * D-14：普通用户只会拿到自己的任务，别人的任务后端根本不返回，所以这里不需要再过滤。
+ */
 export function accountLabel(task: BookingTaskDto): string {
   return task.bookingAccountEmail ?? STRINGS.unknown;
 }
@@ -258,6 +282,16 @@ export function describeResult(task: BookingTaskDto): string {
       const cause = asString(detail.cause);
       const code = asString(detail.code);
       if (cause === "SCRAPER_UNREACHABLE") return "The booking service couldn't be reached — nothing was ordered.";
+      // Phase 6：任务领取时账号已解绑，或不是 VALID（reason 是账号当时的原因码，不调 scraper、什么都没订）
+      if (cause === "BOOKING_ACCOUNT_UNBOUND") {
+        return "The booking account was unlinked before this task ran, so it didn't run — nothing was ordered.";
+      }
+      if (cause === "BOOKING_ACCOUNT_NOT_VALID") {
+        const reason = asString(detail.reason);
+        const base = "The booking account wasn't valid when this task ran, so it didn't run — nothing was ordered.";
+        if (reason === "BAD_CREDENTIALS") return `${base} (Reason: ${reason}. Re-enter your password in My booking account.)`;
+        return reason ? `${base} (Reason: ${reason}. Contact the admin.)` : base;
+      }
       if (cause === "REQUEST_REJECTED") return "The booking service rejected the request — nothing was ordered.";
       if (code) return `The booking failed (${code}) — nothing was ordered.`;
       return "The booking failed — nothing was ordered.";

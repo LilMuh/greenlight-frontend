@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
-  accountLabel, addDays, canCreate, canSeeBooking, cardResultText, defaultPlayDate, defaultRunAt, describeResult,
-  bookedSlotView, northlandsCourseId, occupiedBy, playLineText, runLineText, runParts, shortTime, siteToday,
+  accountLabel, addDays, canCreate, canSeeBooking, cardResultText, createBlockedReason, defaultPlayDate, defaultRunAt,
+  describeResult, bookedSlotView, isRunAtTaken, northlandsCourseId, playLineText, runLineText, runParts, shortTime, siteToday,
   toRunAtLocal, weekdayShort, whenLabels,
 } from "./logic";
 import { STRINGS } from "./strings";
 import { ERROR_MESSAGES } from "../config/strings";
-import type { BookingTaskDto, BookingTaskStatus, UserDto } from "../../api";
+import type { BookingAccountDto, BookingTaskDto, BookingTaskStatus, UserDto } from "../../api";
 
 // 测试数据只用 example.test 这类假域名，公开仓库里不放任何真实地址。
 const task = (over: Partial<BookingTaskDto> = {}): BookingTaskDto => ({
@@ -74,29 +74,44 @@ describe("星期与卡片两行时间", () => {
   });
 });
 
-describe("占用提示", () => {
-  it("只认 PENDING / RUNNING 且 runAtLocal 逐字相等", () => {
-    const list = [
-      task({ id: 1, runAtLocal: "2026-11-03T07:00", status: "PENDING" }),
-      task({ id: 2, runAtLocal: "2026-11-03T07:05", status: "RUNNING", creatorLoginEmail: "b@example.test" }),
-      task({ id: 3, runAtLocal: "2026-11-03T07:10", status: "BOOKED" }),
-      task({ id: 4, runAtLocal: "2026-11-03T07:15", status: "CANCELLED" }),
-    ];
-    expect(occupiedBy(list, "2026-11-03T07:00")?.id).toBe(1);
-    expect(occupiedBy(list, "2026-11-03T07:05")?.creatorLoginEmail).toBe("b@example.test");
-    expect(occupiedBy(list, "2026-11-03T07:10")).toBeNull(); // 终态不占
-    expect(occupiedBy(list, "2026-11-03T07:15")).toBeNull();
-    expect(occupiedBy(list, "2026-11-03T07:01")).toBeNull(); // 差一分钟不算
-    expect(occupiedBy([], "2026-11-03T07:00")).toBeNull();
+describe("占用提示（D-14：不含身份）", () => {
+  const OCCUPIED = ["2026-11-03T07:00", "2026-11-03T07:30"];
+  it("别人占用的分钟（occupiedRunAtLocal）逐字相等才算占用", () => {
+    expect(isRunAtTaken(OCCUPIED, [], "2026-11-03T07:00")).toBe(true);
+    expect(isRunAtTaken(OCCUPIED, [], "2026-11-03T07:30")).toBe(true);
+    expect(isRunAtTaken(OCCUPIED, [], "2026-11-03T07:01")).toBe(false); // 差一分钟不算
+    expect(isRunAtTaken([], [], "2026-11-03T07:00")).toBe(false);
   });
-  it("excludeId 跳过正在编辑的那条，不传时行为不变", () => {
-    const list = [task({ id: 1, runAtLocal: "2026-11-03T07:00", status: "PENDING" })];
-    expect(occupiedBy(list, "2026-11-03T07:00", 1)).toBeNull();
-    expect(occupiedBy(list, "2026-11-03T07:00", 2)?.id).toBe(1);
-    expect(occupiedBy(list, "2026-11-03T07:00", null)?.id).toBe(1);
+  it("自己另一个活动任务占着这一分钟也算占用，终态不占", () => {
+    const own = [
+      task({ id: 1, runAtLocal: "2026-11-03T08:00", status: "PENDING" }),
+      task({ id: 2, runAtLocal: "2026-11-03T08:05", status: "RUNNING" }),
+      task({ id: 3, runAtLocal: "2026-11-03T08:10", status: "BOOKED" }),
+      task({ id: 4, runAtLocal: "2026-11-03T08:15", status: "CANCELLED" }),
+    ];
+    expect(isRunAtTaken([], own, "2026-11-03T08:00")).toBe(true);
+    expect(isRunAtTaken([], own, "2026-11-03T08:05")).toBe(true);
+    expect(isRunAtTaken([], own, "2026-11-03T08:10")).toBe(false);
+    expect(isRunAtTaken([], own, "2026-11-03T08:15")).toBe(false);
+  });
+  it("正在编辑的自己的任务那一分钟不算占用；编辑别的任务时仍算", () => {
+    const own = [task({ id: 1, runAtLocal: "2026-11-03T08:00", status: "PENDING" })];
+    expect(isRunAtTaken([], own, "2026-11-03T08:00", 1)).toBe(false);
+    expect(isRunAtTaken([], own, "2026-11-03T08:00", 2)).toBe(true);
+    expect(isRunAtTaken([], own, "2026-11-03T08:00", null)).toBe(true);
+  });
+  it("编辑自己的任务时，别人占用的分钟照样算占用", () => {
+    const own = [task({ id: 1, runAtLocal: "2026-11-03T08:00", status: "PENDING" })];
+    expect(isRunAtTaken(OCCUPIED, own, "2026-11-03T07:00", 1)).toBe(true);
   });
   it("站点没有放号规则时 runAtLocal 为 null，不会误占", () => {
-    expect(occupiedBy([task({ runAtLocal: null })], "2026-11-03T07:00")).toBeNull();
+    expect(isRunAtTaken([], [task({ runAtLocal: null })], "2026-11-03T07:00")).toBe(false);
+  });
+  it("提示文案不带邮箱和任务号", () => {
+    expect(STRINGS.occupied).toBe("That run time is already taken.");
+    expect(STRINGS.occupied).not.toMatch(/[@#]/);
+    expect(ERROR_MESSAGES.BOOKING_RUN_AT_TAKEN).toBe("That run time is already taken.");
+    expect(ERROR_MESSAGES.BOOKING_RUN_AT_TAKEN).not.toMatch(/who|@|#/i);
   });
 });
 
@@ -116,6 +131,12 @@ const user = (over: Partial<UserDto> = {}): UserDto => ({
   ...over,
 });
 
+const account = (over: Partial<BookingAccountDto> = {}): BookingAccountDto => ({
+  id: 1, loginEmail: "acct@example.invalid", kind: "OWN", status: "VALID", reason: null,
+  classCode: "PUB", verifiedAt: "2026-11-09T20:00:00Z", verifying: false,
+  ...over,
+});
+
 describe("入口可见性（D-15 / D-16）", () => {
   it("canSeeBooking：未登录 false；管理员 true；开启订场的用户 true；其余 false", () => {
     expect(canSeeBooking(null)).toBe(false);
@@ -124,12 +145,29 @@ describe("入口可见性（D-15 / D-16）", () => {
     expect(canSeeBooking(user({ enableAutoBooking: true }))).toBe(true);
     expect(canSeeBooking(user())).toBe(false);
   });
-  it("canCreate：管理员不能建（即便开了订场）；开启订场的普通用户能；其余不能", () => {
-    expect(canCreate(null)).toBe(false);
-    expect(canCreate(user({ admin: true, enableAutoBooking: true }))).toBe(false);
-    expect(canCreate(user({ admin: true }))).toBe(false);
-    expect(canCreate(user({ enableAutoBooking: true }))).toBe(true);
-    expect(canCreate(user())).toBe(false);
+  it("canCreate（D-07）：开启订场的普通用户且账号 VALID 才能建；无账号 / NEEDS_ACTION / 验证中 / 管理员都不能", () => {
+    const booker = user({ enableAutoBooking: true });
+    expect(canCreate(null, account())).toBe(false);
+    expect(canCreate(booker, account())).toBe(true);
+    expect(canCreate(booker, null)).toBe(false); // 没绑定
+    expect(canCreate(booker, undefined)).toBe(false); // 还没拿到
+    expect(canCreate(booker, account({ status: "NEEDS_ACTION", reason: "BAD_CREDENTIALS" }))).toBe(false);
+    expect(canCreate(booker, account({ status: "NEEDS_ACTION", reason: "NOT_VERIFIED", verifying: true }))).toBe(false);
+    expect(canCreate(user({ admin: true, enableAutoBooking: true }), account())).toBe(false); // 管理员不能建
+    expect(canCreate(user({ admin: true }), account())).toBe(false);
+    expect(canCreate(user(), account())).toBe(false); // 没开订场
+  });
+  it("createBlockedReason：没绑定 / 验证中 / Needs action 各有说明；VALID、没拿到、非订场用户没有说明", () => {
+    const booker = user({ enableAutoBooking: true });
+    expect(createBlockedReason(booker, null)).toBe(STRINGS.createNeedsLink);
+    expect(createBlockedReason(booker, account({ status: "NEEDS_ACTION", reason: "NOT_VERIFIED", verifying: true }))).toBe(STRINGS.createVerifying);
+    expect(createBlockedReason(booker, account({ status: "NEEDS_ACTION", reason: "NOT_VERIFIED" }))).toBe(STRINGS.createVerifying);
+    expect(createBlockedReason(booker, account({ status: "NEEDS_ACTION", reason: "CHALLENGE" }))).toBe(STRINGS.createNeedsAction);
+    expect(createBlockedReason(booker, account())).toBeNull();
+    expect(createBlockedReason(booker, undefined)).toBeNull();
+    expect(createBlockedReason(user({ admin: true }), null)).toBeNull();
+    expect(createBlockedReason(user(), null)).toBeNull();
+    expect(createBlockedReason(null, null)).toBeNull();
   });
 });
 
@@ -180,6 +218,11 @@ describe("describeResult 结果说明", () => {
     expect(failed({ cause: "SCRAPER_UNREACHABLE" })).toMatch(/couldn't be reached/i);
     expect(failed({ cause: "REQUEST_REJECTED" })).toMatch(/rejected/i);
     expect(failed({ cause: "SCRAPER_ERROR", code: "LOGIN_FAILED" })).toContain("LOGIN_FAILED");
+    // Phase 6：账号已解绑 / 不是 VALID（带 reason），都说明没有下单
+    expect(failed({ cause: "BOOKING_ACCOUNT_UNBOUND" })).toMatch(/unlinked.*nothing was ordered/);
+    expect(failed({ cause: "BOOKING_ACCOUNT_NOT_VALID", reason: "BAD_CREDENTIALS" })).toMatch(/Re-enter your password/);
+    expect(failed({ cause: "BOOKING_ACCOUNT_NOT_VALID", reason: "CHALLENGE" })).toMatch(/CHALLENGE.*Contact the admin/);
+    expect(failed({ cause: "BOOKING_ACCOUNT_NOT_VALID" })).toMatch(/wasn't valid.*nothing was ordered/);
     expect(failed({})).toMatch(/nothing was ordered/i);
   });
   it("UNKNOWN：到 Northlands 网站确认，系统不会重试（D-06）", () => {
@@ -215,6 +258,26 @@ describe("13 个 BOOKING_* 错误码文案", () => {
       expect(ERROR_MESSAGES[code], code).toBeTruthy();
       expect(ERROR_MESSAGES[code]).toMatch(/^[\x20-\x7E—’]+$/);
     }
+  });
+});
+
+describe("11 个 BOOKING_ACCOUNT_* 错误码文案", () => {
+  const codes = [
+    "BOOKING_ACCOUNT_REQUIRED", "BOOKING_ACCOUNT_NOT_FOUND", "BOOKING_ACCOUNT_EMAIL_TAKEN", "BOOKING_ACCOUNT_ALREADY_LINKED",
+    "BOOKING_ACCOUNT_BUSY", "BOOKING_ACCOUNT_KEY_MISMATCH", "BOOKING_ACCOUNT_PAYLOAD_INVALID", "BOOKING_ACCOUNT_VERIFYING",
+    "BOOKING_ACCOUNT_VERIFY_RATE_LIMITED", "BOOKING_ACCOUNT_SERVICE_UNAVAILABLE", "BOOKING_ACCOUNT_ADMIN_FORBIDDEN",
+  ];
+  it("全部都有非空英文文案", () => {
+    expect(codes).toHaveLength(11);
+    for (const code of codes) {
+      expect(ERROR_MESSAGES[code], code).toBeTruthy();
+      expect(ERROR_MESSAGES[code]).toMatch(/^[\x20-\x7E—’]+$/);
+    }
+  });
+  it("ALREADY_LINKED 说先解绑，VERIFY_RATE_LIMITED 说十分钟后再试，EMAIL_TAKEN 不带占用者信息", () => {
+    expect(ERROR_MESSAGES.BOOKING_ACCOUNT_ALREADY_LINKED).toMatch(/unlink/i);
+    expect(ERROR_MESSAGES.BOOKING_ACCOUNT_VERIFY_RATE_LIMITED).toMatch(/ten minutes/);
+    expect(ERROR_MESSAGES.BOOKING_ACCOUNT_EMAIL_TAKEN).not.toMatch(/@/);
   });
 });
 

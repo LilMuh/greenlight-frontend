@@ -1,5 +1,6 @@
 // 「我的订场账号」卡片的纯逻辑：不碰 DOM、不发请求，可以单测。
-import type { BookingAccountDto } from "../../api";
+import type { BookingAccountDto, BookingAccountReason } from "../../api";
+import { SITE_ZONE } from "./logic";
 
 /** 提交或重新验证后，每 3 秒查一次结果。 */
 export const POLL_INTERVAL_MS = 3000;
@@ -27,4 +28,31 @@ export function cardState(account: BookingAccountDto | null | undefined, isAdmin
 /** 还要不要继续轮询：还在验证中，并且从 startedAt 起不到 POLL_MAX_MS。 */
 export function shouldKeepPolling(account: BookingAccountDto | null | undefined, startedAt: number, now: number): boolean {
   return !!account && isVerifying(account) && now - startedAt < POLL_MAX_MS;
+}
+
+// --- D-16：NEEDS_ACTION 的原因提示 ----------------------------------------------------
+// 页面其余文案是英文，这两句是 D-16 锁定的中文提示，不要改成英文。
+// 只有 BAD_CREDENTIALS 是用户自己能处理的（站点明确拒绝了邮箱或密码）；其余原因用户处理不了，提示联系管理员并带上原因码。
+
+/** 只有凭据被站点明确拒绝时才让用户重新输入密码（与后端 BookingAccountReason.askUserForPassword 一致）。 */
+export function askForPassword(reason: BookingAccountReason | null | undefined): boolean {
+  return reason === "BAD_CREDENTIALS";
+}
+
+/** 原因码对应的中文提示；没有原因码（VALID）返回空串。 */
+export function reasonHint(reason: BookingAccountReason | null | undefined): string {
+  if (!reason) return "";
+  return askForPassword(reason) ? "密码错误，请重新输入密码。" : `请联系管理员（原因：${reason}）。`;
+}
+
+/** 验证时间按站点本地（温哥华）显示成「2026-11-09 12:00」；读不出返回空串，不猜。 */
+export function formatVerifiedAt(iso: string | null | undefined): string {
+  const time = iso ? Date.parse(iso) : NaN;
+  if (Number.isNaN(time)) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: SITE_ZONE, year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(new Date(time));
+  const pick = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${pick("year")}-${pick("month")}-${pick("day")} ${pick("hour")}:${pick("minute")}`;
 }

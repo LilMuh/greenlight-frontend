@@ -24,7 +24,8 @@ export interface BookingState {
   offline: boolean;
   user: UserDto | null | undefined; // undefined = 还在确认登录态；null = 没登录
   courses: CourseDto[];
-  scheduled: BookingTaskDto[]; // 所有人的 PENDING / RUNNING，运行时间升序
+  scheduled: BookingTaskDto[]; // 普通用户是自己的 PENDING / RUNNING、管理员是所有人的（D-14），运行时间升序
+  occupiedRunAtLocal: string[]; // 别人占用的站点本地运行分钟（D-14，不含任何身份），只用来提前提示「已被占用」
   mine: BookingTaskDto[]; // 自己的全部（管理员是所有人的），id 降序
   loading: boolean; // 列表还没拿到
   // 我的订场账号（普通用户）：undefined = 还没拿到；null = 没绑定。管理员不用它，永远是 undefined。
@@ -61,6 +62,7 @@ export function createInitialState(now: Date): BookingState {
     user: undefined,
     courses: [],
     scheduled: [],
+    occupiedRunAtLocal: [],
     mine: [],
     loading: true,
     account: undefined,
@@ -76,7 +78,7 @@ export type BookingAction =
   | { type: "coursesLoaded"; courses: CourseDto[] }
   | { type: "userLoaded"; user: UserDto }
   | { type: "signedOut" }
-  | { type: "tasksLoaded"; scheduled: BookingTaskDto[]; mine: BookingTaskDto[] }
+  | { type: "tasksLoaded"; scheduled: BookingTaskDto[]; mine: BookingTaskDto[]; occupiedRunAtLocal: string[] }
   | { type: "accountLoaded"; account: BookingAccountDto | null }
   | { type: "accountFailed" }
   | { type: "loadFailed" } // 列表没拿到：只结束「加载中」，已有的列表原样保留
@@ -111,11 +113,14 @@ export function reducer(state: BookingState, action: BookingAction): BookingStat
     case "signedOut":
       // 上一个人的任务不留：同一台电脑换人登录不能看到前一个人的东西
       return {
-        ...state, user: null, scheduled: [], mine: [], loading: false, editingId: null,
+        ...state, user: null, scheduled: [], occupiedRunAtLocal: [], mine: [], loading: false, editingId: null,
         account: undefined, accountFailed: false,
       };
     case "tasksLoaded":
-      return { ...state, scheduled: action.scheduled, mine: action.mine, loading: false };
+      return {
+        ...state, scheduled: action.scheduled, mine: action.mine,
+        occupiedRunAtLocal: action.occupiedRunAtLocal, loading: false,
+      };
     case "accountLoaded":
       return { ...state, account: action.account, accountFailed: false };
     case "accountFailed":
