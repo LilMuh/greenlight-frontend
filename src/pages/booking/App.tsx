@@ -10,7 +10,7 @@ import { clearToken, getToken } from "../../auth";
 import { SiteHeader } from "../../components/SiteHeader";
 import { classifyError } from "../config/logic";
 import { Toast } from "../config/components/Toast";
-import { AccountCard, AccountLine, AdminOverview } from "./AccountCard";
+import { AccountCard, AccountChip, AdminOverview } from "./AccountCard";
 import { accountPlacement } from "./accountCardLogic";
 import { STRINGS } from "./strings";
 import {
@@ -282,21 +282,10 @@ export function App() {
         </div>
       )}
 
-      {/* D-18：管理员看到所有人的绑定状态总览（只读）；账号 VALID 后只在页面最上方留一行小字，任务表单与列表之上 */}
-      {user && (placement === "admin" || placement === "line") && (
-        <div className={`wa-bk-top${placement === "line" ? " is-line" : ""}`}>
-          {placement === "admin" ? (
-            <AdminOverview onSignedOut={() => dispatch({ type: "signedOut" })} />
-          ) : (
-            <AccountLine
-              user={user}
-              account={state.account}
-              loadFailed={state.accountFailed}
-              onAccountChange={(account) => dispatch({ type: "accountLoaded", account })}
-              onSignedOut={() => dispatch({ type: "signedOut" })}
-              onUnlinked={() => void refresh()}
-            />
-          )}
+      {/* D-12：管理员看到所有人的绑定状态总览（只读），在任务表单与列表之上 */}
+      {user && placement === "admin" && (
+        <div className="wa-bk-top">
+          <AdminOverview onSignedOut={() => dispatch({ type: "signedOut" })} />
         </div>
       )}
 
@@ -423,6 +412,17 @@ export function App() {
 
           <div className="wa-list">
             {user.admin && <div className="wa-hint">{STRINGS.adminNote}</div>}
+            {/* 账号 VALID 后是任务列表上方的小卡片（用户 2026-11-10 设计稿：在 Scheduled 之上） */}
+            {placement === "line" && (
+              <AccountChip
+                user={user}
+                account={state.account}
+                loadFailed={state.accountFailed}
+                onAccountChange={(account) => dispatch({ type: "accountLoaded", account })}
+                onSignedOut={() => dispatch({ type: "signedOut" })}
+                onUnlinked={() => void refresh()}
+              />
+            )}
 
             <section className="wa-bk-section">
               <div className="wa-group-head">{STRINGS.scheduledTitle}</div>

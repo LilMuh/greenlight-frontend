@@ -4,7 +4,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { BookingAccountDto, UserDto } from "../../api";
-import { AccountCard, AccountLine } from "./AccountCard";
+import { AccountCard, AccountChip } from "./AccountCard";
 import { STRINGS } from "./strings";
 
 const EMAIL = "acct@example.invalid";
@@ -23,7 +23,7 @@ const account = (over: Partial<BookingAccountDto> = {}): BookingAccountDto => ({
 
 const noop = () => {};
 const render = (
-  Component: typeof AccountCard | typeof AccountLine,
+  Component: typeof AccountCard | typeof AccountChip,
   acct: BookingAccountDto | null | undefined,
   loadFailed = false,
 ) =>
@@ -33,47 +33,63 @@ const render = (
 // renderToStaticMarkup 会转义单引号，文案里带撇号时按转义后的形式比较
 const escaped = (text: string) => text.replaceAll("&", "&amp;").replaceAll("'", "&#x27;");
 
-describe("AccountLine（VALID 之后页面顶部的一行小字）", () => {
-  it("OWN：登录邮箱、Valid、Change password、Unlink，没有密码框，没有 Re-verify", () => {
-    const html = render(AccountLine, account());
+describe("AccountChip（绑定后的小卡片：Booking account 标签、邮箱 · 状态 · Unlink）", () => {
+  it("OWN VALID：标签、邮箱、Valid、Unlink；没有密码框、改密码与 Re-verify", () => {
+    const html = render(AccountChip, account());
+    expect(html).toContain(STRINGS.accountTitle);
     expect(html).toContain(EMAIL);
     expect(html).toContain(STRINGS.statusValid);
-    expect(html).toContain(STRINGS.changePasswordBtn);
     expect(html).toContain(STRINGS.unlinkBtn);
     expect(html).not.toContain('type="password"');
-    expect(html).not.toContain("Re-verify");
+    expect(html).not.toMatch(/change password|re-verify/i);
+    expect(html).not.toContain("disabled");
   });
 
-  it("SHARED：显示 Shared 与 Unlink，没有 Change password", () => {
-    const html = render(AccountLine, account({ kind: "SHARED" }));
+  it("SHARED：显示 Shared 而不是 Valid", () => {
+    const html = render(AccountChip, account({ kind: "SHARED" }));
     expect(html).toContain(STRINGS.statusShared);
-    expect(html).toContain(STRINGS.unlinkBtn);
-    expect(html).not.toContain(STRINGS.changePasswordBtn);
-    expect(html).not.toContain(STRINGS.statusValid);
+    expect(html).not.toContain(`>${STRINGS.statusValid}<`);
   });
 
-  it("验证中：状态词是 Verifying…，两个按钮不可点", () => {
-    const html = render(AccountLine, account({ verifying: true }));
+  it("验证中：Verifying… 与进度小字，Unlink 不可点", () => {
+    const html = render(AccountChip, account({ verifying: true }));
     expect(html).toContain(STRINGS.statusVerifying);
-    expect(html.match(/disabled=""/g)).toHaveLength(2);
+    expect(html).toContain(STRINGS.accountVerifying);
+    expect(html.match(/disabled=""/g)).toHaveLength(1);
   });
 
-  it("容器是带标题的 group，分隔点对读屏隐藏", () => {
-    const html = render(AccountLine, account());
-    expect(html).toContain('role="group"');
+  it("BAD_CREDENTIALS：Invalid、提示 Unlink 后重新绑定的中文小字、可点的 Unlink，没有密码框", () => {
+    const html = render(AccountChip, account({ status: "NEEDS_ACTION", reason: "BAD_CREDENTIALS", classCode: null, verifiedAt: null }));
+    expect(html).toContain(STRINGS.statusInvalid);
+    expect(html).toContain("is-acct-invalid");
+    expect(html).toContain("密码错误，需要 Unlink 后重新绑定。");
+    expect(html).toContain(STRINGS.unlinkBtn);
+    expect(html).not.toContain("disabled");
+    expect(html).not.toContain('type="password"');
+  });
+
+  it("CHALLENGE：Invalid 并提示联系管理员带原因码", () => {
+    const html = render(AccountChip, account({ status: "NEEDS_ACTION", reason: "CHALLENGE", classCode: null, verifiedAt: null }));
+    expect(html).toContain(STRINGS.statusInvalid);
+    expect(html).toContain("请联系管理员（原因：CHALLENGE）。");
+  });
+
+  it("容器是带名字的 section，邮箱不是链接", () => {
+    const html = render(AccountChip, account());
     expect(html).toContain(`aria-label="${STRINGS.accountTitle}"`);
-    expect(html).toContain('aria-hidden="true"');
+    expect(html).not.toContain("<a ");
   });
 
   it("没有账号记录时什么都不渲染", () => {
-    expect(render(AccountLine, null)).toBe("");
+    expect(render(AccountChip, null)).toBe("");
   });
 });
 
-describe("AccountCard（没有 VALID 账号时占表单位置的紧凑卡片）", () => {
-  it("未绑定：邮箱输入、密码输入、Link account 与去绑定才能建任务的提示", () => {
+describe("AccountCard（没有 VALID 账号时占表单位置）", () => {
+  it("未绑定：Booking account 标签、邮箱与密码输入、Link account 与去绑定才能建任务的提示", () => {
     const html = render(AccountCard, null);
     expect(html).toContain("wa-bk-acct is-compact");
+    expect(html).toContain(STRINGS.accountTitle);
     expect(html).toContain('type="email"');
     expect(html).toContain('type="password"');
     expect(html).toContain(STRINGS.linkBtn);
@@ -81,34 +97,15 @@ describe("AccountCard（没有 VALID 账号时占表单位置的紧凑卡片）"
     expect(html).not.toContain("readOnly");
   });
 
-  it("BAD_CREDENTIALS：中文提示、只读且值为登录邮箱的邮箱框、密码框与 Unlink，没有 Re-verify", () => {
-    const html = render(AccountCard, account({ status: "NEEDS_ACTION", reason: "BAD_CREDENTIALS", classCode: null, verifiedAt: null }));
-    expect(html).toContain("密码错误，请重新输入密码。");
-    expect(html).toMatch(new RegExp(`value="${EMAIL}"[^>]*readOnly=""|readOnly=""[^>]*value="${EMAIL}"`));
-    expect(html).toContain('type="password"');
-    expect(html).toContain(STRINGS.changePasswordSubmit);
-    expect(html).toContain(STRINGS.unlinkBtn);
-    expect(html).not.toContain("Re-verify");
-    expect(html).not.toContain(STRINGS.accountRetryNote);
-  });
-
-  it("CHALLENGE：提示联系管理员并带原因码，仍有密码框与重新输入的说明", () => {
-    const html = render(AccountCard, account({ status: "NEEDS_ACTION", reason: "CHALLENGE", classCode: null, verifiedAt: null }));
-    expect(html).toContain("请联系管理员（原因：CHALLENGE）。");
-    expect(html).toContain('type="password"');
-    expect(html).toContain(STRINGS.accountRetryNote);
-    expect(html).toContain(STRINGS.unlinkBtn);
-  });
-
-  it("NOT_VERIFIED 或 verifying=true：显示 Verifying…，没有密码框，也没有可点的 Unlink", () => {
+  it("已有记录（Invalid / 验证中）：换成小卡片，没有密码框", () => {
     for (const acct of [
+      account({ status: "NEEDS_ACTION", reason: "BAD_CREDENTIALS", classCode: null, verifiedAt: null }),
       account({ status: "NEEDS_ACTION", reason: "NOT_VERIFIED", classCode: null, verifiedAt: null }),
       account({ status: "NEEDS_ACTION", reason: "BAD_CREDENTIALS", verifying: true }),
     ]) {
       const html = render(AccountCard, acct);
-      expect(html).toContain(STRINGS.statusVerifying);
+      expect(html).toContain("wa-bk-chip");
       expect(html).not.toContain('type="password"');
-      expect(html).not.toContain(STRINGS.unlinkBtn);
     }
   });
 
@@ -119,7 +116,7 @@ describe("AccountCard（没有 VALID 账号时占表单位置的紧凑卡片）"
     expect(failed).not.toContain('type="password"');
   });
 
-  it("VALID 时卡片什么都不渲染（由 AccountLine 接手）", () => {
+  it("VALID 时什么都不渲染（小卡片在任务列表上方）", () => {
     expect(render(AccountCard, account())).toBe("");
   });
 

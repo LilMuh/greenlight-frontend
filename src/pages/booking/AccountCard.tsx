@@ -1,5 +1,5 @@
-// 「我的订场账号」（D-13，D-18 修订）：没有 VALID 账号时是占建任务表单位置的紧凑卡片（AccountCard：绑定 / 验证中 /
-// Needs action，Needs action 时直接在卡片里重新输入密码，页面没有重新验证按钮）；VALID 之后缩成页面顶部一行小字（AccountLine）。
+// 「我的订场账号」（D-13，D-18 修订）：未绑定时是占建任务表单位置的绑定卡片（AccountCard）；绑定后是标着 Booking account 的
+// 小卡片（AccountChip：邮箱 · 状态 · Unlink），VALID 时放在任务区上方，验证中 / Invalid 时留在表单位置。页面没有重新验证和改密码入口。
 // 密码只活在表单组件的 state 与一次提交的局部变量里：加密完就清空；不进 reducer、不进任何浏览器存储、
 // 不拼进 URL、没有任何控制台输出（D-05、T-06-41）。后端永远只收到 {keyId, loginEmail, ciphertext}。
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -10,8 +10,7 @@ import {
 import { classifyError } from "../config/logic";
 import { BookingKeyError, encryptCredentials } from "./accountCrypto";
 import {
-  POLL_INTERVAL_MS, POLL_MAX_MS, askForPassword, cardState, formatVerifiedAt, isVerifying, lineStatusLabel, reasonHint,
-  shouldKeepPolling,
+  POLL_INTERVAL_MS, POLL_MAX_MS, cardState, chipStatus, formatVerifiedAt, isVerifying, reasonHint, shouldKeepPolling,
 } from "./accountCardLogic";
 import { createBlockedReason } from "./logic";
 import { STRINGS } from "./strings";
@@ -25,18 +24,17 @@ type Props = {
   onUnlinked: () => void; // 解绑成功：待执行任务已被后端置为 FAILED，页面刷新任务列表
 };
 
-/** 邮箱 + 密码的表单。lockedEmail 有值时邮箱只读（同一个账号重新输入密码）。 */
+/** 邮箱 + 密码的绑定表单。 */
 function CredentialForm(props: {
-  lockedEmail?: string;
   busy: boolean;
   submitLabel: string;
   onSubmit: (email: string, password: string, wipe: () => void) => void;
 }) {
-  const [email, setEmail] = useState(props.lockedEmail ?? "");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    props.onSubmit(props.lockedEmail ?? email, password, () => setPassword(""));
+    props.onSubmit(email, password, () => setPassword(""));
   };
   return (
     <form className="wa-bk-acct-form" onSubmit={submit}>
@@ -48,7 +46,6 @@ function CredentialForm(props: {
           className="wa-email"
           autoComplete="off"
           value={email}
-          readOnly={props.lockedEmail !== undefined}
           onChange={(event) => setEmail(event.target.value)}
         />
       </div>
@@ -105,8 +102,8 @@ export function AdminOverview(props: { onSignedOut: () => void }) {
           {rows.map((row) => {
             const stateLabel = row.verifying || row.reason === "NOT_VERIFIED"
               ? STRINGS.statusVerifying
-              : row.status === "VALID" ? STRINGS.statusValid : STRINGS.statusNeedsAction;
-            const stateClass = row.verifying || row.reason === "NOT_VERIFIED" ? "verifying" : row.status === "VALID" ? "valid" : "needsAction";
+              : row.status === "VALID" ? STRINGS.statusValid : STRINGS.statusInvalid;
+            const stateClass = row.verifying || row.reason === "NOT_VERIFIED" ? "verifying" : row.status === "VALID" ? "valid" : "invalid";
             const verified = formatVerifiedAt(row.verifiedAt);
             return (
               <div className="wa-bk-admin-item" key={row.id}>
@@ -121,7 +118,7 @@ export function AdminOverview(props: { onSignedOut: () => void }) {
                 <div className="wa-bk-acct-row">
                   <span className="wa-label">{STRINGS.adminKindLabel}</span>
                   <span className="wa-bk-acct-value">{row.kind === "SHARED" ? "Shared" : "Own"}</span>
-                  <span className={`wa-bk-status is-acct-${stateClass.toLowerCase()}`}>{stateLabel}</span>
+                  <span className={`wa-bk-status is-acct-${stateClass}`}>{stateLabel}</span>
                 </div>
                 {row.classCode && (
                   <div className="wa-bk-acct-row">
@@ -150,12 +147,12 @@ export function AdminOverview(props: { onSignedOut: () => void }) {
 type ActionProps = Pick<Props, "account" | "onAccountChange" | "onSignedOut" | "onUnlinked">;
 
 /**
- * 链接 / 解绑与验证结果轮询（卡片与一行小字共用）。
+ * 链接 / 解绑与验证结果轮询（绑定卡片与小卡片共用）。
  * 账号处于验证中就轮询（3 秒一次、最多 3 分钟，超时只提示稍后回来看）。
- * link 成功后调 onAccountChange、开始轮询、再调可选的 onLinked（一行小字用它收起小表单）。
+ * link 成功后调 onAccountChange 并开始轮询。
  * 密码只在 CredentialForm 的 state 里，加密后立即 wipe，不进 reducer、存储与 console。
  */
-function useAccountActions(props: ActionProps, options: { onLinked?: () => void } = {}) {
+function useAccountActions(props: ActionProps) {
   const { account } = props;
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -164,10 +161,8 @@ function useAccountActions(props: ActionProps, options: { onLinked?: () => void 
   // 轮询里要调用最新的回调，但回调的身份变化不该重启轮询
   const latest = useRef(props);
   latest.current = props;
-  const latestOptions = useRef(options);
-  latestOptions.current = options;
 
-  // 页面一打开账号就在验证中（上次提交后离开又回来，或一行小字提交后换成卡片）：也开始轮询
+  // 页面一打开账号就在验证中（上次提交后离开又回来）：也开始轮询
   useEffect(() => {
     if (account && isVerifying(account) && pollStart === null && !timedOut) setPollStart(Date.now());
   }, [account, pollStart, timedOut]);
@@ -237,7 +232,6 @@ function useAccountActions(props: ActionProps, options: { onLinked?: () => void 
       props.onAccountChange(next);
       setTimedOut(false);
       setPollStart(Date.now());
-      latestOptions.current.onLinked?.();
     } catch (error) {
       setMessage(describeError(error));
     } finally {
@@ -245,7 +239,7 @@ function useAccountActions(props: ActionProps, options: { onLinked?: () => void 
     }
   };
 
-  // 解绑：二次确认，写明后果（该账号的待执行任务会失败并通知创建者；记录保留，之后可用同一账号重新绑定恢复，D-19）。成功后回到未绑定的卡片
+  // 解绑：二次确认，写明后果（该账号的待执行任务立即取消，D-20；记录保留，之后可用同一账号重新绑定恢复，D-19）。成功后刷新任务列表、回到未绑定的卡片
   const unlink = async () => {
     if (!window.confirm(STRINGS.unlinkConfirm)) return;
     setBusy(true);
@@ -268,62 +262,33 @@ function useAccountActions(props: ActionProps, options: { onLinked?: () => void 
 }
 
 /**
- * 没有 VALID 账号时占建任务表单位置的紧凑卡片（D-18 修订 D-13）：未绑定 → 链接表单；验证中 → 只显示进度；
- * NEEDS_ACTION → 锁定邮箱的重新输入密码表单 + Unlink（BAD_CREDENTIALS 提示重输密码，其他原因提示联系管理员但仍可重输）。
- * 管理员不用这个组件（见 AdminOverview）；VALID 时什么都不渲染（由 AccountLine 接手）。
+ * 没有可用账号时占建任务表单位置的卡片（D-18 修订 D-13）：还没拿到 → 加载提示；未绑定 → 链接表单；
+ * 已有记录（验证中 / Invalid）→ 和 VALID 时同一张小卡片（AccountChip）。管理员不用这个组件（见 AdminOverview）；
+ * VALID 时什么都不渲染（App 把 AccountChip 放到任务区上方）。
  */
 export function AccountCard(props: Props) {
+  const { account } = props;
+  if (account && cardState(account, false) === "valid") return null;
+  // 各自挂载、各自一份轮询：绑定成功后绑定卡片卸载，小卡片接手验证中的轮询
+  return account ? <AccountChip {...props} /> : <LinkCard {...props} />;
+}
+
+/** 未绑定（或还没拿到账号）时的绑定卡片。 */
+function LinkCard(props: Props) {
   const { account, user } = props;
   const actions = useAccountActions(props);
-  const state = cardState(account, false);
-  if (account !== undefined && (state === "valid" || state === "admin")) return null;
-
-  // 卡片顶部的一行提示：没绑定 / 验证中 / 需要处理各一句（建任务的前提，D-07）
+  // 卡片顶部的一行提示：去绑定才能建任务（D-07）
   const reason = createBlockedReason(user, account);
   return (
     <section className="wa-form wa-bk-acct is-compact" aria-label={STRINGS.accountTitle}>
-      <div className="wa-form-title">{STRINGS.accountTitle}</div>
+      <div className="wa-bk-chip-label">{STRINGS.accountTitle}</div>
       {reason && <div className="wa-hint" role="status">{reason}</div>}
 
       {account === undefined && props.loadFailed && <div className="wa-bk-acct-note">{STRINGS.accountLoadFailed}</div>}
       {account === undefined && !props.loadFailed && <div className="wa-hint">{STRINGS.accountLoading}</div>}
 
-      {account !== undefined && state === "none" && (
+      {account === null && (
         <CredentialForm busy={actions.busy} submitLabel={STRINGS.linkBtn} onSubmit={(e, p, w) => void actions.link(e, p, w)} />
-      )}
-
-      {account && state === "verifying" && (
-        <div className="wa-bk-acct-body">
-          <div className="wa-bk-acct-row">
-            <span className="wa-bk-acct-value">{account.loginEmail}</span>
-            <span className="wa-bk-status is-acct-verifying">{STRINGS.statusVerifying}</span>
-          </div>
-          <div className="wa-hint">{actions.timedOut ? STRINGS.accountStillVerifying : STRINGS.accountVerifying}</div>
-        </div>
-      )}
-
-      {account && state === "needsAction" && (
-        <div className="wa-bk-acct-body">
-          <div className="wa-bk-acct-row">
-            <span className="wa-bk-acct-value">{account.loginEmail}</span>
-            <span className="wa-bk-status is-acct-needsaction">{STRINGS.statusNeedsAction}</span>
-          </div>
-          {/* D-16：这处中文提示是锁定要求 */}
-          <div className="wa-bk-acct-note">{reasonHint(account.reason)}</div>
-          {!askForPassword(account.reason) && <div className="wa-hint">{STRINGS.accountRetryNote}</div>}
-          <CredentialForm
-            key={account.loginEmail}
-            lockedEmail={account.loginEmail}
-            busy={actions.busy}
-            submitLabel={STRINGS.changePasswordSubmit}
-            onSubmit={(e, p, w) => void actions.link(e, p, w)}
-          />
-          <div>
-            <button type="button" className="wa-linkbtn" disabled={actions.busy} onClick={() => void actions.unlink()}>
-              {STRINGS.unlinkBtn}
-            </button>
-          </div>
-        </div>
       )}
 
       {actions.message && <div className="wa-bk-acct-note" role="alert">{actions.message}</div>}
@@ -332,48 +297,36 @@ export function AccountCard(props: Props) {
 }
 
 /**
- * VALID 之后页面顶部的一行小字（D-18 修订 D-13）：登录邮箱 · Valid（SHARED 显示 Shared）· Change password（SHARED 没有）· Unlink。
- * 点 Change password 才在行下方展开锁定邮箱的小表单；提交后账号回到验证中，页面换成卡片显示进度。
+ * 已绑定账号的小卡片（用户 2026-11-10 指定）：顶部小标签 Booking account，一行「登录邮箱 · 状态 · Unlink」。
+ * 没有改密码入口：Invalid 时只显示原因小字，处理方式是 Unlink 后重新绑定（D-19：同一账号重绑恢复原记录）。
+ * 验证中 Unlink 不可点。邮箱和状态都不是链接，也不带下划线（iOS 的邮箱自动识别在 booking.html 里关掉）。
  */
-export function AccountLine(props: Props) {
-  const [open, setOpen] = useState(false);
-  const actions = useAccountActions(props, { onLinked: () => setOpen(false) });
+export function AccountChip(props: Props) {
+  const actions = useAccountActions(props);
   const { account } = props;
   if (!account) return null;
-  const verifying = isVerifying(account);
-  const disabled = actions.busy || verifying;
-  const canChange = account.kind === "OWN";
+  const status = chipStatus(account);
   return (
-    <div className="wa-bk-acct-line-wrap" role="group" aria-label={STRINGS.accountTitle}>
-      <div className="wa-bk-acct-line">
-        <span className="wa-bk-acct-value">{account.loginEmail}</span>
-        <span aria-hidden="true">·</span>
-        <span className={`wa-bk-status is-acct-${verifying ? "verifying" : "valid"}`}>{lineStatusLabel(account)}</span>
-        {canChange && (
-          <>
-            <span aria-hidden="true">·</span>
-            <button type="button" className="wa-linkbtn" disabled={disabled} onClick={() => setOpen((value) => !value)}>
-              {open ? STRINGS.closeFormBtn : STRINGS.changePasswordBtn}
-            </button>
-          </>
-        )}
-        <span aria-hidden="true">·</span>
-        <button type="button" className="wa-linkbtn" disabled={disabled} onClick={() => void actions.unlink()}>
+    <section className="wa-bk-chip" aria-label={STRINGS.accountTitle}>
+      <div className="wa-bk-chip-label">{STRINGS.accountTitle}</div>
+      <div className="wa-bk-chip-row">
+        <span className="wa-bk-chip-email">{account.loginEmail}</span>
+        <span className={`wa-bk-status is-acct-${status.tone}`}>{status.label}</span>
+        <button
+          type="button"
+          className="wa-bk-chip-unlink"
+          disabled={actions.busy || status.tone === "verifying"}
+          onClick={() => void actions.unlink()}
+        >
           {STRINGS.unlinkBtn}
         </button>
       </div>
-      {open && canChange && (
-        <div className="wa-bk-acct-line-form">
-          <CredentialForm
-            key={account.loginEmail}
-            lockedEmail={account.loginEmail}
-            busy={actions.busy}
-            submitLabel={STRINGS.changePasswordSubmit}
-            onSubmit={(e, p, w) => void actions.link(e, p, w)}
-          />
-        </div>
+      {status.tone === "verifying" && (
+        <div className="wa-bk-chip-hint">{actions.timedOut ? STRINGS.accountStillVerifying : STRINGS.accountVerifying}</div>
       )}
-      {actions.message && <div className="wa-bk-acct-note" role="alert">{actions.message}</div>}
-    </div>
+      {/* D-16：这处中文提示是锁定要求 */}
+      {status.tone === "invalid" && <div className="wa-bk-chip-hint is-danger">{reasonHint(account.reason)}</div>}
+      {actions.message && <div className="wa-bk-chip-hint is-danger" role="alert">{actions.message}</div>}
+    </section>
   );
 }

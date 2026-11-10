@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  POLL_INTERVAL_MS, POLL_MAX_MS, accountPlacement, askForPassword, cardState, formatVerifiedAt, lineStatusLabel, reasonHint,
+  POLL_INTERVAL_MS, POLL_MAX_MS, accountPlacement, askForPassword, cardState, formatVerifiedAt, chipStatus, reasonHint,
   shouldKeepPolling,
 } from "./accountCardLogic";
 import { STRINGS } from "./strings";
@@ -63,7 +63,7 @@ describe("D-16 原因提示", () => {
     "DECRYPT_FAILED", "ACCOUNT_MISMATCH", "PROFILE_ERROR",
   ];
   it("BAD_CREDENTIALS 提示重新输入密码", () => {
-    expect(reasonHint("BAD_CREDENTIALS")).toBe("密码错误，请重新输入密码。");
+    expect(reasonHint("BAD_CREDENTIALS")).toBe("密码错误，需要 Unlink 后重新绑定。");
   });
   it("其余 14 个原因都提示联系管理员并带上原因码", () => {
     expect(reasons).toHaveLength(15);
@@ -109,11 +109,12 @@ describe("accountPlacement（D-18：账号卡片放哪里）", () => {
   });
 });
 
-describe("lineStatusLabel", () => {
-  it("OWN VALID 是 Valid，SHARED VALID 是 Shared，VALID 且验证中是 Verifying…", () => {
-    expect(lineStatusLabel(account())).toBe(STRINGS.statusValid);
-    expect(lineStatusLabel(account({ kind: "SHARED" }))).toBe(STRINGS.statusShared);
-    expect(lineStatusLabel(account({ verifying: true }))).toBe(STRINGS.statusVerifying);
-    expect(lineStatusLabel(account({ kind: "SHARED", verifying: true }))).toBe(STRINGS.statusVerifying);
+describe("chipStatus", () => {
+  it("OWN VALID 是 Valid，SHARED VALID 是 Shared，验证中是 Verifying…，NEEDS_ACTION 是 Invalid", () => {
+    expect(chipStatus(account())).toEqual({ label: STRINGS.statusValid, tone: "valid" });
+    expect(chipStatus(account({ kind: "SHARED" }))).toEqual({ label: STRINGS.statusShared, tone: "valid" });
+    expect(chipStatus(account({ verifying: true }))).toEqual({ label: STRINGS.statusVerifying, tone: "verifying" });
+    expect(chipStatus(account({ status: "NEEDS_ACTION", reason: "NOT_VERIFIED" })).tone).toBe("verifying");
+    expect(chipStatus(account({ status: "NEEDS_ACTION", reason: "BAD_CREDENTIALS" }))).toEqual({ label: STRINGS.statusInvalid, tone: "invalid" });
   });
 });

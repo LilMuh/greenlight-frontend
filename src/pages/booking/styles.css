@@ -130,9 +130,9 @@
   font-weight: 600;
 }
 
-/* 「我的订场账号」（D-13，D-18 修订）：没有 VALID 账号时是占表单位置的紧凑卡片（.is-compact，放在 .wa-side 里）；
-   VALID 之后缩成页面顶部一行小字（.wa-bk-acct-line）；管理员看到的总览仍是顶部的整块卡片。
-   沿用 wa-form 的白底圆角卡片，但不要它的 360px 固定宽 */
+/* 「我的订场账号」（D-13，D-18 修订；用户 2026-11-10 设计稿）：未绑定时是占表单位置的绑定卡片（.wa-bk-acct.is-compact）；
+   绑定后是标着 Booking account 的小卡片（.wa-bk-chip）：VALID 时在任务列表上方，验证中 / Invalid 时在表单位置。
+   管理员看到的总览是页面顶部的整块卡片（.wa-bk-top）。沿用 wa-form 的白底圆角卡片，但不要它的 360px 固定宽 */
 .wa-bk-top {
   max-width: 1400px;
   width: 100%;
@@ -144,11 +144,6 @@
   max-width: 520px;
 }
 .wa-bk-acct-form {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.wa-bk-acct-body {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -169,15 +164,6 @@
   color: var(--danger);
   overflow-wrap: anywhere;
 }
-.wa-bk-status.is-acct-valid {
-  background: color-mix(in oklch, var(--green-ink) 14%, transparent);
-  color: var(--green-ink);
-}
-.wa-bk-status.is-acct-needsaction {
-  background: #fff;
-  border: 1px solid var(--danger-line);
-  color: var(--danger);
-}
 .wa-bk-acct input {
   min-width: 0;
   width: 100%;
@@ -187,54 +173,114 @@
     padding: 16px 16px 0;
   }
 }
-/* 紧凑卡片：表单与正文的间距收紧，提示用小号字 */
+/* 绑定卡片：间距收紧，提示用小号字 */
 .wa-bk-acct.is-compact.wa-form {
   gap: 10px;
   padding: 16px;
-}
-.wa-bk-acct.is-compact .wa-bk-acct-form {
-  gap: 10px;
 }
 .wa-bk-acct.is-compact .wa-hint {
   font-size: 11.5px;
   line-height: 15px;
 }
-/* VALID 之后页面顶部的一行小字：窄屏自动换行，不横向溢出 */
-.wa-bk-top.is-line {
-  padding-top: 12px;
+/* 两种卡片顶部的小标签 BOOKING ACCOUNT */
+.wa-bk-chip-label {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
-.wa-bk-acct-line-wrap {
+.wa-bk-chip {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px 10px 14px;
   min-width: 0;
 }
-.wa-bk-acct-line {
+/* 放在表单位置时与表单同宽 */
+.wa-side > .wa-bk-chip {
+  width: 360px;
+  max-width: 100%;
+}
+.wa-bk-chip-row {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 4px 8px;
+  gap: 10px;
   min-width: 0;
-  font-size: 12.5px;
-  color: var(--muted);
 }
-.wa-bk-acct-line .wa-bk-acct-value {
+/* 用户要求：邮箱和状态都不带下划线；a 是防 iOS 把邮箱识别成链接时套上的 */
+.wa-bk-chip-email,
+.wa-bk-chip-email a,
+.wa-bk-chip .wa-bk-status {
+  text-decoration: none;
+  color: var(--ink);
+}
+.wa-bk-chip-email {
+  font-size: 13px;
+  font-weight: 600;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wa-bk-chip-email a {
+  color: inherit;
+}
+.wa-bk-chip .wa-bk-status {
+  flex: none;
+}
+.wa-bk-chip-unlink {
+  margin-left: auto;
+  flex: none;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--danger);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 6px 12px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.wa-bk-chip-unlink:hover {
+  border-color: var(--danger-line);
+}
+.wa-bk-chip-unlink:disabled {
+  color: var(--muted2);
+  background: var(--bg);
+  border-color: var(--line2);
+  cursor: default;
+}
+.wa-bk-chip-hint {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted);
   overflow-wrap: anywhere;
 }
-.wa-bk-acct-line .wa-linkbtn {
-  font-size: inherit;
+.wa-bk-chip-hint.is-danger {
+  color: var(--danger);
 }
-.wa-bk-acct-line-form {
-  width: 100%;
-  max-width: 360px;
+.wa-bk-status.is-acct-valid {
+  background: color-mix(in oklch, var(--green-ink) 14%, transparent);
+  color: var(--green-ink);
 }
-.wa-bk-status.is-acct-verifying {
+.wa-bk-chip .wa-bk-status.is-acct-valid {
+  color: var(--green-ink);
+}
+/* Invalid：实心红底白字（用户 2026-11-10 设计稿） */
+.wa-bk-status.is-acct-invalid,
+.wa-bk-chip .wa-bk-status.is-acct-invalid {
+  background: var(--danger);
+  color: #fff;
+}
+.wa-bk-status.is-acct-verifying,
+.wa-bk-chip .wa-bk-status.is-acct-verifying {
   background: var(--chip);
   color: var(--muted);
-}
-.wa-bk-acct .wa-linkbtn:disabled {
-  cursor: default;
 }
 .wa-bk-acct.is-admin.wa-form {
   max-width: none;
