@@ -59,7 +59,7 @@ export const STRINGS = {
     NOT_BOOKED: "Not booked", FAILED: "Failed", UNKNOWN: "Unknown result", CANCELLED: "Cancelled",
   },
   // 我的订场账号卡片（D-13）。页面文案保持英文；NEEDS_ACTION 的原因提示是 D-16 锁定的中文，在 accountCardLogic.ts
-  accountTitle: "My booking account",
+  accountTitle: "Booking account",
   accountEmailLabel: "Northlands login email", accountPasswordLabel: "Northlands password",
   accountPasswordNote: "Your password is encrypted in this browser before it is sent; GreenLight's servers never see it.",
   linkBtn: "Link account", linking: "Linking…",
@@ -67,12 +67,9 @@ export const STRINGS = {
   accountLoadFailed: "Couldn't load your booking account — reload the page.",
   accountVerifying: "Verifying… this can take a minute.",
   accountStillVerifying: "Still verifying — check back in a few minutes.",
-  statusValid: "Valid", statusShared: "Shared", statusNeedsAction: "Needs action", statusVerifying: "Verifying…",
+  statusValid: "Valid", statusShared: "Shared", statusInvalid: "Invalid", statusVerifying: "Verifying…",
   accountClassLabel: "Class", accountVerifiedLabel: "Last verified",
-  // 非 BAD_CREDENTIALS 的待处理原因：用户处理不了，但仍可以重新输入密码再检查一次
-  accountRetryNote: "You can re-enter the password to run the check again.",
-  changePasswordBtn: "Change password", unlinkBtn: "Unlink", closeFormBtn: "Close",
-  changePasswordSubmit: "Save new password",
+  unlinkBtn: "Unlink",
   unlinkConfirm:
     "Unlink this Northlands account? Its pending booking tasks will fail and their creators will be emailed. You can link the same account again later to restore it.",
   unlinked: "Booking account unlinked.",

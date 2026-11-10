@@ -27,10 +27,10 @@ export function cardState(account: BookingAccountDto | null | undefined, isAdmin
 }
 
 // --- D-18（修订 D-13）：账号卡片的位置 ------------------------------------------------
-// 账号卡片只在没有 VALID 账号时出现，占建任务表单的位置（表单这时不渲染）；VALID 之后缩成页面顶部的一行小字。
-// 页面上没有重新验证按钮：验证失败（NEEDS_ACTION）直接在卡片里重新输入密码。
+// 没有 VALID 账号时账号卡片占建任务表单的位置（表单这时不渲染）；VALID 之后是任务区上方的小卡片。
+// 页面上没有重新验证、也没有改密码入口：Invalid（NEEDS_ACTION）时 Unlink 后重新绑定（用户 2026-11-10 指定）。
 
-/** admin：页面顶部的只读总览；line：页面顶部一行小字；card：表单位置的紧凑卡片。 */
+/** admin：页面顶部的只读总览；line：任务区上方的小卡片；card：表单位置的卡片。 */
 export type AccountPlacement = "admin" | "line" | "card";
 
 /** 管理员 admin；VALID 是 line；其余（还没拿到、没绑定、验证中、NEEDS_ACTION）都是 card。 */
@@ -39,10 +39,11 @@ export function accountPlacement(isAdmin: boolean, account: BookingAccountDto | 
   return account?.status === "VALID" ? "line" : "card";
 }
 
-/** 一行小字里的状态词：验证中 → Verifying…；共享账号 → Shared；否则 Valid。 */
-export function lineStatusLabel(account: BookingAccountDto): string {
-  if (isVerifying(account)) return STRINGS.statusVerifying;
-  return account.kind === "SHARED" ? STRINGS.statusShared : STRINGS.statusValid;
+/** 小卡片里的状态：验证中 → Verifying…；Invalid（NEEDS_ACTION）；共享账号 → Shared；否则 Valid。tone 决定配色与提示。 */
+export function chipStatus(account: BookingAccountDto): { label: string; tone: "verifying" | "invalid" | "valid" } {
+  if (isVerifying(account)) return { label: STRINGS.statusVerifying, tone: "verifying" };
+  if (account.status !== "VALID") return { label: STRINGS.statusInvalid, tone: "invalid" };
+  return { label: account.kind === "SHARED" ? STRINGS.statusShared : STRINGS.statusValid, tone: "valid" };
 }
 
 /** 还要不要继续轮询：还在验证中，并且从 startedAt 起不到 POLL_MAX_MS。 */
@@ -52,9 +53,9 @@ export function shouldKeepPolling(account: BookingAccountDto | null | undefined,
 
 // --- D-16：NEEDS_ACTION 的原因提示 ----------------------------------------------------
 // 页面其余文案是英文，这两句是 D-16 锁定的中文提示，不要改成英文。
-// 只有 BAD_CREDENTIALS 是用户自己能处理的（站点明确拒绝了邮箱或密码）；其余原因用户处理不了，提示联系管理员并带上原因码。
+// 只有 BAD_CREDENTIALS 是用户自己能处理的（站点明确拒绝了邮箱或密码）：Unlink 后用新密码重新绑定；其余原因提示联系管理员并带上原因码。
 
-/** 只有凭据被站点明确拒绝时才让用户重新输入密码（与后端 BookingAccountReason.askUserForPassword 一致）。 */
+/** 凭据是否被站点明确拒绝（与后端 BookingAccountReason.askUserForPassword 一致）。 */
 export function askForPassword(reason: BookingAccountReason | null | undefined): boolean {
   return reason === "BAD_CREDENTIALS";
 }
@@ -62,7 +63,7 @@ export function askForPassword(reason: BookingAccountReason | null | undefined):
 /** 原因码对应的中文提示；没有原因码（VALID）返回空串。 */
 export function reasonHint(reason: BookingAccountReason | null | undefined): string {
   if (!reason) return "";
-  return askForPassword(reason) ? "密码错误，请重新输入密码。" : `请联系管理员（原因：${reason}）。`;
+  return askForPassword(reason) ? "密码错误，需要 Unlink 后重新绑定。" : `请联系管理员（原因：${reason}）。`;
 }
 
 /** 验证时间按站点本地（温哥华）显示成「2026-11-09 12:00」；读不出返回空串，不猜。 */
