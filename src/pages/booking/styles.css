@@ -130,7 +130,9 @@
   font-weight: 600;
 }
 
-/* 「我的订场账号」卡片（D-13）：在表单与列表之上，单独一行；沿用 wa-form 的白底圆角卡片，但不要它的 360px 固定宽 */
+/* 「我的订场账号」（D-13，D-18 修订）：没有 VALID 账号时是占表单位置的紧凑卡片（.is-compact，放在 .wa-side 里）；
+   VALID 之后缩成页面顶部一行小字（.wa-bk-acct-line）；管理员看到的总览仍是顶部的整块卡片。
+   沿用 wa-form 的白底圆角卡片，但不要它的 360px 固定宽 */
 .wa-bk-top {
   max-width: 1400px;
   width: 100%;
@@ -185,12 +187,53 @@
     padding: 16px 16px 0;
   }
 }
-.wa-bk-acct .wa-card-actions {
-  flex-wrap: wrap; /* 三个按钮在 320px 宽下换行，不横向溢出 */
+/* 紧凑卡片：表单与正文的间距收紧，提示用小号字 */
+.wa-bk-acct.is-compact.wa-form {
+  gap: 10px;
+  padding: 16px;
 }
-.wa-bk-acct .wa-edit:disabled,
-.wa-bk-acct .wa-delete:disabled {
-  opacity: 0.5;
+.wa-bk-acct.is-compact .wa-bk-acct-form {
+  gap: 10px;
+}
+.wa-bk-acct.is-compact .wa-hint {
+  font-size: 11.5px;
+  line-height: 15px;
+}
+/* VALID 之后页面顶部的一行小字：窄屏自动换行，不横向溢出 */
+.wa-bk-top.is-line {
+  padding-top: 12px;
+}
+.wa-bk-acct-line-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.wa-bk-acct-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.wa-bk-acct-line .wa-bk-acct-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.wa-bk-acct-line .wa-linkbtn {
+  font-size: inherit;
+}
+.wa-bk-acct-line-form {
+  width: 100%;
+  max-width: 360px;
+}
+.wa-bk-status.is-acct-verifying {
+  background: var(--chip);
+  color: var(--muted);
+}
+.wa-bk-acct .wa-linkbtn:disabled {
   cursor: default;
 }
 .wa-bk-acct.is-admin.wa-form {

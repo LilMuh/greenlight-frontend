@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  POLL_INTERVAL_MS, POLL_MAX_MS, askForPassword, cardState, formatVerifiedAt, reasonHint, shouldKeepPolling,
+  POLL_INTERVAL_MS, POLL_MAX_MS, accountPlacement, askForPassword, cardState, formatVerifiedAt, lineStatusLabel, reasonHint,
+  shouldKeepPolling,
 } from "./accountCardLogic";
+import { STRINGS } from "./strings";
 import type { BookingAccountDto, BookingAccountReason } from "../../api";
 
 // 测试数据只用 .invalid 这类假域名，公开仓库里不放任何真实地址。
@@ -84,5 +86,34 @@ describe("formatVerifiedAt", () => {
     expect(formatVerifiedAt("2026-11-09T20:00:00Z")).toMatch(/^2026-11-09 1[23]:00$/);
     expect(formatVerifiedAt(null)).toBe("");
     expect(formatVerifiedAt("not a date")).toBe("");
+  });
+});
+
+describe("accountPlacement（D-18：账号卡片放哪里）", () => {
+  it("管理员永远是 admin，有没有记录都一样", () => {
+    expect(accountPlacement(true, null)).toBe("admin");
+    expect(accountPlacement(true, undefined)).toBe("admin");
+    expect(accountPlacement(true, account())).toBe("admin");
+  });
+  it("还没拿到、没绑定、NEEDS_ACTION（任何原因，含 NOT_VERIFIED 与验证中）都是 card", () => {
+    expect(accountPlacement(false, undefined)).toBe("card");
+    expect(accountPlacement(false, null)).toBe("card");
+    expect(accountPlacement(false, account({ status: "NEEDS_ACTION", reason: "BAD_CREDENTIALS" }))).toBe("card");
+    expect(accountPlacement(false, account({ status: "NEEDS_ACTION", reason: "CHALLENGE" }))).toBe("card");
+    expect(accountPlacement(false, account({ status: "NEEDS_ACTION", reason: "NOT_VERIFIED" }))).toBe("card");
+    expect(accountPlacement(false, account({ status: "NEEDS_ACTION", reason: "NOT_VERIFIED", verifying: true }))).toBe("card");
+  });
+  it("VALID 是 line，VALID 且验证中也是 line", () => {
+    expect(accountPlacement(false, account())).toBe("line");
+    expect(accountPlacement(false, account({ verifying: true }))).toBe("line");
+  });
+});
+
+describe("lineStatusLabel", () => {
+  it("OWN VALID 是 Valid，SHARED VALID 是 Shared，VALID 且验证中是 Verifying…", () => {
+    expect(lineStatusLabel(account())).toBe(STRINGS.statusValid);
+    expect(lineStatusLabel(account({ kind: "SHARED" }))).toBe(STRINGS.statusShared);
+    expect(lineStatusLabel(account({ verifying: true }))).toBe(STRINGS.statusVerifying);
+    expect(lineStatusLabel(account({ kind: "SHARED", verifying: true }))).toBe(STRINGS.statusVerifying);
   });
 });

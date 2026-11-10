@@ -27,10 +27,10 @@ export const STRINGS = {
   signInLink: "Go to Watch Alerts to sign in",
   notEnabled: "Auto booking is not enabled for your account.",
   adminNote: "Admins can see every task and cancel pending ones, but can't create tasks.",
-  // D-07：建任务前提——账号 VALID。表单位置显示原因
-  createNeedsLink: "Link your Northlands account above to schedule bookings.",
-  createVerifying: "Your Northlands account is being verified — you can schedule bookings once it is valid.",
-  createNeedsAction: "Your Northlands account needs action — fix it above to schedule bookings.",
+  // D-07：建任务前提——账号 VALID。D-18：账号卡片占表单的位置，这三句是卡片顶部的提示
+  createNeedsLink: "Link your Northlands account to schedule bookings — tasks you schedule are booked under it.",
+  createVerifying: "Checking your Northlands account — you can schedule bookings once it's valid.",
+  createNeedsAction: "Your Northlands account needs attention before you can schedule bookings.",
   // 列表
   scheduledTitle: "Scheduled", scheduledEmpty: "Nothing is scheduled right now.",
   // D-14：普通用户只有自己的任务；管理员看所有人的
@@ -58,9 +58,8 @@ export const STRINGS = {
     PENDING: "Pending", RUNNING: "Running", BOOKED: "Booked", DRY_RUN_OK: "Dry run OK",
     NOT_BOOKED: "Not booked", FAILED: "Failed", UNKNOWN: "Unknown result", CANCELLED: "Cancelled",
   },
-  // 我的订场账号卡片（D-13）。页面文案保持英文；NEEDS_ACTION 的原因提示是 D-16 锁定的中文，在 accountCard.ts
+  // 我的订场账号卡片（D-13）。页面文案保持英文；NEEDS_ACTION 的原因提示是 D-16 锁定的中文，在 accountCardLogic.ts
   accountTitle: "My booking account",
-  accountIntro: "Link your own Northlands account. Tasks you schedule are booked under it.",
   accountEmailLabel: "Northlands login email", accountPasswordLabel: "Northlands password",
   accountPasswordNote: "Your password is encrypted in this browser before it is sent; GreenLight's servers never see it.",
   linkBtn: "Link account", linking: "Linking…",
@@ -68,16 +67,15 @@ export const STRINGS = {
   accountLoadFailed: "Couldn't load your booking account — reload the page.",
   accountVerifying: "Verifying… this can take a minute.",
   accountStillVerifying: "Still verifying — check back in a few minutes.",
-  statusValid: "Valid", statusNeedsAction: "Needs action", statusVerifying: "Verifying…",
-  accountStatusLabel: "Status",
+  statusValid: "Valid", statusShared: "Shared", statusNeedsAction: "Needs action", statusVerifying: "Verifying…",
   accountClassLabel: "Class", accountVerifiedLabel: "Last verified",
-  accountSharedNote: "Shared GreenLight account — managed by the admin.",
-  accountSwitchNote: "To use a different Northlands account, unlink first.",
-  reverifyBtn: "Re-verify", changePasswordBtn: "Change password", unlinkBtn: "Unlink", closeFormBtn: "Close",
+  // 非 BAD_CREDENTIALS 的待处理原因：用户处理不了，但仍可以重新输入密码再检查一次
+  accountRetryNote: "You can re-enter the password to run the check again.",
+  changePasswordBtn: "Change password", unlinkBtn: "Unlink", closeFormBtn: "Close",
   changePasswordSubmit: "Save new password",
   unlinkConfirm:
     "Unlink this Northlands account? All of its pending booking tasks will fail, their creators will be emailed, and its browser profile will be deleted.",
-  unlinked: "Booking account unlinked.", reverifyStarted: "Re-verifying…",
+  unlinked: "Booking account unlinked.",
   // 管理员总览（D-12）：只读，没有绑定表单
   adminAccountsTitle: "Booking accounts",
   adminAccountsHint: "Read-only overview of everyone's linked Northlands account. Admins can't link or change accounts.",

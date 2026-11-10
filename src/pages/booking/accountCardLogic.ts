@@ -1,6 +1,7 @@
 // 「我的订场账号」卡片的纯逻辑：不碰 DOM、不发请求，可以单测。
 import type { BookingAccountDto, BookingAccountReason } from "../../api";
 import { SITE_ZONE } from "./logic";
+import { STRINGS } from "./strings";
 
 /** 提交或重新验证后，每 3 秒查一次结果。 */
 export const POLL_INTERVAL_MS = 3000;
@@ -23,6 +24,25 @@ export function cardState(account: BookingAccountDto | null | undefined, isAdmin
   if (!account) return "none";
   if (isVerifying(account)) return "verifying";
   return account.status === "VALID" ? "valid" : "needsAction";
+}
+
+// --- D-18（修订 D-13）：账号卡片的位置 ------------------------------------------------
+// 账号卡片只在没有 VALID 账号时出现，占建任务表单的位置（表单这时不渲染）；VALID 之后缩成页面顶部的一行小字。
+// 页面上没有重新验证按钮：验证失败（NEEDS_ACTION）直接在卡片里重新输入密码。
+
+/** admin：页面顶部的只读总览；line：页面顶部一行小字；card：表单位置的紧凑卡片。 */
+export type AccountPlacement = "admin" | "line" | "card";
+
+/** 管理员 admin；VALID 是 line；其余（还没拿到、没绑定、验证中、NEEDS_ACTION）都是 card。 */
+export function accountPlacement(isAdmin: boolean, account: BookingAccountDto | null | undefined): AccountPlacement {
+  if (isAdmin) return "admin";
+  return account?.status === "VALID" ? "line" : "card";
+}
+
+/** 一行小字里的状态词：验证中 → Verifying…；共享账号 → Shared；否则 Valid。 */
+export function lineStatusLabel(account: BookingAccountDto): string {
+  if (isVerifying(account)) return STRINGS.statusVerifying;
+  return account.kind === "SHARED" ? STRINGS.statusShared : STRINGS.statusValid;
 }
 
 /** 还要不要继续轮询：还在验证中，并且从 startedAt 起不到 POLL_MAX_MS。 */

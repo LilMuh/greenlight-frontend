@@ -10,10 +10,11 @@ import { clearToken, getToken } from "../../auth";
 import { SiteHeader } from "../../components/SiteHeader";
 import { classifyError } from "../config/logic";
 import { Toast } from "../config/components/Toast";
-import { AccountCard } from "./AccountCard";
+import { AccountCard, AccountLine, AdminOverview } from "./AccountCard";
+import { accountPlacement } from "./accountCardLogic";
 import { STRINGS } from "./strings";
 import {
-  accountLabel, bookedSlotView, canCreate, canSeeBooking, cardResultText, createBlockedReason, isRunAtTaken,
+  accountLabel, bookedSlotView, canCreate, canSeeBooking, cardResultText, isRunAtTaken,
   northlandsCourseId, playLineText, runLineText, siteToday, toRunAtLocal, whenLabels,
 } from "./logic";
 import { createInitialState, reducer, type BookingFormPatch } from "./reducer";
@@ -255,7 +256,8 @@ export function App() {
   // 管理员没有表单，不给 Edit（后端同样拒绝）
   // D-07：账号不是 VALID 时也不给 Edit（后端同样拒绝，BOOKING_ACCOUNT_REQUIRED）
   const creatable = canCreate(user, state.account);
-  const blockedReason = createBlockedReason(user, state.account);
+  // D-18（修订 D-13）：管理员 → 顶部只读总览；VALID → 顶部一行小字；其余 → 紧凑卡片占建任务表单的位置（表单不渲染）
+  const placement = user && canSeeBooking(user) ? accountPlacement(user.admin, state.account) : null;
   const onEdit = creatable ? startEdit : undefined;
 
   const change = (patch: BookingFormPatch) => dispatch({ type: "formChanged", patch });
@@ -280,29 +282,37 @@ export function App() {
         </div>
       )}
 
-      {/* D-13：「我的订场账号」在页面最上方，建任务表单之前。管理员看到的是所有人的绑定状态总览（只读） */}
-      {user && canSeeBooking(user) && (
-        <div className="wa-bk-top">
-          <AccountCard
-            user={user}
-            account={state.account}
-            loadFailed={state.accountFailed}
-            onAccountChange={(account) => dispatch({ type: "accountLoaded", account })}
-            onSignedOut={() => dispatch({ type: "signedOut" })}
-            onUnlinked={() => void refresh()}
-          />
+      {/* D-18：管理员看到所有人的绑定状态总览（只读）；账号 VALID 后只在页面最上方留一行小字，任务表单与列表之上 */}
+      {user && (placement === "admin" || placement === "line") && (
+        <div className={`wa-bk-top${placement === "line" ? " is-line" : ""}`}>
+          {placement === "admin" ? (
+            <AdminOverview onSignedOut={() => dispatch({ type: "signedOut" })} />
+          ) : (
+            <AccountLine
+              user={user}
+              account={state.account}
+              loadFailed={state.accountFailed}
+              onAccountChange={(account) => dispatch({ type: "accountLoaded", account })}
+              onSignedOut={() => dispatch({ type: "signedOut" })}
+              onUnlinked={() => void refresh()}
+            />
+          )}
         </div>
       )}
 
       {user && canSeeBooking(user) && (
         <div className="wa-body">
-          {/* D-07：账号不是 VALID 时表单位置只说原因（没绑定 / 验证中 / Needs action） */}
-          {blockedReason && (
+          {/* D-18：没有 VALID 账号时，紧凑的账号卡片占建任务表单的位置（与下面的表单互斥） */}
+          {user && placement === "card" && (
             <div className="wa-side">
-              <div className="wa-form">
-                <div className="wa-form-title">{STRINGS.newTitle}</div>
-                <div className="wa-hint" role="status">{blockedReason}</div>
-              </div>
+              <AccountCard
+                user={user}
+                account={state.account}
+                loadFailed={state.accountFailed}
+                onAccountChange={(account) => dispatch({ type: "accountLoaded", account })}
+                onSignedOut={() => dispatch({ type: "signedOut" })}
+                onUnlinked={() => void refresh()}
+              />
             </div>
           )}
           {/* D-15：管理员看不到建任务表单 */}
