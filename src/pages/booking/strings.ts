@@ -74,7 +74,7 @@ export const STRINGS = {
   changePasswordBtn: "Change password", unlinkBtn: "Unlink", closeFormBtn: "Close",
   changePasswordSubmit: "Save new password",
   unlinkConfirm:
-    "Unlink this Northlands account? All of its pending booking tasks will fail, their creators will be emailed, and its browser profile will be deleted.",
+    "Unlink this Northlands account? Its pending booking tasks will fail and their creators will be emailed. You can link the same account again later to restore it.",
   unlinked: "Booking account unlinked.",
   // 管理员总览（D-12）：只读，没有绑定表单
   adminAccountsTitle: "Booking accounts",

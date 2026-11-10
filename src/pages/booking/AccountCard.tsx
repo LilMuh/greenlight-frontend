@@ -245,7 +245,7 @@ function useAccountActions(props: ActionProps, options: { onLinked?: () => void 
     }
   };
 
-  // 解绑：二次确认，写明后果（该账号的待执行任务会失败并通知创建者、浏览器 profile 被删除）。成功后回到未绑定的卡片
+  // 解绑：二次确认，写明后果（该账号的待执行任务会失败并通知创建者；记录保留，之后可用同一账号重新绑定恢复，D-19）。成功后回到未绑定的卡片
   const unlink = async () => {
     if (!window.confirm(STRINGS.unlinkConfirm)) return;
     setBusy(true);
