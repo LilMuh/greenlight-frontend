@@ -70,8 +70,10 @@ export const STRINGS = {
   statusValid: "Valid", statusShared: "Shared", statusInvalid: "Invalid", statusVerifying: "Verifying…",
   accountClassLabel: "Class", accountVerifiedLabel: "Last verified",
   unlinkBtn: "Unlink",
-  unlinkConfirm:
-    "Unlink this Northlands account? Your pending booking tasks will be cancelled right away. You can link the same account again later.",
+  // VALID 账号解绑前的页内确认框（D-20：待执行任务立即取消）
+  unlinkDialogTitle: "Unlink this booking account?",
+  unlinkDialogBody: "Your pending booking tasks will be cancelled right away. You can link the same account again later.",
+  unlinkDialogCancel: "Keep it",
   unlinked: "Booking account unlinked.",
   // 管理员总览（D-12）：只读，没有绑定表单
   adminAccountsTitle: "Booking accounts",

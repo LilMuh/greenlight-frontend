@@ -1,8 +1,10 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" translate="no">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- 每次切页都是一次新文档加载（三页是独立的 HTML），浏览器语言不是英文时 Chrome 每页都会问要不要翻译；页面本来就是英文，关掉这个提示 -->
+    <meta name="google" content="notranslate" />
     <title>GreenLight — Watch Alerts</title>
     <!-- 页面底色在 HTML 里就有：CSS 包解析前也用页面底色，暗色系统下也不先刷一层深色画布 -->
     <style>

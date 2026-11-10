@@ -2,7 +2,7 @@
 // 小卡片（AccountChip：邮箱 · 状态 · Unlink），VALID 时放在任务区上方，验证中 / Invalid 时留在表单位置。页面没有重新验证和改密码入口。
 // 密码只活在表单组件的 state 与一次提交的局部变量里：加密完就清空；不进 reducer、不进任何浏览器存储、
 // 不拼进 URL、没有任何控制台输出（D-05、T-06-41）。后端永远只收到 {keyId, loginEmail, ciphertext}。
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import {
   ApiError, getBookingKey, getMyBookingAccount, linkBookingAccount, listBookingAccounts,
   unlinkBookingAccount, type BookingAccountAdminDto, type BookingAccountDto, type UserDto,
@@ -239,9 +239,9 @@ function useAccountActions(props: ActionProps) {
     }
   };
 
-  // 解绑：二次确认，写明后果（该账号的待执行任务立即取消，D-20；记录保留，之后可用同一账号重新绑定恢复，D-19）。成功后刷新任务列表、回到未绑定的卡片
+  // 解绑（该账号的待执行任务立即取消，D-20；记录保留，之后可用同一账号重新绑定恢复，D-19）。成功后刷新任务列表、回到未绑定的卡片。
+  // 要不要先确认由调用方决定：只有 VALID 时小卡片先弹页内对话框（用户 2026-11-10 指定），其余状态点了直接解绑
   const unlink = async () => {
-    if (!window.confirm(STRINGS.unlinkConfirm)) return;
     setBusy(true);
     setMessage("");
     try {
@@ -299,13 +299,19 @@ function LinkCard(props: Props) {
 /**
  * 已绑定账号的小卡片（用户 2026-11-10 指定）：顶部小标签 Booking account，一行「登录邮箱 · 状态 · Unlink」。
  * 没有改密码入口：Invalid 时只显示原因小字，处理方式是 Unlink 后重新绑定（D-19：同一账号重绑恢复原记录）。
- * 验证中 Unlink 不可点。邮箱和状态都不是链接，也不带下划线（iOS 的邮箱自动识别在 booking.html 里关掉）。
+ * 验证中 Unlink 不可点；VALID 时先弹页内确认框，Invalid 时点了直接解绑。邮箱和状态都不是链接，也不带下划线（iOS 的邮箱自动识别在 booking.html 里关掉）。
  */
 export function AccountChip(props: Props) {
   const actions = useAccountActions(props);
+  const [confirming, setConfirming] = useState(false);
   const { account } = props;
   if (!account) return null;
   const status = chipStatus(account);
+  // 只有可用（VALID）的账号解绑前要确认；Invalid 的账号本来就用不了，点了直接解绑
+  const onUnlinkClick = () => {
+    if (status.tone === "valid") setConfirming(true);
+    else void actions.unlink();
+  };
   return (
     <section className="wa-bk-chip" aria-label={STRINGS.accountTitle}>
       <div className="wa-bk-chip-label">{STRINGS.accountTitle}</div>
@@ -316,7 +322,7 @@ export function AccountChip(props: Props) {
           type="button"
           className="wa-bk-chip-unlink"
           disabled={actions.busy || status.tone === "verifying"}
-          onClick={() => void actions.unlink()}
+          onClick={onUnlinkClick}
         >
           {STRINGS.unlinkBtn}
         </button>
@@ -327,6 +333,52 @@ export function AccountChip(props: Props) {
       {/* D-16：这处中文提示是锁定要求 */}
       {status.tone === "invalid" && <div className="wa-bk-chip-hint is-danger">{reasonHint(account.reason)}</div>}
       {actions.message && <div className="wa-bk-chip-hint is-danger" role="alert">{actions.message}</div>}
+      {confirming && (
+        <UnlinkDialog
+          busy={actions.busy}
+          onCancel={() => setConfirming(false)}
+          onConfirm={() => {
+            setConfirming(false);
+            void actions.unlink();
+          }}
+        />
+      )}
     </section>
+  );
+}
+
+/**
+ * 解绑确认的页内对话框（不用浏览器自带的 confirm 弹窗）。用原生 <dialog> 的 showModal：
+ * 自带遮罩、焦点困在框内、Esc 关闭（触发 cancel 事件 → onCancel）；挂载即打开，卸载即关闭。
+ */
+function UnlinkDialog(props: { busy: boolean; onCancel: () => void; onConfirm: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  useEffect(() => {
+    const dialog = ref.current;
+    if (dialog && !dialog.open) dialog.showModal();
+    return () => dialog?.close();
+  }, []);
+  return (
+    <dialog
+      ref={ref}
+      className="wa-bk-dialog"
+      aria-labelledby={titleId}
+      onCancel={(event) => {
+        event.preventDefault();
+        props.onCancel();
+      }}
+    >
+      <div className="wa-bk-dialog-title" id={titleId}>{STRINGS.unlinkDialogTitle}</div>
+      <div className="wa-bk-dialog-body">{STRINGS.unlinkDialogBody}</div>
+      <div className="wa-bk-dialog-actions">
+        <button type="button" className="wa-bk-dialog-cancel" onClick={props.onCancel}>
+          {STRINGS.unlinkDialogCancel}
+        </button>
+        <button type="button" className="wa-bk-dialog-confirm" disabled={props.busy} onClick={props.onConfirm}>
+          {STRINGS.unlinkBtn}
+        </button>
+      </div>
+    </dialog>
   );
 }

@@ -1,8 +1,10 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" translate="no">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- 每次切页都是一次新文档加载（三页是独立的 HTML），浏览器语言不是英文时 Chrome 每页都会问要不要翻译；页面本来就是英文，关掉这个提示 -->
+    <meta name="google" content="notranslate" />
     <!-- 关掉 iOS Safari 把邮箱 / 电话自动识别成带下划线的链接（订场账号卡片里的邮箱不能有下划线） -->
     <meta name="format-detection" content="telephone=no, email=no, address=no" />
     <title>GreenLight — Auto Booking</title>

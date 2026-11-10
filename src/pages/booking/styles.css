@@ -299,3 +299,59 @@
   border-radius: 10px;
   min-width: 0;
 }
+
+/* VALID 账号解绑前的页内确认框（原生 <dialog> 的 showModal，自带遮罩与焦点管理） */
+.wa-bk-dialog {
+  width: min(360px, calc(100vw - 32px));
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px;
+  background: #fff;
+  color: var(--ink);
+  font-family: "Manrope", system-ui, sans-serif;
+  box-shadow: 0 12px 32px oklch(22% 0.01 95 / 0.18);
+}
+.wa-bk-dialog::backdrop {
+  background: oklch(22% 0.01 95 / 0.35);
+}
+.wa-bk-dialog-title {
+  font-size: 15px;
+  font-weight: 800;
+}
+.wa-bk-dialog-body {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--muted);
+}
+.wa-bk-dialog-actions {
+  margin-top: 18px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.wa-bk-dialog-cancel,
+.wa-bk-dialog-confirm {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.wa-bk-dialog-cancel {
+  background: #fff;
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+.wa-bk-dialog-confirm {
+  background: var(--danger);
+  border: 1px solid var(--danger);
+  color: #fff;
+}
+.wa-bk-dialog-confirm:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

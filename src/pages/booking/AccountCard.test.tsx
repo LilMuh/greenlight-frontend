@@ -83,6 +83,11 @@ describe("AccountChip（绑定后的小卡片：Booking account 标签、邮箱 
   it("没有账号记录时什么都不渲染", () => {
     expect(render(AccountChip, null)).toBe("");
   });
+
+  it("首次渲染没有确认框，也不用浏览器弹窗确认", () => {
+    expect(render(AccountChip, account())).not.toContain("<dialog");
+    expect(STRINGS).not.toHaveProperty("unlinkConfirm");
+  });
 });
 
 describe("AccountCard（没有 VALID 账号时占表单位置）", () => {
