@@ -1,7 +1,7 @@
 // Auto Booking 页。要登录：没登录只提示去 config 页登录（登录面板在那边）。
 // 可见性（D-15 / D-16）：管理员和开启了订场的用户看得到列表；只有开启了订场的普通用户看得到建任务表单。
 // 前端只决定显示，建 / 查 / 改 / 取消的权限全在后端判定。
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useCallback, useEffect, useReducer, useRef, useSyncExternalStore } from "react";
 import {
   ApiError, cancelBookingTask, createBookingTask, getCourses, getMe, getMyBookingAccount, listBookingTasks, logout,
   updateBookingTask, type BookingTaskDto,
@@ -86,6 +86,23 @@ function TaskCard(props: {
         </div>
       )}
     </div>
+  );
+}
+
+// 与 config/styles.css 里 .wa-body 换成一列的断点一致：窄于它时表单在上、任务列表在下
+const PHONE_QUERY = "(max-width: 860px)";
+
+/** 是否是一列布局（手机）。没有 matchMedia（SSR、测试）时按桌面算。 */
+function usePhoneLayout(): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      if (typeof window === "undefined" || !window.matchMedia) return () => {};
+      const query = window.matchMedia(PHONE_QUERY);
+      query.addEventListener("change", onChange);
+      return () => query.removeEventListener("change", onChange);
+    },
+    () => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia(PHONE_QUERY).matches,
+    () => false,
   );
 }
 
@@ -258,6 +275,18 @@ export function App() {
   const creatable = canCreate(user, state.account);
   // D-18（修订 D-13）：管理员 → 顶部只读总览；VALID → 顶部一行小字；其余 → 紧凑卡片占建任务表单的位置（表单不渲染）
   const placement = user && canSeeBooking(user) ? accountPlacement(user.admin, state.account) : null;
+  const phone = usePhoneLayout();
+  // VALID 账号的小卡片：桌面在任务列表上方、手机在建任务表单上方，同一时刻只挂一个
+  const chip = user && placement === "line" ? (
+    <AccountChip
+      user={user}
+      account={state.account}
+      loadFailed={state.accountFailed}
+      onAccountChange={(account) => dispatch({ type: "accountLoaded", account })}
+      onSignedOut={() => dispatch({ type: "signedOut" })}
+      onUnlinked={() => void refresh()}
+    />
+  ) : null;
   const onEdit = creatable ? startEdit : undefined;
 
   const change = (patch: BookingFormPatch) => dispatch({ type: "formChanged", patch });
@@ -307,6 +336,8 @@ export function App() {
           {/* D-15：管理员看不到建任务表单 */}
           {creatable && (
             <div className="wa-side" ref={formRef}>
+              {/* 手机是一列，小卡片放在 New Booking Task 上方（用户 2026-11-10 指定） */}
+              {placement === "line" && phone && chip}
               <div className="wa-form">
                 <div className="wa-form-title">
                   {state.editingId != null ? STRINGS.editTitle(state.editingId) : STRINGS.newTitle}
@@ -412,17 +443,8 @@ export function App() {
 
           <div className="wa-list">
             {user.admin && <div className="wa-hint">{STRINGS.adminNote}</div>}
-            {/* 账号 VALID 后是任务列表上方的小卡片（用户 2026-11-10 设计稿：在 Scheduled 之上） */}
-            {placement === "line" && (
-              <AccountChip
-                user={user}
-                account={state.account}
-                loadFailed={state.accountFailed}
-                onAccountChange={(account) => dispatch({ type: "accountLoaded", account })}
-                onSignedOut={() => dispatch({ type: "signedOut" })}
-                onUnlinked={() => void refresh()}
-              />
-            )}
+            {/* 账号 VALID 后：桌面是任务列表上方的小卡片（用户 2026-11-10 设计稿：在 Scheduled 之上） */}
+            {placement === "line" && !phone && chip}
 
             <section className="wa-bk-section">
               <div className="wa-group-head">{STRINGS.scheduledTitle}</div>
