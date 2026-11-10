@@ -71,7 +71,7 @@ export const STRINGS = {
   accountClassLabel: "Class", accountVerifiedLabel: "Last verified",
   unlinkBtn: "Unlink",
   unlinkConfirm:
-    "Unlink this Northlands account? Its pending booking tasks will fail and their creators will be emailed. You can link the same account again later to restore it.",
+    "Unlink this Northlands account? Your pending booking tasks will be cancelled right away. You can link the same account again later.",
   unlinked: "Booking account unlinked.",
   // 管理员总览（D-12）：只读，没有绑定表单
   adminAccountsTitle: "Booking accounts",
