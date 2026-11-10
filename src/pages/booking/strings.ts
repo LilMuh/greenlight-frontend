@@ -20,17 +20,22 @@ export const STRINGS = {
   needPrice: "Max price must be a whole number from 1 to 1000.",
   needCourse: "Northlands isn't available right now — reload the page.",
   created: "Booking task scheduled.", updated: "Booking task updated.", cancelled: "Booking task cancelled.",
-  // D-09 / D-16：谁占了这个运行时间（创建者的完整登录邮箱 + 任务号）
-  occupied: (email: string, id: number) =>
-    `That run time is already taken by ${email} (task #${id}).`,
+  // D-09 / D-10 / D-14：同一运行时间全局只能有一个任务；订场任务互相独立，只说被占用，不说是谁、哪个任务
+  occupied: "That run time is already taken.",
   // 登录与可见性（D-15 / D-16）
   signInPrompt: "Sign in on the Watch Alerts page first, then come back here.",
   signInLink: "Go to Watch Alerts to sign in",
   notEnabled: "Auto booking is not enabled for your account.",
   adminNote: "Admins can see every task and cancel pending ones, but can't create tasks.",
+  // D-07：建任务前提——账号 VALID。D-18：账号卡片占表单的位置，这三句是卡片顶部的提示
+  createNeedsLink: "Link your Northlands account to schedule bookings — tasks you schedule are booked under it.",
+  createVerifying: "Checking your Northlands account — you can schedule bookings once it's valid.",
+  createNeedsAction: "Your Northlands account needs attention before you can schedule bookings.",
   // 列表
   scheduledTitle: "Scheduled", scheduledEmpty: "Nothing is scheduled right now.",
-  scheduledHint: "Pending and running tasks from everyone. One task per run time.",
+  // D-14：普通用户只有自己的任务；管理员看所有人的
+  scheduledHint: "Your pending and running tasks. One task per run time across GreenLight.",
+  scheduledHintAdmin: "Pending and running tasks from everyone.",
   myTitle: "My tasks", myTitleAdmin: "All tasks", myEmpty: "No tasks yet.",
   countText: (count: number) => `${count} task${count === 1 ? "" : "s"}`,
   loadingTasks: "Loading…",
@@ -53,6 +58,34 @@ export const STRINGS = {
     PENDING: "Pending", RUNNING: "Running", BOOKED: "Booked", DRY_RUN_OK: "Dry run OK",
     NOT_BOOKED: "Not booked", FAILED: "Failed", UNKNOWN: "Unknown result", CANCELLED: "Cancelled",
   },
+  // 我的订场账号卡片（D-13）。页面文案保持英文；NEEDS_ACTION 的原因提示是 D-16 锁定的中文，在 accountCardLogic.ts
+  accountTitle: "My booking account",
+  accountEmailLabel: "Northlands login email", accountPasswordLabel: "Northlands password",
+  accountPasswordNote: "Your password is encrypted in this browser before it is sent; GreenLight's servers never see it.",
+  linkBtn: "Link account", linking: "Linking…",
+  accountLoading: "Loading…",
+  accountLoadFailed: "Couldn't load your booking account — reload the page.",
+  accountVerifying: "Verifying… this can take a minute.",
+  accountStillVerifying: "Still verifying — check back in a few minutes.",
+  statusValid: "Valid", statusShared: "Shared", statusNeedsAction: "Needs action", statusVerifying: "Verifying…",
+  accountClassLabel: "Class", accountVerifiedLabel: "Last verified",
+  // 非 BAD_CREDENTIALS 的待处理原因：用户处理不了，但仍可以重新输入密码再检查一次
+  accountRetryNote: "You can re-enter the password to run the check again.",
+  changePasswordBtn: "Change password", unlinkBtn: "Unlink", closeFormBtn: "Close",
+  changePasswordSubmit: "Save new password",
+  unlinkConfirm:
+    "Unlink this Northlands account? Its pending booking tasks will fail and their creators will be emailed. You can link the same account again later to restore it.",
+  unlinked: "Booking account unlinked.",
+  // 管理员总览（D-12）：只读，没有绑定表单
+  adminAccountsTitle: "Booking accounts",
+  adminAccountsHint: "Read-only overview of everyone's linked Northlands account. Admins can't link or change accounts.",
+  adminAccountsEmpty: "No booking accounts yet.", adminAccountsLoading: "Loading…",
+  adminAccountsFailed: "Couldn't load the booking accounts — reload the page.",
+  adminUserLabel: "GreenLight user", adminKindLabel: "Kind",
+  // 加密前就被拒绝：什么都没发出去，不是网络错误
+  keyUntrusted: "This page can't verify the encryption key, so nothing was sent. Please contact the admin.",
+  credentialsTooLong: "The email and password are too long (300 bytes at most together) — nothing was sent.",
+  needEmailPassword: "Enter both the Northlands email and password.",
   cancelBtn: "Cancel task",
   cancelConfirm: "Cancel this booking task?",
 } as const;

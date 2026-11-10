@@ -113,7 +113,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // 自动订场（跨仓库契约：与后端 ApiErrorCode 的 BOOKING_* 同名，后端只追加不改名，05-06）
   BOOKING_NOT_ENABLED: "Auto booking isn't enabled for your account.",
   BOOKING_ADMIN_CANNOT_CREATE: "Admins can view and cancel booking tasks but can't create or edit them.",
-  BOOKING_RUN_AT_TAKEN: "That run time is already taken — see Scheduled for who has it.",
+  BOOKING_RUN_AT_TAKEN: "That run time is already taken.",
   BOOKING_COURSE_UNSUPPORTED: "Auto booking isn't available for that course.",
   BOOKING_DATE_OUT_OF_WINDOW: "That play date can't be booked at that run time — a day opens at 07:00, five days ahead.",
   BOOKING_RUN_AT_INVALID: "Run time looks wrong — pick a valid time in the future.",
@@ -124,6 +124,18 @@ export const ERROR_MESSAGES: Record<string, string> = {
   BOOKING_TASK_NOT_FOUND: "That booking task is gone — reload the page.",
   BOOKING_TASK_NOT_PENDING: "That task has already started or finished, so it can't be changed or cancelled.",
   BOOKING_TASK_ABOUT_TO_RUN: "That task is about to run, so it can no longer be edited.",
+  // 我的订场账号（跨仓库契约：与后端 ApiErrorCode 的 BOOKING_ACCOUNT_* 同名，只追加不改名，06-06）
+  BOOKING_ACCOUNT_REQUIRED: "Link and verify your Northlands account first (My booking account, above).",
+  BOOKING_ACCOUNT_NOT_FOUND: "No booking account is linked — reload the page.",
+  BOOKING_ACCOUNT_EMAIL_TAKEN: "That Northlands account is already linked by someone else.",
+  BOOKING_ACCOUNT_ALREADY_LINKED: "You already have a different Northlands account linked — unlink it first.",
+  BOOKING_ACCOUNT_BUSY: "A task is using your booking account right now — try again in a few minutes.",
+  BOOKING_ACCOUNT_KEY_MISMATCH: "The encryption key was just rotated — submit once more and the page will use the new key.",
+  BOOKING_ACCOUNT_PAYLOAD_INVALID: "The page sent something the backend couldn't read — reload and try again.",
+  BOOKING_ACCOUNT_VERIFYING: "Your account is being verified — wait for it to finish.",
+  BOOKING_ACCOUNT_VERIFY_RATE_LIMITED: "Too many verification attempts — try again in about ten minutes.",
+  BOOKING_ACCOUNT_SERVICE_UNAVAILABLE: "The booking service isn't available right now — try again later or contact the admin.",
+  BOOKING_ACCOUNT_ADMIN_FORBIDDEN: "Admins can't link a booking account.",
   // 请求本身不合法。用户改正不了这些错误，但文案要不同，让用户知道该找谁
   UNAUTHORIZED: "Your session has ended — please sign in again.",
   FORBIDDEN: "Only admins can do that.",
